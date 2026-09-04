@@ -124,6 +124,7 @@ PY
 }
 
 matched=0
+WORK=()
 while IFS=$'\t' read -r region_id src; do
   if [[ "$DO_ALL" -eq 0 ]]; then
     keep=0
@@ -132,9 +133,18 @@ while IFS=$'\t' read -r region_id src; do
     done
     [[ "$keep" -eq 1 ]] || continue
   fi
+  WORK+=("$region_id")
+done < <(list_regions)
+
+if [[ "$DO_ALL" -eq 1 ]]; then
+  order_regions_array_follow_sun WORK
+  log_info "convert sun_order=${NAVI_BAKE_SUN_ORDER:-1} regions=${#WORK[@]}"
+fi
+
+for region_id in "${WORK[@]+"${WORK[@]}"}"; do
   matched=1
   convert_one "$region_id"
-done < <(list_regions)
+done
 
 if [[ "$matched" -eq 0 ]]; then
   die "no matching regions"

@@ -1,0 +1,32 @@
+[package]
+name = "pack-convert-core"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Standalone OSM→Navi indexed pack converter (server bake path)"
+publish = false
+
+[dependencies]
+anyhow = "1"
+bincode = "1"
+chrono = { version = "0.4", default-features = true, features = ["clock"] }
+geo = "0.29"
+geo-types = "0.7"
+geotiff = "0.1"
+libc = "0.2"
+log = "0.4"
+memmap2 = "0.9"
+opening-hours = "=1.4.0"
+osm4routing = "0.8"
+osmpbf = "0.3"
+pathfinding = "4"
+rayon = "1"
+rkyv = { version = "0.8", features = ["alloc"] }
+rstar = "0.12"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+srtm_reader = "0.5"
+thiserror = "2"
+
+[dev-dependencies]
+tempfile = "3"

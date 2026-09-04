@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = [
+    "pack-convert-core",
+    "navi-indexed-convert",
+]
+default-members = ["pack-convert-core", "navi-indexed-convert"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"

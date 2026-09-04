@@ -47,6 +47,10 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 log_info "==== navi pack bake start run_id=${RUN_ID} ===="
 log_info "log=${LOG_FILE}"
 log_info "regions_conf=${NAVI_REGIONS_CONF} profiles=${NAVI_PROFILES} delta_h=${NAVI_BAKE_DELTA_H}"
+log_info "sun_order=${NAVI_BAKE_SUN_ORDER:-1} (local-night terminator; see sun-order-regions.py)"
+# Pin the midnight meridian for this run (fetch + convert share the same order).
+export NAVI_BAKE_START_UNIX="${NAVI_BAKE_START_UNIX:-$(date -u +%s)}"
+log_info "bake_start_unix=${NAVI_BAKE_START_UNIX}"
 
 cleanup_on_fail() {
   local rc=$?

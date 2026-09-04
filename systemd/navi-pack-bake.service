@@ -6,8 +6,10 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=haaken
-Group=haaken
+# Prefer the dedicated system user installed by setup-server.sh --apply-service.
+# Keep this unit as a thin alias of navit-server.service for the weekly timer.
+User=navit-server
+Group=navit-server
 WorkingDirectory=/media/navi/navi-server/scripts
 Environment=NAVI_PACK_CONFIG=/media/navi/navi-server/data/config.env
 # Nice/IO: convert is CPU-heavy; leave headroom on a shared box.
@@ -17,6 +19,12 @@ IOSchedulingPriority=7
 ExecStart=/media/navi/navi-server/scripts/run-weekly.sh
 # On failure, journal + log file both carry a clear FAILED line.
 SuccessExitStatus=0
+ReadWritePaths=/media/navi/navi-server/data
+ReadOnlyPaths=/media/navi/navi-server/scripts /media/navi/navi-server/http /media/navi/navi-server/systemd /media/navi/navi-server/docs
+# In-repo convert binary (cargo build --release -p navi-indexed-convert).
+ReadOnlyPaths=/media/navi/navi-server/target/release
+NoNewPrivileges=true
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target

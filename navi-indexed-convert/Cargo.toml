@@ -1,0 +1,14 @@
+[package]
+name = "navi-indexed-convert"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "CLI: convert a region .osm.pbf into Navi indexed packs"
+publish = false
+
+[[bin]]
+name = "navi-indexed-convert"
+path = "src/main.rs"
+
+[dependencies]
+pack-convert-core = { path = "../pack-convert-core" }

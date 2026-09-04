@@ -1,15 +1,13 @@
 # Navi server pack bake (prototype)
 
 Self-contained server-side pipeline on this box. Fetches regional OSM extracts,
-bakes Navi indexed packs with the **existing** `navi-indexed-convert` binary
-(from `/media/navi/Navi`), validates them, and publishes a blue-green tree.
+bakes Navi indexed packs with the in-repo `navi-indexed-convert` binary
+(`pack-convert-core` / `navi-indexed-convert` crates), validates them, and
+publishes a blue-green tree. **No Navi app tree is required to build or run.**
 
 **Scope:** server-side only. No Android / client contract work lives here.
 The app’s direct Geofabrik download + on-device convert path stays the
 unconditional fallback and is untouched by this tree.
-
-**Convert tooling:** this pipeline **invokes** `navi-indexed-convert`; it does
-not patch or replace it. Ask before changing convert sources in the Navi repo.
 
 ---
 
@@ -18,7 +16,11 @@ not patch or replace it. Ask before changing convert sources in the Navi repo.
 ```text
 /media/navi/navi-server/
   README.md                 # this file
+  Cargo.toml                # workspace: pack-convert-core + navi-indexed-convert
+  pack-convert-core/        # OSM→indexed pack library (standalone extract)
+  navi-indexed-convert/     # CLI binary crate
   docs/client-fetch.md      # future client GET contract + exposure surface
+  docs/pack-formats.md      # binary/JSON pack formats and how to read them
   scripts/                  # independently runnable pipeline steps
     lib/common.sh
     config.example.env
@@ -31,12 +33,21 @@ not patch or replace it. Ask before changing convert sources in the Navi repo.
 
 | Path | Role |
 |---|---|
+| `pack-convert-core/` | Convert library (no Navi / UniFFI / HTTP deps) |
+| `navi-indexed-convert/` | `navi-indexed-convert` CLI |
+| `docs/` | Specs — see [Documentation](#documentation) |
 | `scripts/*.sh` | Fetch / convert / validate / publish / cleanup / weekly orchestrator |
 | `data/` | Runtime data root on ZFS `Mypool/navi` |
-| `data/published/` | Static pack tree for HTTP (see [`docs/client-fetch.md`](docs/client-fetch.md)) |
+| `data/published/` | Static pack tree for HTTP |
 | `http/` | Apache vhost: GET/HEAD only, DocumentRoot = `data/published` |
-| `systemd/` | `navi-pack-bake.service` + `.timer` (install manually when ready) |
-| `/media/navi/Navi` | App repo only — source of `navi-indexed-convert` |
+| `systemd/` | `navit-server.service` + `navi-pack-bake.service` / `.timer` |
+
+## Documentation
+
+| Doc | Contents |
+|---|---|
+| [`docs/pack-formats.md`](docs/pack-formats.md) | Binary and JSON pack formats, what they contain, and how to read them |
+| [`docs/client-fetch.md`](docs/client-fetch.md) | Future client HTTP GET contract and exposure surface |
 
 Data root detail:
 
@@ -61,15 +72,26 @@ Data root detail:
 
 ```bash
 /media/navi/navi-server/scripts/setup-server.sh
-# Apache (needs your sudo password):
-sudo /media/navi/navi-server/scripts/setup-server.sh --apply-apache
+# Apache + dedicated service user (needs your sudo password):
+sudo /media/navi/navi-server/scripts/setup-server.sh --apply-apache --apply-service
 # Verify:
 /media/navi/navi-server/scripts/setup-server.sh --check
 
-# Build the existing convert binary once in the Navi repo (do not modify its sources):
+# Build the in-repo convert binary (pack-convert-core; no Navi tree required):
 . "$HOME/.cargo/env"
-cd /media/navi/Navi
-CARGO_TARGET_DIR=/media/navi/Navi/target cargo build -p navi-ffi --release --bin navi-indexed-convert
+cd /media/navi/navi-server
+cargo build --release -p navi-indexed-convert
+```
+
+
+`--apply-service` creates system user **`navit-server`**, owns `data/`, and
+installs `navit-server.service` (plus `navi-pack-bake.service` / `.timer`
+files). The weekly timer is **not** enabled by this step.
+
+```bash
+# Hand-run a bake as the service user:
+sudo systemctl start navit-server.service
+journalctl -u navit-server.service -n 100
 ```
 
 Hedmark is **not** on Geofabrik (landsdel extracts only). The example region
@@ -176,7 +198,8 @@ Assembles `data/staging/<generation>/`, writes `generation-manifest.json`, runs
 validate, moves to `data/generations/`, atomically swaps `data/live`, keeps
 `data/previous` for rollback, and copies the generation into
 `data/published/packs/<region>/<generation>/` (plus `current.json`) for static
-HTTP GET. See [`docs/client-fetch.md`](docs/client-fetch.md).
+HTTP GET. See [`docs/client-fetch.md`](docs/client-fetch.md) and
+[`docs/pack-formats.md`](docs/pack-formats.md).
 
 ### HTTP static server (read-only)
 
@@ -197,6 +220,7 @@ systemctl --user disable --now navi-packs-static.service
 ```
 
 Full client URL contract + exposure surface: [`docs/client-fetch.md`](docs/client-fetch.md).
+Pack binary/JSON formats: [`docs/pack-formats.md`](docs/pack-formats.md).
 
 ### 6. Cleanup
 
@@ -224,15 +248,29 @@ Logs: `/media/navi/navi-server/data/logs/weekly-*.log`. Failures include a clear
 Units live in `systemd/`. **Do not enable** until a hand-run Hedmark bake
 passes validate + publish.
 
+For multi-region planet smokes, prefer the CPU/RAM-aware parallel runner
+(after the sequential in-flight job finishes):
+
 ```bash
-sudo cp /media/navi/navi-server/systemd/navi-pack-bake.service \
-        /media/navi/navi-server/systemd/navi-pack-bake.timer \
-        /etc/systemd/system/
-sudo systemctl daemon-reload
+./scripts/run-planet-smoke-parallel.sh --dry-run --limit 4
+./scripts/run-planet-smoke-parallel.sh --resume
+# Collision test for generation ids:
+./scripts/test-generation-id.sh
+```
+
+Concurrency is auto-detected from `nproc` + `MemAvailable` with reserves for
+co-resident services (see `NAVI_SMOKE_*` in `config.example.env`).
+
+```bash
+# Preferred: install user + units via setup (does not enable the timer):
+sudo /media/navi/navi-server/scripts/setup-server.sh --apply-service
+
 # After smoke test OK:
 # sudo systemctl enable --now navi-pack-bake.timer
-# journalctl -u navi-pack-bake.service -n 100
+# journalctl -u navit-server.service -n 100
 ```
+
+Bake units run as **`navit-server`** (not a login account).
 
 Failure notification for the prototype is the `[FAILED]` log line in the weekly
 log and the systemd unit result (`systemctl status` / journal).

@@ -5,7 +5,8 @@ server yet. This document describes how a future client should fetch packs with
 plain HTTP(S) GET, and what the server exposes when put on the internet.
 
 **Pipeline:** `/media/navi/navi-server` (see [README](../README.md)).  
-**HTTP static root:** `/media/navi/navi-server/data/published` only.
+**HTTP static root:** `/media/navi/navi-server/data/published` only.  
+**Pack binary/JSON formats:** [pack-formats.md](pack-formats.md).
 
 ---
 
@@ -188,13 +189,13 @@ These paths are **outside** DocumentRoot and must stay that way:
 |---|---|
 | `/media/navi/navi-server/scripts/` | Pipeline commands |
 | `/media/navi/navi-server/systemd/` | Timer/service units |
-| `/media/navi/navi-server/docs/` | Ops/docs |
+| `/media/navi/navi-server/docs/` | Ops/docs (`client-fetch.md`, `pack-formats.md`) |
 | `/media/navi/navi-server/data/scratch/` | Extracts + convert scratch |
 | `/media/navi/navi-server/data/staging/` | In-flight bake |
 | `/media/navi/navi-server/data/state/` | ETag / Last-Modified fetch state |
 | `/media/navi/navi-server/data/generations/` | Internal blue-green trees (copied into `published/` for serving) |
 | `/media/navi/navi-server/data/logs/` | Bake logs |
-| `/media/navi/Navi/` | App / convert source tree |
+| `/media/navi/navi-server/target/release/` | In-repo `navi-indexed-convert` binary |
 
 There is **no HTTP code path** by which a remote request can:
 

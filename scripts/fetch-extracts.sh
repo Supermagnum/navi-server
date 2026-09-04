@@ -137,6 +137,8 @@ fetch_one() {
 }
 
 matched=0
+# Build work list, then follow-the-sun order when processing the full set.
+WORK=()
 while IFS=$'\t' read -r region_id src; do
   if [[ ${#FILTER_IDS[@]} -gt 0 ]]; then
     keep=0
@@ -145,9 +147,28 @@ while IFS=$'\t' read -r region_id src; do
     done
     [[ "$keep" -eq 1 ]] || continue
   fi
+  WORK+=("${region_id}"$'\t'"${src}")
+done < <(list_regions)
+
+if [[ ${#FILTER_IDS[@]} -eq 0 ]]; then
+  mapfile -t ORDERED_IDS < <(printf '%s\n' "${WORK[@]}" | awk -F'\t' '{print $1}' | follow_sun_order_ids)
+  declare -A SRC_BY_ID=()
+  for row in "${WORK[@]}"; do
+    SRC_BY_ID["${row%%$'\t'*}"]="${row#*$'\t'}"
+  done
+  WORK=()
+  for region_id in "${ORDERED_IDS[@]}"; do
+    WORK+=("${region_id}"$'\t'"${SRC_BY_ID[$region_id]}")
+  done
+  log_info "fetch sun_order=${NAVI_BAKE_SUN_ORDER:-1} regions=${#WORK[@]}"
+fi
+
+for row in "${WORK[@]+"${WORK[@]}"}"; do
+  region_id="${row%%$'\t'*}"
+  src="${row#*$'\t'}"
   matched=1
   fetch_one "$region_id" "$src"
-done < <(list_regions)
+done
 
 if [[ "$matched" -eq 0 ]]; then
   die "no matching regions (filter=${FILTER_IDS[*]:-none}; conf=${NAVI_REGIONS_CONF})"

@@ -159,15 +159,19 @@ def referenced_files(man: dict):
     return out
 
 def rkyv_header_sane(path: Path) -> bool:
-    # rkyv archives are not empty and should be larger than a trivial header.
-    # We only check non-corrupt-enough: readable and >= 64 bytes.
+    # Fixed 8-byte preamble (magic + version) + rkyv body. Empty wetland packs
+    # for arid islands can be only slightly larger than the preamble.
     try:
         sz = path.stat().st_size
-        if sz < 64:
+        if sz < 8:
             return False
         with path.open("rb") as f:
-            head = f.read(16)
-        return len(head) == 16
+            head = f.read(8)
+        if len(head) < 8:
+            return False
+        magic = int.from_bytes(head[0:4], "little")
+        # NVRK / NVPB / NVWL
+        return magic in (0x4E56524B, 0x4E565042, 0x4E56574C)
     except OSError:
         return False
 

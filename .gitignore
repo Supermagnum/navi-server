@@ -25,3 +25,7 @@
 *.swp
 *~
 .DS_Store
+
+# Rust workspace build output
+/target/
+
