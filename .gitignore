@@ -1,0 +1,21 @@
+# Runtime / scratch — never commit extracts, packs, or logs
+/data/scratch/
+/data/staging/
+/data/generations/
+/data/state/
+/data/logs/
+/data/live
+/data/previous
+/data/CURRENT_GENERATION
+/data/published/packs/
+/data/published/current.json
+/data/published/.staging/
+
+# Local overrides (examples stay tracked under scripts/)
+/data/config.env
+/data/regions.conf
+
+# Editor / OS junk
+*.swp
+*~
+.DS_Store

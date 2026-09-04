@@ -1,0 +1,13 @@
+[Unit]
+Description=Weekly timer for Navi indexed pack bake (prototype — disabled until verified)
+Documentation=file:///media/navi/navi-server/README.md
+
+[Timer]
+# Mondays 03:30 local — adjust after Hedmark smoke test succeeds.
+OnCalendar=Mon *-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=15m
+Unit=navi-pack-bake.service
+
+[Install]
+WantedBy=timers.target

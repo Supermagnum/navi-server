@@ -1,0 +1,22 @@
+[Unit]
+Description=Navi indexed pack bake (weekly prototype)
+Documentation=file:///media/navi/navi-server/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=haaken
+Group=haaken
+WorkingDirectory=/media/navi/navi-server/scripts
+Environment=NAVI_PACK_CONFIG=/media/navi/navi-server/data/config.env
+# Nice/IO: convert is CPU-heavy; leave headroom on a shared box.
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+ExecStart=/media/navi/navi-server/scripts/run-weekly.sh
+# On failure, journal + log file both carry a clear FAILED line.
+SuccessExitStatus=0
+
+[Install]
+WantedBy=multi-user.target

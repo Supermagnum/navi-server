@@ -1,0 +1,18 @@
+[Unit]
+Description=Navi packs static GET/HEAD server (fallback only — prefer Apache :80)
+Documentation=file:///media/navi/navi-server/docs/client-fetch.md
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/media/navi/navi-server
+ExecStart=/usr/bin/python3 /media/navi/navi-server/http/static-packs-server.py --bind 0.0.0.0 --port 8097 --root /media/navi/navi-server/data/published
+Restart=on-failure
+RestartSec=5
+# No write into the tree from this process beyond what Python needs for sockets.
+ReadOnlyPaths=/media/navi/navi-server/scripts /media/navi/navi-server/systemd /media/navi/navi-server/docs
+# ProtectHome is for system units; user units still benefit from NoNewPrivileges.
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
