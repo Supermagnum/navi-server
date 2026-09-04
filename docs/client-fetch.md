@@ -195,7 +195,8 @@ These paths are **outside** DocumentRoot and must stay that way:
 | `/media/navi/navi-server/data/state/` | ETag / Last-Modified fetch state |
 | `/media/navi/navi-server/data/generations/` | Internal blue-green trees (copied into `published/` for serving) |
 | `/media/navi/navi-server/data/logs/` | Bake logs |
-| `/media/navi/navi-server/target/release/` | In-repo `navi-indexed-convert` binary |
+| `/media/navi/navi-server/pack-convert-core/` | In-repo convert library |
+| `/media/navi/navi-server/target/release/` | `navi-indexed-convert` binary |
 
 There is **no HTTP code path** by which a remote request can:
 

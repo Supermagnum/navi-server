@@ -77,7 +77,7 @@ xxd -l 8 path/to/file.rkyv
 `{stem}.navi-graph-{profile}.t{row}_{col}.rkyv`
 
 **Constants:** `MAGIC_GRAPH`, `GRAPH_FORMAT_VERSION = 6`  
-**Source:** `Navi/core/src/routing/indexed/graph_pack.rs`
+**Source:** `pack-convert-core/src/routing/indexed/graph_pack.rs`
 
 ### Contents
 
@@ -145,7 +145,7 @@ bbox `[min_lat, min_lon, max_lat, max_lon]` (logical, no build pad).
 **File:** `{stem}.navi-poi-barrier.rkyv` (always monolithic)
 
 **Constants:** `MAGIC_POI_BARRIER`, `POI_BARRIER_FORMAT_VERSION = 2`  
-**Source:** `Navi/core/src/routing/indexed/poi_barrier_pack.rs`
+**Source:** `pack-convert-core/src/routing/indexed/poi_barrier_pack.rs`
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -180,7 +180,7 @@ bbox `[min_lat, min_lon, max_lat, max_lon]` (logical, no build pad).
 **Files:** `{stem}.navi-wetland.rkyv` or `{stem}.navi-wetland.t{row}_{col}.rkyv`
 
 **Constants:** `MAGIC_WETLAND`, `WETLAND_FORMAT_VERSION = 1`  
-**Source:** `Navi/core/src/routing/indexed/wetland_pack.rs`
+**Source:** `pack-convert-core/src/routing/indexed/wetland_pack.rs`
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -281,7 +281,7 @@ Updated atomically via `current.json.partial` → rename.
 
 ### Rust (supported)
 
-Module: `driver_break_core::routing::indexed` in the Navi repo.
+Module: `pack_convert_core::routing::indexed` (in-repo).
 
 | API | Returns |
 |---|---|
@@ -315,9 +315,8 @@ To inspect raw `edge_delta_h_m`, deserialize to `FlatGraphPack` yourself (the
 | Tool | Purpose |
 |---|---|
 | `navi-indexed-convert` | PBF (+ optional DEM) → packs + `.navi-manifest.json` |
-| `navi-indexed-bench` | Load timing / mismatch checks |
-| `navi-server/scripts/validate-packs.sh` | Presence, size bands, weak ≥64B header check (does **not** verify magic/version) |
-| `navi-server/scripts/publish-packs.sh` | Staging → published + `manifest.json` / checksums |
+| `scripts/validate-packs.sh` | Presence, size bands, weak ≥64B header check (does **not** verify magic/version) |
+| `scripts/publish-packs.sh` | Staging → published + `manifest.json` / checksums |
 
 Build convert (in-repo `pack-convert-core` / `navi-indexed-convert`):
 
@@ -356,13 +355,13 @@ sha256sum -c checksums.sha256
 
 | Topic | Path |
 |---|---|
-| Preamble | `Navi/core/src/routing/indexed/header.rs` |
-| Graph body | `…/graph_pack.rs` |
-| POI/barrier body | `…/poi_barrier_pack.rs` |
-| Wetland body | `…/wetland_pack.rs` |
-| Loaders | `…/load.rs` |
-| Manifest + filenames | `…/manifest.rs` |
-| Convert / tiling | `…/convert.rs` |
-| Atomic IO | `…/io.rs` |
+| Preamble | `pack-convert-core/src/routing/indexed/header.rs` |
+| Graph body | `pack-convert-core/src/routing/indexed/graph_pack.rs` |
+| POI/barrier body | `pack-convert-core/src/routing/indexed/poi_barrier_pack.rs` |
+| Wetland body | `pack-convert-core/src/routing/indexed/wetland_pack.rs` |
+| Loaders | `pack-convert-core/src/routing/indexed/load.rs` |
+| Manifest + filenames | `pack-convert-core/src/routing/indexed/manifest.rs` |
+| Convert / tiling | `pack-convert-core/src/routing/indexed/convert.rs` |
+| Atomic IO | `pack-convert-core/src/routing/indexed/io.rs` |
 | HTTP URLs | [client-fetch.md](client-fetch.md) |
-| Publish script | `navi-server/scripts/publish-packs.sh` |
+| Publish script | `scripts/publish-packs.sh` |

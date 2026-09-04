@@ -136,7 +136,7 @@ Fails loudly at `NAVI_QUOTA_FAIL_PCT` (default 95%) of the ZFS quota.
 ./convert-region.sh --elev-dir /path/to/dem hedmark   # bake edge_delta_h_m
 ```
 
-Invokes existing CLI:
+Invokes the in-repo CLI (built by `setup-server.sh` or `cargo build --release`):
 
 ```text
 navi-indexed-convert --data-dir … --pbf … [--elev-dir …] [--profiles …]
@@ -156,7 +156,7 @@ NAVI_BAKE_DELTA_H=1          # 0 to disable
 NAVI_ELEV_DIR=/media/navi/navi-server/data/elevation
 ```
 
-DEM layout (Navi `ElevationCache`): `data/elevation/{copernicus,viewfinder,srtm}/`.
+DEM layout (`ElevationCache` in `pack-convert-core`): `data/elevation/{copernicus,viewfinder,srtm}/`.
 See [`data/elevation/README.md`](data/elevation/README.md). Tiles are not
 committed; populate that tree before baking Δh packs for real coverage.
 
@@ -166,7 +166,7 @@ committed; populate that tree before baking Δh packs for real coverage.
 ./bake-town-routes.sh --generation-dir /path/to/gen --all
 ```
 
-No OD builder exists in the Navi tree yet. The step no-ops unless
+No OD builder exists in this tree yet. The step no-ops unless
 `NAVI_BAKE_TOWN_ROUTES=1` and `NAVI_TOWN_ROUTE_BIN` point at an executable.
 Routes are versioned under the same generation directory.
 
@@ -277,17 +277,49 @@ log and the systemd unit result (`systemctl status` / journal).
 
 ---
 
+## Develop / CI
+
+Rust workspace (Rust **1.98** via `rust-toolchain.toml`):
+
+| Crate | Role |
+|---|---|
+| `pack-convert-core` | Library: OSM PBF (+ optional DEM) → indexed packs |
+| `navi-indexed-convert` | CLI binary used by `scripts/convert-region.sh` |
+
+```bash
+cd /media/navi/navi-server
+cargo build --release -p navi-indexed-convert
+cargo test --workspace
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets -- -D warnings
+```
+
+Unit tests use checked-in mini PBFs under `pack-convert-core/tests/fixtures/`.
+`#[ignore]` tests that need large extracts (e.g. ostlandet under
+`target/integration-fixtures`) stay local-only.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs fmt, clippy, and
+`cargo test --workspace` on every push/PR to `main`. No Navi checkout is
+required in CI.
+
+`scripts/lib/common.sh` `resolve_convert_bin()` always builds/uses
+`${NAVI_SERVER_ROOT}/target/release/navi-indexed-convert` (no `NAVI_ROOT` /
+`NAVI_CONVERT_BIN` fallback).
+
+---
+
 ## Size bands vs space estimate
 
-Hedmark-anchored ratios (~0.43 graph, ~0.09 poi, wetland placeholder) from the
-Navi repo space-estimate doc are guidance only. The pipeline sizes **dynamically
-per region** against wide configurable bands in `data/config.env`.
+Hedmark-anchored ratios (~0.43 graph, ~0.09 poi, wetland placeholder) are
+guidance only. The pipeline sizes **dynamically per region** against wide
+configurable bands in `data/config.env`.
 
 ---
 
 ## Guardrails
 
 - Server-side only — no Android / client networking work in this tree
-- Existing Geofabrik (or equivalent) on-device path remains the fallback
-- Do not overwrite convert tooling without an explicit ask
+- Existing Geofabrik (or equivalent) on-device path remains the app fallback
+- Convert sources live in-repo (`pack-convert-core` / `navi-indexed-convert`);
+  keep bake logic here, not via a Navi sparse checkout
 - Prototype first: single region by hand, then widen `regions.conf`, then enable the timer

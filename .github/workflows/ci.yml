@@ -1,0 +1,46 @@
+# CI for the in-repo pack convert workspace (no Navi app tree required).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -Dwarnings
+
+jobs:
+  rust:
+    name: rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.98.0"
+          components: rustfmt, clippy
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: navi-server-rust
+          cache-targets: true
+
+      - name: Format (cargo fmt --check)
+        run: cargo fmt --all -- --check
+
+      - name: Clippy (-D warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Unit tests (includes checked-in mini PBF fixtures)
+        # Does not run #[ignore] integration tests that need large extracts
+        # under target/integration-fixtures (e.g. ostlandet).
+        run: cargo test --workspace

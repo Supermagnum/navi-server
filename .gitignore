@@ -26,6 +26,9 @@
 *~
 .DS_Store
 
-# Rust workspace build output
-/target/
+# Runtime locks / DEM downloads (never commit)
+.tile_locks/
+/data/.publish.lock
+/data/elevation/.tile_locks/
+/copernicus/
 

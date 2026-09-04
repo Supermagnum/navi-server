@@ -1,7 +1,8 @@
 # DEM / elevation cache (NAVI_ELEV_DIR)
 
 This directory is the server pack pipeline’s elevation tree. Layout matches
-Navi’s `ElevationCache` (`core/src/routing/elevation/cache.rs`):
+`pack_convert_core::routing::elevation::ElevationCache`
+(`pack-convert-core/src/routing/elevation/cache.rs`):
 
 ```text
 elevation/
@@ -15,8 +16,9 @@ here. With `NAVI_BAKE_DELTA_H=1` (default), `navi-indexed-convert --elev-dir`
 samples these tiles into graph-pack `edge_delta_h_m`.
 
 Tiles are **not** committed (see repo `.gitignore`). Populate via
-`scripts/prefetch-dem-bbox.py` (Copernicus), Navi’s elevation downloader /
-integration fixtures, or copy an existing cache into this tree.
+`scripts/prefetch-dem-bbox.py` (Copernicus) or copy an existing DEM cache into
+this tree. Convert never downloads DEM over the network.
+
 
 ## Missing tiles / samples
 

@@ -1,0 +1,4 @@
+# Matches the host bake box / Navi workspace pin used when extracting convert.
+[toolchain]
+channel = "1.98.0"
+components = ["rustfmt", "clippy"]

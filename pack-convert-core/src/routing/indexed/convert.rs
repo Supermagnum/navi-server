@@ -405,7 +405,9 @@ fn tile_grid_for_convert(region: [f64; 4]) -> Vec<(usize, usize, [f64; 4])> {
     let mut cell = 1.0_f64;
     let mut tiles = tile_grid(region, cell);
     while tiles.len() > MAX_CONVERT_TILES {
-        let scale = (tiles.len() as f64 / MAX_CONVERT_TILES as f64).sqrt().max(1.05);
+        let scale = (tiles.len() as f64 / MAX_CONVERT_TILES as f64)
+            .sqrt()
+            .max(1.05);
         cell *= scale;
         tiles = tile_grid(region, cell);
         if cell > 90.0 {
@@ -516,9 +518,10 @@ pub fn convert_region_packs(opts: &ConvertOptions) -> anyhow::Result<ConvertRepo
     // fully-buffered OOM). Sample on demand only — including tiled converts, so
     // peak stays dominated by one tile graph plus DEM cache hits.
     let use_tiles = region_needs_tiling(region_bbox);
-    let elev_arc: Option<Arc<ElevationService>> = opts.elev_dir.as_ref().map(|dir| {
-        Arc::new(ElevationService::new(ElevationCache::new(dir.clone())))
-    });
+    let elev_arc: Option<Arc<ElevationService>> = opts
+        .elev_dir
+        .as_ref()
+        .map(|dir| Arc::new(ElevationService::new(ElevationCache::new(dir.clone()))));
     let elev_ref = elev_arc.as_deref();
 
     let profiles = if opts.profiles.is_empty() {
@@ -688,8 +691,7 @@ pub fn convert_region_packs(opts: &ConvertOptions) -> anyhow::Result<ConvertRepo
                             }
                             c.nodes = c.nodes.max(graph.nodes.len());
                             c.edges = c.edges.max(graph.edges.len());
-                            c.delta_h_missing_edges =
-                                missing_dh_cb.load(Ordering::Relaxed);
+                            c.delta_h_missing_edges = missing_dh_cb.load(Ordering::Relaxed);
                             let _ = c.save(&ck_path_cb);
                         }
                         tile_count_cb.fetch_add(1, Ordering::Relaxed);

@@ -4,8 +4,8 @@ use std::env;
 use std::path::PathBuf;
 
 use pack_convert_core::RoutingProfile;
-use pack_convert_core::{convert_region_packs, ConvertOptions};
 use pack_convert_core::WorkerPoolPlan;
+use pack_convert_core::{convert_region_packs, ConvertOptions};
 
 fn main() {
     let plan = WorkerPoolPlan::detect();

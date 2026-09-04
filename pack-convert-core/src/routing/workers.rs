@@ -34,15 +34,11 @@ impl WorkerPoolPlan {
             .map(NonZeroUsize::get)
             .unwrap_or(1)
             .max(1);
-        let routing_workers = ((detected as f64) * ROUTING_CORE_FRACTION)
-            .round()
-            .max(1.0) as usize;
+        let routing_workers = ((detected as f64) * ROUTING_CORE_FRACTION).round().max(1.0) as usize;
         let routing_workers = routing_workers.clamp(1, detected);
-        let reserved = detected.saturating_sub(routing_workers).max(if detected > 1 {
-            1
-        } else {
-            0
-        });
+        let reserved = detected
+            .saturating_sub(routing_workers)
+            .max(if detected > 1 { 1 } else { 0 });
         // Recompute so reserved + workers == detected when possible.
         let routing_workers = detected.saturating_sub(reserved).max(1);
         Self {
