@@ -1,0 +1,22 @@
+[Unit]
+Description=Navi pack data scrub (prune outdated generations/scratch/logs)
+Documentation=file:///media/navi/navi-server/README.md
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=navit-server
+Group=navit-server
+WorkingDirectory=/media/navi/navi-server/scripts
+Environment=NAVI_PACK_CONFIG=/media/navi/navi-server/data/config.env
+Nice=15
+IOSchedulingClass=idle
+ExecStart=/media/navi/navi-server/scripts/cleanup.sh --skip-quota-gate
+SuccessExitStatus=0
+ReadWritePaths=/media/navi/navi-server/data
+ReadOnlyPaths=/media/navi/navi-server/scripts
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

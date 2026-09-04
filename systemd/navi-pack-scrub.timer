@@ -1,0 +1,14 @@
+[Unit]
+Description=Daily scrub of outdated Navi pack data (self-maintaining)
+Documentation=file:///media/navi/navi-server/README.md
+
+[Timer]
+# Daily UTC — prunes generations, convert scratch, extracts, and atomic log leftovers.
+OnCalendar=*-*-* 03:30:00
+Timezone=UTC
+Persistent=true
+RandomizedDelaySec=20m
+Unit=navi-pack-scrub.service
+
+[Install]
+WantedBy=timers.target

@@ -51,7 +51,13 @@ load_config() {
   : "${NAVI_KEEP_GENERATIONS:=2}"
   : "${NAVI_QUOTA_WARN_PCT:=85}"
   : "${NAVI_QUOTA_FAIL_PCT:=95}"
-  : "${NAVI_ZFS_DATASET:=Mypool/navi}"
+  # Optional ZFS dataset name for quota reporting; empty / missing → df on pack root.
+  : "${NAVI_ZFS_DATASET:=}"
+  # Self-maintaining scrub retention (days). Used by cleanup.sh / navi-pack-scrub.timer.
+  : "${NAVI_LOG_KEEP_DAYS:=14}"
+  : "${NAVI_CONVERT_SCRATCH_KEEP_DAYS:=7}"
+  : "${NAVI_EXTRACT_KEEP_DAYS:=21}"
+  : "${NAVI_STAGING_KEEP_DAYS:=2}"
   : "${NAVI_GEOFABRIK_BASE:=https://download.geofabrik.de}"
   # Size sanity bands vs source PBF (MiB/MiB). Wide on purpose — Hedmark ratios
   # are sizing targets, not hard requirements for every region.
@@ -89,6 +95,38 @@ log_fail() { log FAILED "$@"; }
 die() {
   log_fail "$@"
   exit 1
+}
+
+# Atomic log capture: stream to ${path}.partial, rename into place on success.
+# Stale *.partial files are scrubbed by cleanup.sh. Callers:
+#   atomic_log_begin /path/to/run.log
+#   … work that prints to stdout/stderr …
+#   atomic_log_commit   # success
+#   atomic_log_abort    # failure (leaves .partial for forensics)
+ATOMIC_LOG_FINAL=""
+ATOMIC_LOG_PARTIAL=""
+
+atomic_log_begin() {
+  local final="$1"
+  mkdir -p "$(dirname "$final")"
+  ATOMIC_LOG_FINAL="$final"
+  ATOMIC_LOG_PARTIAL="${final}.partial"
+  : >"$ATOMIC_LOG_PARTIAL"
+  exec > >(stdbuf -oL -eL tee -a "$ATOMIC_LOG_PARTIAL") 2>&1
+}
+
+atomic_log_commit() {
+  if [[ -n "${ATOMIC_LOG_PARTIAL}" && -n "${ATOMIC_LOG_FINAL}" && -e "$ATOMIC_LOG_PARTIAL" ]]; then
+    mv -f "$ATOMIC_LOG_PARTIAL" "$ATOMIC_LOG_FINAL"
+  fi
+  ATOMIC_LOG_PARTIAL=""
+  ATOMIC_LOG_FINAL=""
+}
+
+atomic_log_abort() {
+  # Leave ${final}.partial in place for inspection; do not promote.
+  ATOMIC_LOG_PARTIAL=""
+  ATOMIC_LOG_FINAL=""
 }
 
 require_cmd() {

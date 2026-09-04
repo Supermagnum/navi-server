@@ -28,7 +28,7 @@ unconditional fallback and is untouched by this tree.
   data/                     # scratch, state, generations, logs, live/previous
     published/              # ONLY tree safe to expose over HTTP (static GET/HEAD)
   http/                     # Apache vhost config (GET/HEAD-only static packs)
-  systemd/                  # optional timer units (not enabled by default)
+  systemd/                  # bake (opt-in) + daily scrub timer (enabled by setup)
 ```
 
 | Path | Role |
@@ -36,11 +36,11 @@ unconditional fallback and is untouched by this tree.
 | `pack-convert-core/` | Convert library (no Navi / UniFFI / HTTP deps) |
 | `navi-indexed-convert/` | `navi-indexed-convert` CLI |
 | `docs/` | Specs — see [Documentation](#documentation) |
-| `scripts/*.sh` | Fetch / convert / validate / publish / cleanup / weekly orchestrator |
-| `data/` | Runtime data root on ZFS `Mypool/navi` |
+| `scripts/*.sh` | Fetch / convert / validate / publish / scrub / weekly orchestrator |
+| `data/` | Runtime data root (any filesystem with enough disk space; ZFS optional) |
 | `data/published/` | Static pack tree for HTTP |
 | `http/` | Apache vhost: GET/HEAD only, DocumentRoot = `data/published` |
-| `systemd/` | `navit-server.service` + `navi-pack-bake.service` / `.timer` |
+| `systemd/` | `navit-server.service`, bake timer (opt-in), daily `navi-pack-scrub.timer` |
 
 ## Documentation
 
@@ -63,8 +63,14 @@ Data root detail:
   live -> generations/...    # current (internal)
   previous -> generations/...
   state/regions/<id>/        # ETag / Last-Modified (never served)
-  logs/weekly-*.log
+  logs/weekly-*.log          # atomic: .partial until success
+  logs/scrub-*.log
 ```
+
+The tree is self-maintaining: daily scrub prunes outdated generations, convert
+scratch, extracts, staging, stale locks, and old / abandoned `*.partial` logs.
+Bake and scrub logs are written atomically (stream to `*.partial`, rename on
+success).
 
 ---
 
@@ -83,15 +89,18 @@ cd /media/navi/navi-server
 cargo build --release -p navi-indexed-convert
 ```
 
-
-`--apply-service` creates system user **`navit-server`**, owns `data/`, and
-installs `navit-server.service` (plus `navi-pack-bake.service` / `.timer`
-files). The weekly timer is **not** enabled by this step.
+`--apply-service` creates system user **`navit-server`**, owns `data/`, installs
+`navit-server.service` / bake units, and **enables** daily
+`navi-pack-scrub.timer` (automatic scrub of outdated files). The weekly bake
+timer is **not** enabled by this step.
 
 ```bash
 # Hand-run a bake as the service user:
 sudo systemctl start navit-server.service
 journalctl -u navit-server.service -n 100
+# Scrub status:
+systemctl list-timers navi-pack-scrub.timer
+journalctl -u navi-pack-scrub.service -n 50
 ```
 
 Hedmark is **not** on Geofabrik (landsdel extracts only). The example region
@@ -109,13 +118,18 @@ For a Geofabrik path with published `.md5` checksums, use e.g.
 Run from `/media/navi/navi-server/scripts/`. Each step is usable alone against a
 single small region.
 
-### 0. Disk quota
+### 0. Disk space
 
 ```bash
 ./check-disk-quota.sh
+./check-disk-quota.sh --report-only
 ```
 
-Fails loudly at `NAVI_QUOTA_FAIL_PCT` (default 95%) of the ZFS quota.
+Gates on **disk space** (filesystem fill via `df` on `NAVI_PACK_ROOT`). Fails
+loudly at `NAVI_QUOTA_FAIL_PCT` (default 95%). ZFS is optional: if
+`NAVI_ZFS_DATASET` is set and the dataset is visible, reporting uses zfs
+properties; otherwise plain `df` is enough. You do not need ZFS to run this
+pipeline.
 
 ### 1. Fetch
 
@@ -222,15 +236,19 @@ systemctl --user disable --now navi-packs-static.service
 Full client URL contract + exposure surface: [`docs/client-fetch.md`](docs/client-fetch.md).
 Pack binary/JSON formats: [`docs/pack-formats.md`](docs/pack-formats.md).
 
-### 6. Cleanup
+### 6. Scrub (self-maintaining)
 
 ```bash
 ./cleanup.sh
-./cleanup.sh --prune-extracts
+./cleanup.sh --no-extracts
+./cleanup.sh --report-only
 ```
 
-Prunes old generations beyond `NAVI_KEEP_GENERATIONS` (min 2), stale staging,
-and re-checks quota.
+Prunes old generations beyond `NAVI_KEEP_GENERATIONS` (min 2), aged convert
+scratch / extracts / staging, abandoned `*.partial` logs, and reports disk
+space. Retention knobs: `NAVI_LOG_KEEP_DAYS`, `NAVI_CONVERT_SCRATCH_KEEP_DAYS`,
+`NAVI_EXTRACT_KEEP_DAYS`, `NAVI_STAGING_KEEP_DAYS`. Installed as
+`navi-pack-scrub.timer` by setup; also runs at the end of each weekly bake.
 
 ### Full smoke test (Hedmark)
 
@@ -238,8 +256,9 @@ and re-checks quota.
 ./run-weekly.sh --region hedmark
 ```
 
-Logs: `/media/navi/navi-server/data/logs/weekly-*.log`. Failures include a clear
-`[FAILED]` line.
+Logs: `/media/navi/navi-server/data/logs/weekly-*.log` (atomic: visible as
+`weekly-*.log.partial` until success). Failures leave the `.partial` and a
+clear `[FAILED]` line.
 
 ---
 
@@ -262,7 +281,8 @@ Concurrency is auto-detected from `nproc` + `MemAvailable` with reserves for
 co-resident services (see `NAVI_SMOKE_*` in `config.example.env`).
 
 ```bash
-# Preferred: install user + units via setup (does not enable the timer):
+# Preferred: install user + units via setup
+# (enables daily scrub; does not enable weekly bake):
 sudo /media/navi/navi-server/scripts/setup-server.sh --apply-service
 
 # After smoke test OK:
@@ -270,10 +290,11 @@ sudo /media/navi/navi-server/scripts/setup-server.sh --apply-service
 # journalctl -u navit-server.service -n 100
 ```
 
-Bake units run as **`navit-server`** (not a login account).
+Bake and scrub units run as **`navit-server`** (not a login account).
 
 Failure notification for the prototype is the `[FAILED]` log line in the weekly
-log and the systemd unit result (`systemctl status` / journal).
+log (or leftover `*.partial`) and the systemd unit result (`systemctl status` /
+journal).
 
 ---
 

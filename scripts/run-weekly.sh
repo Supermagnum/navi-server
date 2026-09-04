@@ -41,11 +41,10 @@ RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 LOG_FILE="${NAVI_LOG_DIR}/weekly-${RUN_ID}.log"
 mkdir -p "$NAVI_LOG_DIR"
 
-# Tee all output to a reviewable log.
-exec > >(tee -a "$LOG_FILE") 2>&1
+atomic_log_begin "$LOG_FILE"
 
 log_info "==== navi pack bake start run_id=${RUN_ID} ===="
-log_info "log=${LOG_FILE}"
+log_info "log=${LOG_FILE} (atomic: written as .partial until success)"
 log_info "regions_conf=${NAVI_REGIONS_CONF} profiles=${NAVI_PROFILES} delta_h=${NAVI_BAKE_DELTA_H}"
 log_info "sun_order=${NAVI_BAKE_SUN_ORDER:-1} (local-night terminator; see sun-order-regions.py)"
 # Pin the midnight meridian for this run (fetch + convert share the same order).
@@ -55,7 +54,8 @@ log_info "bake_start_unix=${NAVI_BAKE_START_UNIX}"
 cleanup_on_fail() {
   local rc=$?
   if [[ $rc -ne 0 ]]; then
-    log_fail "navi pack bake FAILED run_id=${RUN_ID} exit=${rc} — see ${LOG_FILE}"
+    log_fail "navi pack bake FAILED run_id=${RUN_ID} exit=${rc} — see ${LOG_FILE}.partial"
+    atomic_log_abort
   fi
 }
 trap cleanup_on_fail EXIT
@@ -106,9 +106,9 @@ else
   log_info "skip publish"
 fi
 
-# 4. Cleanup / quota report
+# 4. Cleanup / disk report (self-maintaining scrub)
 if [[ "$SKIP_CLEANUP" -eq 0 ]]; then
-  "${SCRIPT_DIR}/cleanup.sh"
+  "${SCRIPT_DIR}/cleanup.sh" --skip-quota-gate
 else
   log_info "skip cleanup"
 fi
@@ -116,3 +116,5 @@ fi
 trap - EXIT
 log_info "==== navi pack bake OK run_id=${RUN_ID} ===="
 log_info "FAILED marker absent — success. log=${LOG_FILE}"
+atomic_log_commit
+exit 0

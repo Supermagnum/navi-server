@@ -22,6 +22,8 @@ SERVICE_USER="${NAVI_SERVICE_USER:-navit-server}"
 SERVICE_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navit-server.service"
 BAKE_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navi-pack-bake.service"
 BAKE_TIMER_SRC="${NAVI_SERVER_ROOT}/systemd/navi-pack-bake.timer"
+SCRUB_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navi-pack-scrub.service"
+SCRUB_TIMER_SRC="${NAVI_SERVER_ROOT}/systemd/navi-pack-scrub.timer"
 SYSTEMD_DIR="/etc/systemd/system"
 
 APPLY_APACHE=0
@@ -50,13 +52,16 @@ require_root() {
 }
 
 # Create dedicated system user + install systemd units so bake jobs run as
-# navit-server (not a login account). Does NOT enable the weekly timer.
+# navit-server (not a login account). Enables daily scrub timer (self-maintaining).
+# Does NOT enable the weekly bake timer.
 navit_server_apply() {
   require_root "--apply-service"
   command -v useradd >/dev/null 2>&1 || fail "useradd not found"
   command -v systemctl >/dev/null 2>&1 || fail "systemctl not found"
   [[ -f "$SERVICE_UNIT_SRC" ]] || fail "missing ${SERVICE_UNIT_SRC}"
   [[ -f "$BAKE_UNIT_SRC" ]] || fail "missing ${BAKE_UNIT_SRC}"
+  [[ -f "$SCRUB_UNIT_SRC" ]] || fail "missing ${SCRUB_UNIT_SRC}"
+  [[ -f "$SCRUB_TIMER_SRC" ]] || fail "missing ${SCRUB_TIMER_SRC}"
 
   if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
     useradd --system --user-group \
@@ -105,11 +110,15 @@ navit_server_apply() {
   if [[ -f "$BAKE_TIMER_SRC" ]]; then
     install -m 0644 "$BAKE_TIMER_SRC" "${SYSTEMD_DIR}/navi-pack-bake.timer"
   fi
+  install -m 0644 "$SCRUB_UNIT_SRC" "${SYSTEMD_DIR}/navi-pack-scrub.service"
+  install -m 0644 "$SCRUB_TIMER_SRC" "${SYSTEMD_DIR}/navi-pack-scrub.timer"
   systemctl daemon-reload
-  # Install only — do not enable the weekly timer (smoke / ops decide later).
-  log "installed systemd units: navit-server.service navi-pack-bake.service (+ timer file)"
+  # Daily scrub is part of self-maintaining setup; bake timer stays opt-in.
+  systemctl enable --now navi-pack-scrub.timer
+  log "installed systemd units: navit-server.service navi-pack-bake.service navi-pack-scrub.service (+ timers)"
+  log "enabled daily scrub: navi-pack-scrub.timer (systemctl list-timers navi-pack-scrub.timer)"
   log "hand-run bake as service: sudo systemctl start navit-server.service"
-  log "weekly timer remains disabled until you: sudo systemctl enable --now navi-pack-bake.timer"
+  log "weekly bake timer remains disabled until you: sudo systemctl enable --now navi-pack-bake.timer"
 }
 
 if [[ "$CHECK_ONLY" -eq 1 ]]; then
@@ -133,6 +142,19 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
     systemctl is-enabled navit-server.service 2>/dev/null || echo "  (oneshot; enable not required — start manually or via timer)"
   else
     echo "MISSING systemd unit navit-server.service"
+  fi
+  if [[ -f "${SYSTEMD_DIR}/navi-pack-scrub.service" && -f "${SYSTEMD_DIR}/navi-pack-scrub.timer" ]]; then
+    echo "OK scrub units installed"
+    if systemctl is-enabled navi-pack-scrub.timer >/dev/null 2>&1; then
+      echo "OK navi-pack-scrub.timer enabled ($(systemctl is-enabled navi-pack-scrub.timer))"
+    else
+      echo "MISSING scrub timer enable (sudo $0 --apply-service)"
+    fi
+  else
+    echo "MISSING scrub units (sudo $0 --apply-service)"
+  fi
+  if [[ -f "${SYSTEMD_DIR}/navi-pack-bake.timer" ]]; then
+    echo "OK bake timer file installed (enabled=$(systemctl is-enabled navi-pack-bake.timer 2>/dev/null || echo no))"
   fi
   if command -v apache2ctl >/dev/null 2>&1; then
     apache2ctl -S 2>&1 | grep -E 'navi-packs|\*:80' || true
