@@ -1,6 +1,6 @@
 # Navi server pack bake (prototype)
 
-Self-contained server-side pipeline on this box. Fetches regional OSM extracts,
+Self-contained server-side pipeline. Fetches regional OSM extracts,
 bakes Navi indexed packs with the in-repo `navi-indexed-convert` binary
 (`pack-convert-core` / `navi-indexed-convert` crates), validates them, and
 publishes a blue-green tree. **No Navi app tree is required to build or run.**
