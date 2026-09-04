@@ -29,6 +29,8 @@
 *.swp
 *~
 .DS_Store
+__pycache__/
+*.py[cod]
 
 # Runtime locks / DEM downloads (never commit)
 .tile_locks/
