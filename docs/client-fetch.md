@@ -67,6 +67,35 @@ GET /packs/hedmark/20260904T120000Z/manifest.json
 GET /packs/hedmark/20260904T120000Z/hedmark-latest.navi-graph-car.rkyv
 ```
 
+---
+
+## DATEX NPRA (optional)
+
+When the operator has enabled DATEX redistribution on navi-server, clients may
+also fetch **cached** NPRA DATEX II XML from the same DocumentRoot. This is
+**not** part of the pack bake pipeline and is **off by default** on the server.
+
+Full flow and operator setup: [datex-npra.md](datex-npra.md) (see especially
+**How clients fetch DATEX data**).
+
+| URL | Meaning |
+|---|---|
+| `GET /datex/source.json` | NPRA attribution / NLOD note |
+| `GET /datex/GetSituation.xml` | Cached situation snapshot |
+| `GET /datex/GetTravelTimeData.xml` | Cached travel-time snapshot |
+| `GET /datex/GetMeasuredWeatherData.xml` | Cached measured-weather snapshot |
+| `GET /datex/GetCCTVSiteTable.xml` | Cached CCTV site table |
+
+```bash
+curl -fsS "http://<host>/datex/source.json"
+curl -fsS -o situations.xml "http://<host>/datex/GetSituation.xml"
+```
+
+Clients must **not** hold NPRA credentials or call vegvesen.no directly for
+this path. A **404** means the feature is off or no successful poll has run yet.
+
+---
+
 ### `current.json` (shape)
 
 ```json

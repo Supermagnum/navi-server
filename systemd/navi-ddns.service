@@ -1,0 +1,23 @@
+[Unit]
+Description=Navi Dynamic DNS update (public IPv4)
+Documentation=file:///media/navi/navi-server/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=navit-server
+Group=navit-server
+WorkingDirectory=/media/navi/navi-server/scripts
+Environment=NAVI_PACK_CONFIG=/media/navi/navi-server/data/config.env
+Nice=15
+ExecStart=/media/navi/navi-server/scripts/ddns-update.sh
+SuccessExitStatus=0
+# load_config may mkdir under data/; state file is written on success.
+ReadWritePaths=/media/navi/navi-server/data
+ReadOnlyPaths=/media/navi/navi-server/scripts
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Synthetic DATEX-like fixture for unit tests. Not real NPRA data.
+     XML namespace/root for live endpoints are UNVERIFIED pending credentialed probe. -->
+<d2Logic:payloadPublication xmlns:d2Logic="http://datex2.eu/schema/3/messageContainer"
+                            lang="en">
+  <d2Logic:publicationTime>2020-01-01T00:00:00Z</d2Logic:publicationTime>
+  <d2Logic:publicationCreator>
+    <d2Logic:country>NO</d2Logic:country>
+    <d2Logic:nationalIdentifier>SYNTHETIC-TEST-ONLY</d2Logic:nationalIdentifier>
+  </d2Logic:publicationCreator>
+  <situationPublication xmlns="http://datex2.eu/schema/3/situation">
+    <situation id="test-situation-1">
+      <headerInformation>
+        <informationStatus>real</informationStatus>
+      </headerInformation>
+    </situation>
+  </situationPublication>
+</d2Logic:payloadPublication>

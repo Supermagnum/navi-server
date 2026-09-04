@@ -1,0 +1,14 @@
+[Unit]
+Description=Periodic Navi DATEX NPRA poll (only when feature enabled)
+Documentation=file:///media/navi/navi-server/docs/datex-npra.md
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+AccuracySec=30s
+RandomizedDelaySec=90
+Persistent=true
+Unit=navi-datex-npra.service
+
+[Install]
+WantedBy=timers.target

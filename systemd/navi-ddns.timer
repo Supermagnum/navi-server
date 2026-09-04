@@ -1,0 +1,14 @@
+[Unit]
+Description=Periodic Navi Dynamic DNS refresh
+Documentation=file:///media/navi/navi-server/README.md
+
+[Timer]
+# Refresh often enough for typical residential IP churn; skip-unchanged avoids API spam.
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=1min
+Persistent=true
+Unit=navi-ddns.service
+
+[Install]
+WantedBy=timers.target

@@ -14,6 +14,10 @@
 # Local overrides (examples stay tracked under scripts/)
 /data/config.env
 /data/regions.conf
+/data/ddns.env
+/data/secrets/
+/data/datex_npra/
+/data/published/datex/
 
 # DEM tiles (keep directory structure via README + .gitkeep)
 /data/elevation/copernicus/**

@@ -28,7 +28,7 @@ unconditional fallback and is untouched by this tree.
   data/                     # scratch, state, generations, logs, live/previous
     published/              # ONLY tree safe to expose over HTTP (static GET/HEAD)
   http/                     # Apache vhost config (GET/HEAD-only static packs)
-  systemd/                  # bake (opt-in) + daily scrub timer (enabled by setup)
+  systemd/                  # bake (opt-in), daily scrub, optional DDNS
 ```
 
 | Path | Role |
@@ -40,7 +40,7 @@ unconditional fallback and is untouched by this tree.
 | `data/` | Runtime data root (any filesystem with enough disk space; ZFS optional) |
 | `data/published/` | Static pack tree for HTTP |
 | `http/` | Apache vhost: GET/HEAD only, DocumentRoot = `data/published` |
-| `systemd/` | `navit-server.service`, bake timer (opt-in), daily `navi-pack-scrub.timer` |
+| `systemd/` | `navit-server.service`, bake timer (opt-in), daily scrub, optional `navi-ddns.timer` |
 
 ## Documentation
 
@@ -48,6 +48,7 @@ unconditional fallback and is untouched by this tree.
 |---|---|
 | [`docs/pack-formats.md`](docs/pack-formats.md) | Binary and JSON pack formats, what they contain, and how to read them |
 | [`docs/client-fetch.md`](docs/client-fetch.md) | Future client HTTP GET contract and exposure surface |
+| [`docs/datex-npra.md`](docs/datex-npra.md) | Optional DATEX NPRA redistribution (**off by default**) |
 
 Data root detail:
 
@@ -60,11 +61,14 @@ Data root detail:
   staging/<generation>/      # in-flight publish
   generations/<generation>/  # immutable published trees (internal)
   published/                 # HTTP DocumentRoot only — packs + current.json
+                             # (+ optional datex/ snapshots when DATEX enabled)
   live -> generations/...    # current (internal)
   previous -> generations/...
   state/regions/<id>/        # ETag / Last-Modified (never served)
   logs/weekly-*.log          # atomic: .partial until success
   logs/scrub-*.log
+  secrets/                   # optional DATEX creds (0600; never served)
+  datex_npra/                # optional DATEX poller state (never served)
 ```
 
 The tree is self-maintaining: daily scrub prunes outdated generations, convert
@@ -92,7 +96,85 @@ cargo build --release -p navi-indexed-convert
 `--apply-service` creates system user **`navit-server`**, owns `data/`, installs
 `navit-server.service` / bake units, and **enables** daily
 `navi-pack-scrub.timer` (automatic scrub of outdated files). The weekly bake
-timer is **not** enabled by this step.
+timer is **not** enabled by this step. DATEX NPRA redistribution stays **off**
+unless you later run `--apply-datex`.
+
+### Dynamic DNS (optional)
+
+Keeps a public hostname pointed at this box’s current IPv4 (DuckDNS, Cloudflare,
+or a generic update URL). Credentials stay in `data/ddns.env` (mode `600`), not
+in `config.env`.
+
+```bash
+cp /media/navi/navi-server/scripts/ddns.env.example \
+   /media/navi/navi-server/data/ddns.env
+chmod 600 /media/navi/navi-server/data/ddns.env
+# edit NAVI_DDNS_PROVIDER / HOSTNAME / TOKEN (and Cloudflare fields if needed)
+sudo /media/navi/navi-server/scripts/setup-server.sh --apply-ddns
+systemctl list-timers navi-ddns.timer
+journalctl -u navi-ddns.service -n 50
+
+# Remove the timer/units (keeps ddns.env unless --purge):
+sudo /media/navi/navi-server/scripts/uninstall-ddns.sh
+sudo /media/navi/navi-server/scripts/uninstall-ddns.sh --purge
+```
+
+### DATEX NPRA redistribution (optional — off by default)
+
+**Role:** navi-server is the **only** place that holds NPRA DATEX credentials and
+talks to `vegvesen.no`. Navi clients never see those credentials and never call
+the DATEX node — they only download **cached snapshots** from this host over the
+same read-only HTTP GET surface used for packs.
+
+**How redistribution works**
+
+```text
+  NPRA DATEX II v3.1 node          navi-server                         Navi clients
+  (atlas.vegvesen.no)              (this box)
+  --------------------             -----------------------             ------------
+  GET …/pullsnapshotdata  <----    poller (Basic Auth, outbound)
+        XML snapshots      ---->   data/datex_npra/ (private state)
+                                   data/published/datex/*.xml   ---->  GET /datex/*.xml
+                                   data/published/datex/source.json -> GET /datex/source.json
+```
+
+1. **Outbound poll (server only).** When enabled, `navi-datex-npra.timer` runs
+   `scripts/datex-npra-poll.sh`, which GETs the configured snapshot endpoints
+   (`GetSituation`, `GetTravelTimeData`, `GetMeasuredWeatherData`,
+   `GetCCTVSiteTable`) with HTTP Basic Auth. Conditional GET
+   (`If-Modified-Since`) and backoff/jitter avoid hammering the node.
+2. **Cache, do not proxy.** Successful bodies are written atomically under
+   `data/published/datex/` as unmodified XML. Client requests never become
+   upstream query parameters — there is no live reverse-proxy to NPRA.
+3. **Inbound serve (read-only).** Apache DocumentRoot already includes
+   `data/published/`, so clients fetch plain files:
+   - `GET /datex/source.json` — NPRA attribution / NLOD note (no secrets)
+   - `GET /datex/GetSituation.xml` (and the other endpoint names)
+4. **Off by default.** Fresh setup does not install the timer, does not read
+   credentials, and does not create `/datex/` until you explicitly enable it.
+   Full detail and the live-probe **UNVERIFIED** list:
+   [`docs/datex-npra.md`](docs/datex-npra.md).
+
+```bash
+# Interactive enable (asks for NPRA username/password; password is not echoed):
+sudo /media/navi/navi-server/scripts/setup-server.sh --apply-datex
+systemctl list-timers navi-datex-npra.timer
+journalctl -u navi-datex-npra.service -n 50
+# After a successful poll:
+curl -sI http://127.0.0.1/datex/source.json
+curl -sI http://127.0.0.1/datex/GetSituation.xml
+
+sudo /media/navi/navi-server/scripts/uninstall-datex-npra.sh [--purge]
+```
+
+**Client fetch (same host, no credentials):** see
+[`docs/datex-npra.md` — How clients fetch DATEX data](docs/datex-npra.md#how-clients-fetch-datex-data)
+and [`docs/client-fetch.md`](docs/client-fetch.md#datex-npra-optional).
+
+```bash
+curl -fsS "http://<host>/datex/source.json"
+curl -fsS -o situations.xml "http://<host>/datex/GetSituation.xml"
+```
 
 ```bash
 # Hand-run a bake as the service user:
@@ -344,3 +426,7 @@ configurable bands in `data/config.env`.
 - Convert sources live in-repo (`pack-convert-core` / `navi-indexed-convert`);
   keep bake logic here, not via a Navi sparse checkout
 - Prototype first: single region by hand, then widen `regions.conf`, then enable the timer
+- Optional DATEX NPRA redistribution is **off by default** and must not run
+  (no vegvesen.no traffic, no credential read, no `/datex/` files) unless
+  explicitly enabled via `setup-server.sh --apply-datex` — see
+  [`docs/datex-npra.md`](docs/datex-npra.md)

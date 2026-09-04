@@ -1,0 +1,22 @@
+[Unit]
+Description=Navi DATEX NPRA snapshot poll (optional redistribution)
+Documentation=file:///media/navi/navi-server/docs/datex-npra.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=navit-server
+Group=navit-server
+WorkingDirectory=/media/navi/navi-server
+Environment=NAVI_PACK_CONFIG=/media/navi/navi-server/data/config.env
+# Poller re-checks NAVI_DATEX_NPRA_ENABLED and exits inert if off.
+ExecStart=/media/navi/navi-server/scripts/datex-npra-poll.sh
+SuccessExitStatus=0
+ReadWritePaths=/media/navi/navi-server/data
+ReadOnlyPaths=/media/navi/navi-server/scripts /media/navi/navi-server/plugins /media/navi/navi-server/docs
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
