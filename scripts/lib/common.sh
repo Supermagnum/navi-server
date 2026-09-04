@@ -35,8 +35,10 @@ load_config() {
   # scripts/, scratch/, staging/, state/, or systemd/ under it.
   : "${NAVI_PUBLISHED_DIR:=${NAVI_PACK_ROOT}/published}"
   : "${NAVI_PROFILES:=car,foot}"
-  : "${NAVI_ELEV_DIR:=}"
-  : "${NAVI_BAKE_DELTA_H:=0}"
+  : "${NAVI_ELEV_DIR:=${NAVI_PACK_ROOT}/elevation}"
+  # Bake edge_delta_h_m into graph packs (default on). Set to 0 to disable.
+  # When on, NAVI_ELEV_DIR must point at a DEM tile directory.
+  : "${NAVI_BAKE_DELTA_H:=1}"
   : "${NAVI_BAKE_TOWN_ROUTES:=0}"
   : "${NAVI_TOWN_ROUTE_BIN:=}"
   : "${NAVI_CONVERT_BIN:=}"

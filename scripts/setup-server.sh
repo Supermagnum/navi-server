@@ -66,7 +66,10 @@ mkdir -p \
   "${DATA}/staging" \
   "${DATA}/generations" \
   "${DATA}/logs" \
-  "${DATA}/published/packs"
+  "${DATA}/published/packs" \
+  "${DATA}/elevation/copernicus" \
+  "${DATA}/elevation/viewfinder" \
+  "${DATA}/elevation/srtm"
 
 if [[ ! -f "${DATA}/config.env" ]]; then
   cp "${NAVI_SERVER_ROOT}/scripts/config.example.env" "${DATA}/config.env"

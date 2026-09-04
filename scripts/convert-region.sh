@@ -6,8 +6,12 @@
 #   ./convert-region.sh hedmark
 #   ./convert-region.sh --all
 #   ./convert-region.sh --elev-dir /path/to/dem hedmark   # bake edge_delta_h_m
+#   ./convert-region.sh --no-delta-h hedmark              # override config (Δh off)
 #   ./convert-region.sh --profiles car,truck,foot,bicycle hedmark
 #   ./convert-region.sh --out-dir /path/to/staging/gen/regions hedmark
+#
+# Δh default comes from data/config.env (NAVI_BAKE_DELTA_H=1). When on,
+# NAVI_ELEV_DIR (or --elev-dir) must point at a DEM tile directory.
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,6 +22,7 @@ load_config
 OUT_DIR=""
 PROFILES="${NAVI_PROFILES}"
 ELEV_DIR="${NAVI_ELEV_DIR}"
+BAKE_DELTA_H="${NAVI_BAKE_DELTA_H}"
 DO_ALL=0
 FILTER_IDS=()
 
@@ -26,17 +31,22 @@ while [[ $# -gt 0 ]]; do
     --all) DO_ALL=1; shift ;;
     --out-dir) OUT_DIR="$2"; shift 2 ;;
     --profiles) PROFILES="$2"; shift 2 ;;
-    --elev-dir) ELEV_DIR="$2"; shift 2 ;;
+    --elev-dir) ELEV_DIR="$2"; BAKE_DELTA_H=1; shift 2 ;;
     --delta-h)
-      # Convenience: enable Δh using NAVI_ELEV_DIR from config.
-      if [[ -z "${NAVI_ELEV_DIR}" ]]; then
-        die "--delta-h requires NAVI_ELEV_DIR in config.env"
+      BAKE_DELTA_H=1
+      if [[ -z "${ELEV_DIR}" && -z "${NAVI_ELEV_DIR}" ]]; then
+        die "--delta-h requires NAVI_ELEV_DIR in config.env or --elev-dir"
       fi
-      ELEV_DIR="${NAVI_ELEV_DIR}"
+      ELEV_DIR="${ELEV_DIR:-$NAVI_ELEV_DIR}"
+      shift
+      ;;
+    --no-delta-h)
+      BAKE_DELTA_H=0
+      ELEV_DIR=""
       shift
       ;;
     -h|--help)
-      sed -n '2,14p' "$0"
+      sed -n '2,16p' "$0"
       exit 0
       ;;
     *) FILTER_IDS+=("$1"); shift ;;
@@ -47,9 +57,15 @@ if [[ "$DO_ALL" -eq 0 && ${#FILTER_IDS[@]} -eq 0 ]]; then
   die "pass a region id or --all"
 fi
 
-# Honor config toggle when elev dir set and no CLI override beyond default empty.
-if [[ "${NAVI_BAKE_DELTA_H}" == "1" && -z "$ELEV_DIR" && -n "${NAVI_ELEV_DIR}" ]]; then
-  ELEV_DIR="${NAVI_ELEV_DIR}"
+# Config default is Δh on — require a DEM dir unless explicitly disabled.
+if [[ "$BAKE_DELTA_H" == "1" ]]; then
+  ELEV_DIR="${ELEV_DIR:-$NAVI_ELEV_DIR}"
+  if [[ -z "$ELEV_DIR" ]]; then
+    die "NAVI_BAKE_DELTA_H=1 but NAVI_ELEV_DIR is empty — set DEM path in ${NAVI_PACK_ROOT}/config.env (or pass --elev-dir / --no-delta-h)"
+  fi
+  [[ -d "$ELEV_DIR" ]] || die "elev dir missing: $ELEV_DIR (set NAVI_ELEV_DIR in config.env)"
+else
+  ELEV_DIR=""
 fi
 
 CONVERT_BIN="$(resolve_convert_bin)"
@@ -70,7 +86,6 @@ convert_one() {
 
   elev_args=()
   if [[ -n "$ELEV_DIR" ]]; then
-    [[ -d "$ELEV_DIR" ]] || die "elev dir missing: $ELEV_DIR"
     elev_args=(--elev-dir "$ELEV_DIR")
     log_info "convert region=${region_id} delta_h=yes elev_dir=${ELEV_DIR}"
   else

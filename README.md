@@ -127,8 +127,16 @@ Produces under `data/scratch/convert/<region_id>/`:
 - `{stem}.navi-wetland.rkyv`
 - `{stem}.navi-manifest.json`
 
-Toggle Δh for a full run via `NAVI_BAKE_DELTA_H=1` + `NAVI_ELEV_DIR` in
-`data/config.env`.
+Toggle Δh in `data/config.env` (default **on**):
+
+```bash
+NAVI_BAKE_DELTA_H=1          # 0 to disable
+NAVI_ELEV_DIR=/media/navi/navi-server/data/elevation
+```
+
+DEM layout (Navi `ElevationCache`): `data/elevation/{copernicus,viewfinder,srtm}/`.
+See [`data/elevation/README.md`](data/elevation/README.md). Tiles are not
+committed; populate that tree before baking Δh packs for real coverage.
 
 ### 3. Optional town-route bake
 

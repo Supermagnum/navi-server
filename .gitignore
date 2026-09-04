@@ -15,6 +15,12 @@
 /data/config.env
 /data/regions.conf
 
+# DEM tiles (keep directory structure via README + .gitkeep)
+/data/elevation/copernicus/**
+/data/elevation/viewfinder/**
+/data/elevation/srtm/**
+!/data/elevation/**/.gitkeep
+
 # Editor / OS junk
 *.swp
 *~
