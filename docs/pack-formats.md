@@ -11,10 +11,14 @@ HTTP fetch contract (URLs, digests, exposure surface): [client-fetch.md](client-
 
 ## Published tree
 
+Layout under `packs/` mirrors **Geofabrik download paths** (the same
+slash-separated strings the Navi app’s Download-scope picker uses), not the
+flat underscore bake ids used in convert scratch.
+
 ```text
 data/published/
   current.json
-  packs/<region_id>/<generation>/
+  packs/<geofabrik-path>/<generation>/
     manifest.json                 # client digests + pointers
     checksums.sha256              # sha256sum text
     <stem>.navi-manifest.json     # convert manifest (same as on-device)
@@ -25,6 +29,8 @@ data/published/
     <stem>.navi-wetland.t{row}_{col}.rkyv         # tiled wetland
 ```
 
+Example: bake id `asia_china_anhui` (source `geofabrik:asia/china/anhui`) publishes to
+`packs/asia/china/anhui/<generation>/`.
 | File | Kind | Role |
 |---|---|---|
 | `current.json` | JSON | Live generation index for all regions |
@@ -231,7 +237,8 @@ Prefer `graph_tiles` / `wetland_tiles` when non-empty over the monolithic
 {
   "schema": 1,
   "generation": "20260904T104909Z",
-  "region_id": "europe_france_alsace",
+  "region_id": "europe/france/alsace",
+  "bake_id": "europe_france_alsace",
   "stem": "europe_france_alsace-latest",
   "has_delta_h": true,
   "navi_manifest": "europe_france_alsace-latest.navi-manifest.json",
@@ -261,11 +268,13 @@ full file (preamble + payload).
   "generation": "20260904T104909Z",
   "created_unix": 1756987200,
   "packs_base": "/packs",
+  "layout": "geofabrik-path",
   "regions": [
     {
-      "region_id": "europe_france_alsace",
+      "region_id": "europe/france/alsace",
+      "bake_id": "europe_france_alsace",
       "generation": "20260904T104909Z",
-      "manifest_url": "/packs/europe_france_alsace/20260904T104909Z/manifest.json",
+      "manifest_url": "/packs/europe/france/alsace/20260904T104909Z/manifest.json",
       "has_delta_h": true,
       "bytes": 682000000
     }
@@ -315,7 +324,7 @@ To inspect raw `edge_delta_h_m`, deserialize to `FlatGraphPack` yourself (the
 | Tool | Purpose |
 |---|---|
 | `navi-indexed-convert` | PBF (+ optional DEM) → packs + `.navi-manifest.json` |
-| `scripts/validate-packs.sh` | Presence, size bands, weak ≥64B header check (does **not** verify magic/version) |
+| `scripts/validate-packs.sh` | Presence, size bands (global `NAVI_SIZE_*` plus optional per-region `*_min_ratio` / `*_max_ratio` on `regions.conf` lines), weak ≥64B header check (does **not** verify magic/version) |
 | `scripts/publish-packs.sh` | Staging → published + `manifest.json` / checksums |
 
 Build convert (in-repo `pack-convert-core` / `navi-indexed-convert`):
@@ -334,7 +343,7 @@ link Rust (or reimplement rkyv 0.8 for these exact structs and versions).
 Verify digests after download:
 
 ```bash
-cd packs/<region>/<generation>
+cd packs/<geofabrik-path>/<generation>
 sha256sum -c checksums.sha256
 # or compare against manifest.json "files.*.sha256"
 ```

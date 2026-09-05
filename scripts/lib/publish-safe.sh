@@ -2,20 +2,24 @@
 # Safe single-region publish for smoke runs (sequential or concurrent).
 #
 # - flock serialize finalize so current.json / live link stay consistent
-# - never wipe packs/<rid>/ before the new generation is confirmed
+# - never wipe packs/<path>/ before the new generation is confirmed
 # - write new gen beside any existing last-known-good; prune old gens only
 #   for that region after success (NAVI_PUBLISHED_KEEP_PER_REGION, default 1
 #   previous = keep latest + 1 prior)
 # - mark generations with .smoke_in_progress while writing; remove when done
 # - prune only finished gens that are not live and not in-progress
 # - rebuild current.json from the published packs tree (untouched regions stay)
+# - HTTP layout uses Geofabrik paths (asia/china/anhui), matching the Navi app
+#   download-scope picker — not flat bake ids (asia_china_anhui)
 
 publish_single_region_safe() {
   local rid="$1"
   local gen_id="$2"
   local src="${NAVI_CONVERT_DIR}/${rid}"
   local final="${NAVI_GENERATIONS_DIR}/${gen_id}"
-  local pub="${NAVI_PUBLISHED_DIR}/packs/${rid}/${gen_id}"
+  local relpath pub
+  relpath="$(region_publish_relpath "$rid")"
+  pub="${NAVI_PUBLISHED_DIR}/packs/${relpath}/${gen_id}"
   local lock="${NAVI_PACK_ROOT}/.publish.lock"
   local marker="${final}/.smoke_in_progress"
   local pub_marker="${pub}/.publish_in_progress"
@@ -37,7 +41,7 @@ publish_single_region_safe() {
     flock 9
 
     # Write into a fresh gen dir beside any existing last-known-good for this
-    # region. Never rm -rf packs/<rid>/ — a mid-publish failure must leave the
+    # region. Never rm -rf packs/<path>/ — a mid-publish failure must leave the
     # previous generation intact.
     if [[ -e "$pub" ]]; then
       # Same gen_id collision (should be rare after collision-proof IDs).
@@ -46,16 +50,21 @@ publish_single_region_safe() {
     mkdir -p "$pub"
     : >"$pub_marker"
 
-    python3 - "$final/regions/$rid" "$rid" "$gen_id" "$pub" "${NAVI_PUBLISHED_DIR}/current.json" "$keep_n" <<'PY'
-import hashlib, json, os, shutil, sys, time
+    python3 - "$final/regions/$rid" "$rid" "$relpath" "$gen_id" "$pub" \
+        "${NAVI_PUBLISHED_DIR}" "$keep_n" "${SCRIPT_DIR}/lib" <<'PY'
+import hashlib, json, os, shutil, sys
 from pathlib import Path
 
+sys.path.insert(0, sys.argv[8])
+from published_tree import complete_gens, rebuild_current_json
+
 src = Path(sys.argv[1])
-rid = sys.argv[2]
-gen_id = sys.argv[3]
-pub = Path(sys.argv[4])
-current_path = Path(sys.argv[5])
-keep_prior = max(0, int(sys.argv[6]))
+bake_id = sys.argv[2]
+relpath = sys.argv[3]
+gen_id = sys.argv[4]
+pub = Path(sys.argv[5])
+published = Path(sys.argv[6])
+keep_prior = max(0, int(sys.argv[7]))
 
 pub.mkdir(parents=True, exist_ok=True)
 files = {}
@@ -87,8 +96,9 @@ if navi_man:
 man = {
     "schema": 1,
     "generation": gen_id,
-    "region_id": rid,
-    "stem": navi_man.replace(".navi-manifest.json", "") if navi_man else rid,
+    "region_id": relpath,
+    "bake_id": bake_id,
+    "stem": navi_man.replace(".navi-manifest.json", "") if navi_man else bake_id,
     "has_delta_h": has_dh,
     "navi_manifest": navi_man,
     "files": files,
@@ -103,64 +113,16 @@ if marker.exists():
 
 # Prune older complete gens for THIS region only (keep latest + keep_prior).
 region_root = pub.parent
-complete = []
-for d in region_root.iterdir():
-    if not d.is_dir() or d.name.startswith("."):
-        continue
-    if (d / ".publish_in_progress").exists():
-        continue
-    if not (d / "manifest.json").exists():
-        continue
-    complete.append(d)
-complete.sort(key=lambda p: p.name, reverse=True)
-for stale in complete[1 + keep_prior :]:
+for stale in complete_gens(region_root)[1 + keep_prior :]:
     shutil.rmtree(stale, ignore_errors=True)
 
-# Rebuild catalog from all published packs — untouched regions survive.
-packs = current_path.parent / "packs"
-regions = []
-for region_dir in sorted(p for p in packs.iterdir() if p.is_dir() and not p.name.startswith(".")):
-    gens = []
-    for d in region_dir.iterdir():
-        if not d.is_dir() or d.name.startswith("."):
-            continue
-        if (d / ".publish_in_progress").exists():
-            continue
-        if not (d / "manifest.json").exists():
-            continue
-        gens.append(d)
-    if not gens:
-        continue
-    gens.sort(key=lambda p: p.name, reverse=True)
-    g = gens[0]
-    try:
-        gman = json.loads((g / "manifest.json").read_text(encoding="utf-8"))
-        g_dh = bool(gman.get("has_delta_h"))
-    except Exception:
-        g_dh = None
-    regions.append(
-        {
-            "region_id": region_dir.name,
-            "generation": g.name,
-            "manifest_url": f"/packs/{region_dir.name}/{g.name}/manifest.json",
-            "has_delta_h": g_dh,
-            "bytes": sum(f.stat().st_size for f in g.rglob("*") if f.is_file()),
-        }
-    )
-
-current = {
-    "schema": 1,
-    "generation": gen_id,
-    "created_unix": int(time.time()),
-    "packs_base": "/packs",
-    "smoke": "planet-geofabrik-leaves",
-    "regions": regions,
-}
-tmp = Path(str(current_path) + ".partial")
-tmp.write_text(json.dumps(current, indent=2) + "\n", encoding="utf-8")
-os.replace(tmp, current_path)
+regions = rebuild_current_json(
+    published,
+    generation=gen_id,
+    extra={"smoke": "planet-geofabrik-leaves"},
+)
 print(
-    f"published {rid} gen={gen_id} files={len(files)} "
+    f"published {relpath} bake_id={bake_id} gen={gen_id} files={len(files)} "
     f"regions_total={len(regions)} has_delta_h={has_dh} "
     f"kept_prior={keep_prior}"
 )

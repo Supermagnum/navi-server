@@ -6,6 +6,10 @@
 # Exits non-zero on hard failures. Size outliers print FLAG lines and also
 # fail the run (not quiet logs) so a weekly bake cannot silently publish junk.
 #
+# Size bands default to NAVI_SIZE_* globals. Optional per-region overrides
+# are trailing key=value fields on regions.conf lines (e.g.
+# wetland_max_ratio=1.0); when applied, OK/FLAG lines note "(region override)".
+#
 # Usage:
 #   ./validate-packs.sh /path/to/generation
 #   ./validate-packs.sh --region hedmark /path/to/generation
@@ -76,7 +80,7 @@ export NAVI_SIZE_POI_MIN_RATIO NAVI_SIZE_POI_MAX_RATIO
 export NAVI_SIZE_WETLAND_MIN_RATIO NAVI_SIZE_WETLAND_MAX_RATIO
 export NAVI_SIZE_TOTAL_MIN_RATIO NAVI_SIZE_TOTAL_MAX_RATIO
 export NAVI_SIZE_VS_PREV_MAX_FACTOR
-export NAVI_EXTRACTS_DIR FILTER_REGION GEN_DIR PREV_LIVE
+export NAVI_EXTRACTS_DIR FILTER_REGION GEN_DIR PREV_LIVE NAVI_REGIONS_CONF
 
 python3 <<'PY'
 import json, os, sys
@@ -86,11 +90,13 @@ gen = Path(os.environ["GEN_DIR"])
 extracts = Path(os.environ["NAVI_EXTRACTS_DIR"])
 prev = os.environ.get("PREV_LIVE") or ""
 filter_region = os.environ.get("FILTER_REGION") or ""
+regions_conf = Path(os.environ.get("NAVI_REGIONS_CONF") or "")
 
 def ratio_env(name, default):
     return float(os.environ.get(name, default))
 
-bands = {
+# Global defaults (config.env / common.sh). Unlisted regions keep these.
+default_bands = {
     "graph": (ratio_env("NAVI_SIZE_GRAPH_MIN_RATIO", "0.15"),
               ratio_env("NAVI_SIZE_GRAPH_MAX_RATIO", "1.20")),
     "poi": (ratio_env("NAVI_SIZE_POI_MIN_RATIO", "0.02"),
@@ -101,6 +107,74 @@ bands = {
               ratio_env("NAVI_SIZE_TOTAL_MAX_RATIO", "2.00")),
 }
 vs_prev_max = float(os.environ.get("NAVI_SIZE_VS_PREV_MAX_FACTOR", "3.0"))
+
+# Optional trailing key=value on regions.conf lines (after source).
+# Keys: {graph,poi,wetland,total}_{min,max}_ratio
+_OVERRIDE_KEYS = {
+    "graph_min_ratio": ("graph", 0),
+    "graph_max_ratio": ("graph", 1),
+    "poi_min_ratio": ("poi", 0),
+    "poi_max_ratio": ("poi", 1),
+    "wetland_min_ratio": ("wetland", 0),
+    "wetland_max_ratio": ("wetland", 1),
+    "total_min_ratio": ("total", 0),
+    "total_max_ratio": ("total", 1),
+}
+
+def load_region_band_overrides(conf: Path):
+    """Parse per-region size-band overrides from regions.conf. Additive only."""
+    out = {}
+    if not conf.is_file():
+        return out
+    for raw in conf.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) < 3:
+            continue
+        rid = parts[0]
+        # parts[1] is source; rest are optional key=value
+        overrides = {}
+        for tok in parts[2:]:
+            if "=" not in tok:
+                continue
+            k, v = tok.split("=", 1)
+            k = k.strip().lower()
+            if k not in _OVERRIDE_KEYS:
+                continue
+            overrides[k] = float(v.strip())
+        if overrides:
+            out[rid] = overrides
+    return out
+
+region_overrides = load_region_band_overrides(regions_conf)
+# Also merge overrides from the weekly regions.conf when planet conf is active,
+# so per-region band overrides (e.g. hedmark wetland_max_ratio) still apply.
+_extra_overrides = os.environ.get("NAVI_REGIONS_OVERRIDES_CONF", "").strip()
+if not _extra_overrides:
+    _pack_root = os.environ.get("NAVI_PACK_ROOT", "")
+    if _pack_root:
+        _cand = Path(_pack_root) / "regions.conf"
+        if _cand.is_file() and _cand.resolve() != regions_conf.resolve():
+            _extra_overrides = str(_cand)
+if _extra_overrides:
+    for _rid, _ov in load_region_band_overrides(Path(_extra_overrides)).items():
+        region_overrides.setdefault(_rid, {}).update(_ov)
+
+def bands_for_region(rid: str):
+    """Return (bands_dict, overridden_kinds set)."""
+    bands = {k: (lo, hi) for k, (lo, hi) in default_bands.items()}
+    overridden = set()
+    for key, val in region_overrides.get(rid, {}).items():
+        kind, idx = _OVERRIDE_KEYS[key]
+        lo, hi = bands[kind]
+        if idx == 0:
+            bands[kind] = (val, hi)
+        else:
+            bands[kind] = (lo, val)
+        overridden.add(kind)
+    return bands, overridden
 
 failures = []
 flags = []
@@ -295,12 +369,18 @@ for region_dir in region_dirs:
                 ("wetland", w),
                 ("total", total),
             ]
+            region_bands, overridden_kinds = bands_for_region(rid)
             for kind, sz in checks:
                 if sz <= 0:
                     continue
                 r = sz / pbf_bytes
-                lo, hi = bands[kind]
-                msg = f"{rid}: {kind} ratio={r:.3f} (pack={mib(sz):.1f} MiB / pbf={mib(pbf_bytes):.1f} MiB) band=[{lo},{hi}]"
+                lo, hi = region_bands[kind]
+                band_note = " (region override)" if kind in overridden_kinds else ""
+                msg = (
+                    f"{rid}: {kind} ratio={r:.3f} "
+                    f"(pack={mib(sz):.1f} MiB / pbf={mib(pbf_bytes):.1f} MiB) "
+                    f"band=[{lo},{hi}]{band_note}"
+                )
                 if r < lo or r > hi:
                     flag(msg + " OUT OF BAND")
                 else:

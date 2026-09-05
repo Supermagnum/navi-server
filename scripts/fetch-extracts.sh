@@ -158,6 +158,12 @@ if [[ ${#FILTER_IDS[@]} -eq 0 ]]; then
   done
   WORK=()
   for region_id in "${ORDERED_IDS[@]}"; do
+    if [[ -z "$region_id" ]]; then
+      die "sun-order produced an empty region id (stdout pollution?)"
+    fi
+    if [[ ! -v SRC_BY_ID[$region_id] ]]; then
+      die "sun-order produced unknown region id=${region_id@Q} (not in regions.conf; often log noise captured into the id list)"
+    fi
     WORK+=("${region_id}"$'\t'"${SRC_BY_ID[$region_id]}")
   done
   log_info "fetch sun_order=${NAVI_BAKE_SUN_ORDER:-1} regions=${#WORK[@]}"

@@ -120,11 +120,7 @@ PY
 }
 
 already_done() {
-  local rid="$1"
-  [[ -d "${NAVI_PUBLISHED_DIR}/packs/${rid}" ]] || return 1
-  # any generation dir with manifest
-  find "${NAVI_PUBLISHED_DIR}/packs/${rid}" -mindepth 1 -maxdepth 1 -type d \
-    -exec test -f '{}/manifest.json' ';' -print -quit | grep -q .
+  region_is_published "$1"
 }
 
 publish_single_region() {

@@ -61,6 +61,7 @@ Data root detail:
   staging/<generation>/      # in-flight publish
   generations/<generation>/  # immutable published trees (internal)
   published/                 # HTTP DocumentRoot only — packs + current.json
+                             # packs/<geofabrik-path>/<generation>/ (matches app picker)
                              # (+ optional datex/ snapshots when DATEX enabled)
   live -> generations/...    # current (internal)
   previous -> generations/...
@@ -279,9 +280,26 @@ Checklist (hard fail on problems; size outliers print `FLAG:` and fail the run):
 - [ ] Fetched extracts match published checksums when available
 - [ ] Graph, poi-barrier, and wetland packs exist, non-empty, readable
 - [ ] Manifest parses and every referenced file exists
-- [ ] Pack size / PBF size ratios fall in configured bands (dynamic per region)
+- [ ] Pack size / PBF size ratios fall in configured bands (global
+      `NAVI_SIZE_*` in `config.env`, with optional per-region overrides on
+      the `regions.conf` line — see below)
 - [ ] Vs previous live generation, sizes have not jumped by more than
       `NAVI_SIZE_VS_PREV_MAX_FACTOR` (default ×3)
+
+**Per-region size-band overrides.** Global wetland max stays at `0.5` so
+sparse/alpine extracts (e.g. `europe_alps` ratio `0.004`) still flag
+runaways. Genuine outliers get an explicit trailing `key=value` on their
+`regions.conf` line (same pattern for graph/poi/total if needed later):
+
+```text
+hedmark  url:https://.../hedmark-latest.osm.pbf  wetland_max_ratio=1.0
+```
+
+Hedmark’s override is inland/mire-targeted (measured wetland ratio ~0.786;
+~10% county area as mires per Skog og landskap / Ramsar Hedmarksvidda) —
+not a Norway-wide band. Vestlandet (coastal fjord/mountain) measured
+~0.214 under the global `0.5` band and needs no override. When an override
+is in effect, validate logs `band=[lo,hi] (region override)`.
 
 ### 5. Publish (blue-green)
 
@@ -293,8 +311,9 @@ Checklist (hard fail on problems; size outliers print `FLAG:` and fail the run):
 Assembles `data/staging/<generation>/`, writes `generation-manifest.json`, runs
 validate, moves to `data/generations/`, atomically swaps `data/live`, keeps
 `data/previous` for rollback, and copies the generation into
-`data/published/packs/<region>/<generation>/` (plus `current.json`) for static
-HTTP GET. See [`docs/client-fetch.md`](docs/client-fetch.md) and
+`data/published/packs/<geofabrik-path>/<generation>/` (plus `current.json`) for static
+HTTP GET. Paths match the Navi app’s Geofabrik download hierarchy
+(e.g. `asia/china/anhui`). See [`docs/client-fetch.md`](docs/client-fetch.md) and
 [`docs/pack-formats.md`](docs/pack-formats.md).
 
 ### HTTP static server (read-only)
@@ -357,6 +376,7 @@ For multi-region planet smokes, prefer the CPU/RAM-aware parallel runner
 ./scripts/run-planet-smoke-parallel.sh --resume
 # Collision test for generation ids:
 ./scripts/test-generation-id.sh
+./scripts/test-sun-order-no-log-pollution.sh
 ```
 
 Concurrency is auto-detected from `nproc` + `MemAvailable` with reserves for

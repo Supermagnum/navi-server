@@ -81,10 +81,13 @@ load_config() {
     "${NAVI_PUBLISHED_DIR}/packs"
 }
 
+# Always stderr — callers capture function stdout via mapfile/$(...) for data
+# (e.g. follow_sun_order_ids region ids). Logging to stdout polluted those
+# pipelines and caused SRC_BY_ID unbound-variable failures under set -u.
 log() {
   local level="$1"
   shift
-  printf '%s [%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$level" "$*"
+  printf '%s [%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$level" "$*" >&2
 }
 
 log_info() { log INFO "$@"; }
@@ -168,11 +171,15 @@ resolve_convert_bin() {
   die "navi-indexed-convert not found; build with: cd ${NAVI_SERVER_ROOT} && cargo build --release -p navi-indexed-convert"
 }
 
-# regions.conf lines:
-#   region_id<TAB>geofabrik:<path>
-#   region_id<TAB>url:<https://...>
-#   region_id<TAB>planet   (planet-latest from planet.openstreetmap.org)
-# Blank lines and # comments ignored.
+# regions.conf lines (TAB- or whitespace-separated):
+#   region_id  source  [key=value ...]
+# Sources:
+#   geofabrik:<path>
+#   url:<https://...>
+#   planet   (planet-latest from planet.openstreetmap.org)
+# Optional trailing key=value pairs override size bands for validate only
+# (see scripts/regions.example.conf). Blank lines and # comments ignored.
+# list_regions prints: region_id<TAB>source  (overrides are not included).
 list_regions() {
   local conf="${1:-$NAVI_REGIONS_CONF}"
   [[ -f "$conf" ]] || die "regions config missing: $conf"
@@ -181,10 +188,9 @@ list_regions() {
     /^[[:space:]]*$/ { next }
     {
       id=$1
-      $1=""
-      sub(/^[[:space:]]+/, "", $0)
-      if (id == "" || $0 == "") next
-      print id "\t" $0
+      src=$2
+      if (id == "" || src == "") next
+      print id "\t" src
     }
   ' "$conf"
 }
@@ -243,6 +249,73 @@ region_pbf_path() {
 region_state_dir() {
   local region_id="$1"
   printf '%s/regions/%s\n' "$NAVI_STATE_DIR" "$region_id"
+}
+
+# Look up the source field for a bake region id from regions conf.
+# Searches NAVI_REGIONS_CONF first, then ${NAVI_PACK_ROOT}/regions.planet.conf
+# and regions.conf so publish path resolution works across weekly/planet runs.
+region_source() {
+  local region_id="$1"
+  local conf src
+  for conf in \
+      "${NAVI_REGIONS_CONF:-}" \
+      "${NAVI_PACK_ROOT}/regions.planet.conf" \
+      "${NAVI_PACK_ROOT}/regions.conf"; do
+    [[ -n "$conf" && -f "$conf" ]] || continue
+    src="$(awk -v id="$region_id" '
+      /^[[:space:]]*#/ { next }
+      /^[[:space:]]*$/ { next }
+      $1 == id { print $2; exit }
+    ' "$conf")"
+    if [[ -n "$src" ]]; then
+      printf '%s\n' "$src"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Relative path under published/packs/ for HTTP (matches Navi Geofabrik paths).
+# geofabrik:asia/china/anhui -> asia/china/anhui
+# url:/planet/custom -> bake id (single segment)
+region_publish_relpath() {
+  local region_id="$1"
+  local src path
+  if src="$(region_source "$region_id")"; then
+    case "$src" in
+      geofabrik:*)
+        path="${src#geofabrik:}"
+        path="${path#/}"
+        path="${path%/}"
+        if [[ -n "$path" ]]; then
+          printf '%s\n' "$path"
+          return 0
+        fi
+        ;;
+    esac
+  fi
+  printf '%s\n' "$region_id"
+}
+
+region_publish_dir() {
+  local region_id="$1"
+  printf '%s/packs/%s\n' "$NAVI_PUBLISHED_DIR" "$(region_publish_relpath "$region_id")"
+}
+
+# True if a complete published generation exists for this bake region id.
+# Checks Geofabrik-path layout first, then legacy flat packs/<bake_id>/.
+region_is_published() {
+  local region_id="$1"
+  local root g
+  for root in "$(region_publish_dir "$region_id")" "${NAVI_PUBLISHED_DIR}/packs/${region_id}"; do
+    [[ -d "$root" ]] || continue
+    for g in "$root"/*; do
+      [[ -d "$g" ]] || continue
+      [[ -e "${g}/.publish_in_progress" ]] && continue
+      [[ -f "${g}/manifest.json" ]] && return 0
+    done
+  done
+  return 1
 }
 
 # Collision-proof under concurrent callers: UTC timestamp + pid + 8 hex from urandom.
@@ -320,7 +393,19 @@ order_regions_array_follow_sun() {
     log_warn "sun-order: bbox file missing (${bbox}); keeping input order"
     return 0
   fi
-  local ordered
+  local ordered rid
+  declare -A _known=()
+  for rid in "${_arr[@]}"; do
+    _known["$rid"]=1
+  done
   mapfile -t ordered < <(printf '%s\n' "${_arr[@]}" | follow_sun_order_ids "$conf" "$bbox")
+  for rid in "${ordered[@]}"; do
+    if [[ -z "$rid" ]]; then
+      die "sun-order produced an empty region id (stdout pollution?)"
+    fi
+    if [[ ! -v _known[$rid] ]]; then
+      die "sun-order produced unknown region id=${rid@Q} (not in input set; often log noise captured into the id list)"
+    fi
+  done
   _arr=("${ordered[@]}")
 }

@@ -41,7 +41,7 @@ After a successful publish, the HTTP DocumentRoot contains only:
 ```text
 /media/navi/navi-server/data/published/
   current.json
-  packs/<region_id>/<generation>/
+  packs/<geofabrik-path>/<generation>/
     manifest.json                 # client-facing: digests + pointers
     checksums.sha256              # sha256 lines for every file in the dir
     <stem>.navi-manifest.json     # same format as on-device convert
@@ -51,22 +51,31 @@ After a successful publish, the HTTP DocumentRoot contains only:
     …                            # optional town-route files if baked
 ```
 
+`<geofabrik-path>` is the same slash-separated path the Navi app already uses
+in its Download-scope picker (from Geofabrik’s index), e.g. `asia/china/anhui`,
+`europe/norway/vestlandet`, `north-america/us/west-virginia`. Bake-time ids
+(`asia_china_anhui`) stay internal to convert scratch; publish maps them via
+`geofabrik:` lines in `regions*.conf`. Non-Geofabrik sources (custom `url:`)
+keep a single-segment bake id.
+
 | URL | Meaning |
 |---|---|
 | `GET /current.json` | Live generation id + list of regions and their `manifest_url` |
-| `GET /packs/<region>/<generation>/manifest.json` | Per-region client manifest (sha256 of each file) |
-| `GET /packs/<region>/<generation>/checksums.sha256` | Same digests, `sha256sum` text format |
-| `GET /packs/<region>/<generation>/<file>.rkyv` | Pack payload (static file) |
-| `GET /packs/<region>/<generation>/<stem>.navi-manifest.json` | Original Navi convert manifest |
+| `GET /packs/<geofabrik-path>/<generation>/manifest.json` | Per-region client manifest (sha256 of each file) |
+| `GET /packs/<geofabrik-path>/<generation>/checksums.sha256` | Same digests, `sha256sum` text format |
+| `GET /packs/<geofabrik-path>/<generation>/<file>.rkyv` | Pack payload (static file) |
+| `GET /packs/<geofabrik-path>/<generation>/<stem>.navi-manifest.json` | Original Navi convert manifest |
 
-Examples (Hedmark, generation `20260904T120000Z`):
+Examples (Anhui / China, generation `20260904T120000Z`):
 
 ```http
 GET /current.json
-GET /packs/hedmark/20260904T120000Z/manifest.json
-GET /packs/hedmark/20260904T120000Z/hedmark-latest.navi-graph-car.rkyv
+GET /packs/asia/china/anhui/20260904T120000Z/manifest.json
+GET /packs/asia/china/anhui/20260904T120000Z/asia_china_anhui-latest.navi-graph-car.rkyv
 ```
 
+Apache serves `DocumentRoot = data/published` with no path-specific rules — nested
+Geofabrik paths need no vhost change.
 ---
 
 ## DATEX NPRA (optional)
@@ -104,17 +113,22 @@ this path. A **404** means the feature is off or no successful poll has run yet.
   "generation": "20260904T120000Z",
   "created_unix": 1756987200,
   "packs_base": "/packs",
+  "layout": "geofabrik-path",
   "regions": [
     {
-      "region_id": "hedmark",
+      "region_id": "asia/china/anhui",
+      "bake_id": "asia_china_anhui",
       "generation": "20260904T120000Z",
-      "manifest_url": "/packs/hedmark/20260904T120000Z/manifest.json",
-      "has_delta_h": false,
+      "manifest_url": "/packs/asia/china/anhui/20260904T120000Z/manifest.json",
+      "has_delta_h": true,
       "bytes": 12345678
     }
   ]
 }
 ```
+
+`region_id` is the Geofabrik path (same string family as the app’s download
+picker). Optional `bake_id` is the underscore id used under convert scratch.
 
 ### Per-region `manifest.json` (shape)
 
@@ -122,15 +136,16 @@ this path. A **404** means the feature is off or no successful poll has run yet.
 {
   "schema": 1,
   "generation": "20260904T120000Z",
-  "region_id": "hedmark",
-  "stem": "hedmark-latest",
-  "has_delta_h": false,
-  "navi_manifest": "hedmark-latest.navi-manifest.json",
+  "region_id": "asia/china/anhui",
+  "bake_id": "asia_china_anhui",
+  "stem": "asia_china_anhui-latest",
+  "has_delta_h": true,
+  "navi_manifest": "asia_china_anhui-latest.navi-manifest.json",
   "files": {
-    "hedmark-latest.navi-manifest.json": {"sha256": "…", "bytes": 1234},
-    "hedmark-latest.navi-graph-car.rkyv": {"sha256": "…", "bytes": 567890},
-    "hedmark-latest.navi-poi-barrier.rkyv": {"sha256": "…", "bytes": 89012},
-    "hedmark-latest.navi-wetland.rkyv": {"sha256": "…", "bytes": 34567}
+    "asia_china_anhui-latest.navi-manifest.json": {"sha256": "…", "bytes": 1234},
+    "asia_china_anhui-latest.navi-graph-car.rkyv": {"sha256": "…", "bytes": 567890},
+    "asia_china_anhui-latest.navi-poi-barrier.rkyv": {"sha256": "…", "bytes": 89012},
+    "asia_china_anhui-latest.navi-wetland.rkyv": {"sha256": "…", "bytes": 34567}
   }
 }
 ```
@@ -138,6 +153,11 @@ this path. A **404** means the feature is off or no successful poll has run yet.
 No query strings are required or interpreted. Extra query strings, if any, must
 be ignored by the client and do nothing on the server (static files).
 
+**Breaking note:** early planet-smoke publishes used flat `packs/<bake_id>/…`
+URLs. Those trees are migrated in place with
+`scripts/migrate-published-to-geofabrik-paths.sh`. No shipping Android client
+consumes this server yet (`client-fetch` is still future work), so there is no
+client cache to invalidate.
 ---
 
 ## What a future client should do
@@ -148,7 +168,7 @@ All steps are plain GET. **None of this is implemented in the Android app yet.**
 2. Compare `generation` (and/or per-region generation) to the locally cached
    value for that `region_id`.
 3. If current / compatible → stop (cache hit).
-4. If stale or missing → `GET /packs/<region>/<generation>/manifest.json`.
+4. If stale or missing → `GET /packs/<geofabrik-path>/<generation>/manifest.json`.
 5. For each needed pack file listed under `files` (graph profiles, poi-barrier,
    wetland, …): `GET` the file URL next to the manifest; verify `sha256` (and
    size) against the manifest entry. Prefer atomic install into the app data
