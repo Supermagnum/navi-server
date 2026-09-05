@@ -325,7 +325,10 @@ To inspect raw `edge_delta_h_m`, deserialize to `FlatGraphPack` yourself (the
 |---|---|
 | `navi-indexed-convert` | PBF (+ optional DEM) → packs + `.navi-manifest.json` |
 | `scripts/validate-packs.sh` | Presence, size bands (global `NAVI_SIZE_*` plus optional per-region `*_min_ratio` / `*_max_ratio` on `regions.conf` lines), weak ≥64B header check (does **not** verify magic/version) |
-| `scripts/publish-packs.sh` | Staging → published + `manifest.json` / checksums |
+| `scripts/publish-packs.sh` | Staging → published under `packs/<geofabrik-path>/` + `manifest.json` / checksums / `current.json` |
+| `scripts/lib/publish-safe.sh` | Single-region publish used by planet smoke / batched leaves |
+| `scripts/lib/published_tree.py` | Nested packs tree walk + `current.json` rebuild |
+| `scripts/migrate-published-to-geofabrik-paths.sh` | Move legacy flat `packs/<bake_id>/` → Geofabrik paths |
 
 Build convert (in-repo `pack-convert-core` / `navi-indexed-convert`):
 
@@ -374,3 +377,5 @@ sha256sum -c checksums.sha256
 | Atomic IO | `pack-convert-core/src/routing/indexed/io.rs` |
 | HTTP URLs | [client-fetch.md](client-fetch.md) |
 | Publish script | `scripts/publish-packs.sh` |
+| Nested catalog helper | `scripts/lib/published_tree.py` |
+| Flat→nested migrate | `scripts/migrate-published-to-geofabrik-paths.sh` |

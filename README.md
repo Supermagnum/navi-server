@@ -36,7 +36,11 @@ unconditional fallback and is untouched by this tree.
 | `pack-convert-core/` | Convert library (no Navi / UniFFI / HTTP deps) |
 | `navi-indexed-convert/` | `navi-indexed-convert` CLI |
 | `docs/` | Specs — see [Documentation](#documentation) |
-| `scripts/*.sh` | Fetch / convert / validate / publish / scrub / weekly orchestrator |
+| `scripts/*.sh` | Fetch / convert / validate / publish / scrub / weekly + planet-leaf orchestrators |
+| `scripts/lib/published_tree.py` | Nested `packs/` catalog rebuild (`current.json`) |
+| `scripts/migrate-published-to-geofabrik-paths.sh` | One-shot flat → Geofabrik-path published layout |
+| `scripts/run-planet-leaves-batched.sh` | Preferred full-leaf bake (batch, pause on fail) |
+| `scripts/gen-geofabrik-leaves.py` | Build `regions.planet.conf` + bboxes from Geofabrik index |
 | `data/` | Runtime data root (any filesystem with enough disk space; ZFS optional) |
 | `data/published/` | Static pack tree for HTTP |
 | `http/` | Apache vhost: GET/HEAD only, DocumentRoot = `data/published` |
@@ -55,9 +59,11 @@ Data root detail:
 ```text
 /media/navi/navi-server/data/
   config.env                 # local settings (copy from scripts/config.example.env)
-  regions.conf               # regions to bake (copy from scripts/regions.example.conf)
-  scratch/extracts/          # fetched *.osm.pbf
-  scratch/convert/<region>/  # convert output before publish
+  regions.conf               # weekly / smoke regions (copy from regions.example.conf)
+  regions.planet.conf        # optional full Geofabrik leaf list (gen-geofabrik-leaves.py)
+  regions.planet.conf.bboxes.json
+  scratch/extracts/          # fetched <bake_id>-latest.osm.pbf
+  scratch/convert/<bake_id>/ # convert output before publish
   staging/<generation>/      # in-flight publish
   generations/<generation>/  # immutable published trees (internal)
   published/                 # HTTP DocumentRoot only — packs + current.json
@@ -66,6 +72,7 @@ Data root detail:
   live -> generations/...    # current (internal)
   previous -> generations/...
   state/regions/<id>/        # ETag / Last-Modified (never served)
+  logs/planet-leaves/        # batched planet bake plan / progress / PAUSED
   logs/weekly-*.log          # atomic: .partial until success
   logs/scrub-*.log
   secrets/                   # optional DATEX creds (0600; never served)
@@ -311,9 +318,25 @@ is in effect, validate logs `band=[lo,hi] (region override)`.
 Assembles `data/staging/<generation>/`, writes `generation-manifest.json`, runs
 validate, moves to `data/generations/`, atomically swaps `data/live`, keeps
 `data/previous` for rollback, and copies the generation into
-`data/published/packs/<geofabrik-path>/<generation>/` (plus `current.json`) for static
-HTTP GET. Paths match the Navi app’s Geofabrik download hierarchy
-(e.g. `asia/china/anhui`). See [`docs/client-fetch.md`](docs/client-fetch.md) and
+`data/published/packs/<geofabrik-path>/<generation>/` (plus `current.json`) for
+static HTTP GET.
+
+**Published path layout.** Geofabrik-sourced regions publish under the same
+slash-separated path the Navi app’s Download-scope picker uses (from
+`geofabrik:` in `regions*.conf`), e.g. bake id `asia_china_anhui` →
+`packs/asia/china/anhui/<generation>/`. Convert scratch and extracts still use
+underscore bake ids. Custom `url:` / `planet` sources keep a single-segment
+bake id under `packs/`. `current.json` lists `region_id` as that publish path
+and optional `bake_id` for the underscore id. Legacy flat `packs/<bake_id>/`
+trees (early planet-smoke) are moved in place with:
+
+```bash
+./migrate-published-to-geofabrik-paths.sh --dry-run
+./migrate-published-to-geofabrik-paths.sh
+```
+
+Apache needs no path rules for nesting — DocumentRoot is `data/published`.
+See [`docs/client-fetch.md`](docs/client-fetch.md) and
 [`docs/pack-formats.md`](docs/pack-formats.md).
 
 ### HTTP static server (read-only)
@@ -368,19 +391,47 @@ clear `[FAILED]` line.
 Units live in `systemd/`. **Do not enable** until a hand-run Hedmark bake
 passes validate + publish.
 
-For multi-region planet smokes, prefer the CPU/RAM-aware parallel runner
-(after the sequential in-flight job finishes):
+For multi-region / full-world Geofabrik leaf bakes, prefer the **batched**
+runner (sun-order, ~80 GiB scratch budget, publish+clean per batch, **pauses**
+on validate failure or crash — does not keep going past a bad region):
 
 ```bash
+# One-time (or when Geofabrik index changes): regenerate leaf list + bboxes
+./scripts/gen-geofabrik-leaves.py -o /media/navi/navi-server/data/regions.planet.conf
+
+# Detached on the bake host (client may disconnect; server stays up):
+export SCREENDIR=$HOME/.screen   # if /run/screen is not writable
+screen -dmS navi-planet-leaves bash -lc '
+  cd /media/navi/navi-server/scripts
+  export NAVI_PACK_CONFIG=/media/navi/navi-server/data/config.env
+  export NAVI_PLANET_BATCH_SCRATCH_GIB=80
+  ./run-planet-leaves-batched.sh 2>&1 | tee -a ../data/logs/planet-leaves/run.log
+'
+# Reattach:  screen -r navi-planet-leaves
+# Soft-stop after current region:  touch data/STOP_PLANET_LEAVES
+# Resume after pause/fix:          ./run-planet-leaves-batched.sh --resume
+```
+
+Path-parent composites that already have child leaves in `regions.planet.conf`
+(e.g. `north_america_us` when US state leaves exist) are skipped so coverage
+is not duplicated. Logs/plan: `data/logs/planet-leaves/` (`batch-plan.json`,
+`progress.txt`, `PAUSED`).
+
+The older sequential / parallel smoke runners still exist for ad-hoc probes;
+they continue past some failures and are not the preferred full-planet path:
+
+```bash
+./scripts/run-planet-smoke.sh --resume
 ./scripts/run-planet-smoke-parallel.sh --dry-run --limit 4
 ./scripts/run-planet-smoke-parallel.sh --resume
-# Collision test for generation ids:
+# Collision / sun-order regressions:
 ./scripts/test-generation-id.sh
 ./scripts/test-sun-order-no-log-pollution.sh
 ```
 
-Concurrency is auto-detected from `nproc` + `MemAvailable` with reserves for
-co-resident services (see `NAVI_SMOKE_*` in `config.example.env`).
+Concurrency for the parallel smoke is auto-detected from `nproc` +
+`MemAvailable` with reserves for co-resident services (see `NAVI_SMOKE_*` and
+`NAVI_PLANET_BATCH_SCRATCH_GIB` in `config.example.env`).
 
 ```bash
 # Preferred: install user + units via setup
@@ -434,8 +485,11 @@ required in CI.
 ## Size bands vs space estimate
 
 Hedmark-anchored ratios (~0.43 graph, ~0.09 poi, wetland placeholder) are
-guidance only. The pipeline sizes **dynamically per region** against wide
-configurable bands in `data/config.env`.
+guidance only. The pipeline sizes **dynamically per region** against
+configurable global bands in `data/config.env`, with optional per-region
+`key=value` overrides on `regions.conf` lines (see Validate above). For
+planet-leaf packing estimates, `run-planet-leaves-batched.sh` assumes ~7.57×
+PBF→pack growth when building the ~80 GiB scratch batch plan.
 
 ---
 

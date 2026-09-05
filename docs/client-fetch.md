@@ -75,7 +75,10 @@ GET /packs/asia/china/anhui/20260904T120000Z/asia_china_anhui-latest.navi-graph-
 ```
 
 Apache serves `DocumentRoot = data/published` with no path-specific rules — nested
-Geofabrik paths need no vhost change.
+Geofabrik paths need no vhost change. Smoke / weekly publish goes through
+`scripts/publish-packs.sh` or `scripts/lib/publish-safe.sh` (planet smoke /
+batched leaves); both resolve the publish directory via
+`region_publish_relpath` in `scripts/lib/common.sh`.
 ---
 
 ## DATEX NPRA (optional)
@@ -259,12 +262,14 @@ The weekly bake is started only by a human shell, or by a local systemd timer
 
 ### Publish writes only static output
 
-`publish-packs.sh` validates, then:
+`publish-packs.sh` / `publish_single_region_safe` validate, then:
 
 1. Moves the generation under `data/generations/<id>/` (internal)
 2. Atomically updates `data/live` / `data/previous` (internal)
 3. **Copies** pack files + writes `manifest.json` / `checksums.sha256` /
-   `current.json` under `data/published/` (the only HTTP DocumentRoot)
+   `current.json` under `data/published/packs/<geofabrik-path>/<generation>/`
+   (DocumentRoot only). Catalog rebuild walks nested region dirs
+   (`scripts/lib/published_tree.py`).
 
 Nothing in the HTTP server invokes publish. Publish does not read request
 bodies; it only writes files the static server can later GET.
@@ -293,6 +298,8 @@ systemctl --user disable --now navi-packs-static.service
 curl -sI http://127.0.0.1/current.json
 curl -s -o /dev/null -w '%{http_code}\n' -X POST http://127.0.0.1/current.json
 # Expect: GET → 200 (or 404 if nothing published yet); POST → 403
+# Nested pack example (after a Geofabrik leaf publish):
+# curl -sI http://127.0.0.1/packs/asia/china/anhui/<generation>/manifest.json
 ```
 
 ### Fallback — rootless Python on 8097 (only if Apache is unavailable)
