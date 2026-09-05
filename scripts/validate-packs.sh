@@ -9,6 +9,9 @@
 # Size bands default to NAVI_SIZE_* globals. Optional per-region overrides
 # are trailing key=value fields on regions.conf lines (e.g.
 # wetland_max_ratio=1.0); when applied, OK/FLAG lines note "(region override)".
+# terrain_class=polar_sparse relaxes ONLY graph_min to
+# NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE (default 0.001); poi/wetland/total
+# stay on global bands. Explicit graph_min_ratio still wins when both set.
 #
 # Usage:
 #   ./validate-packs.sh /path/to/generation
@@ -76,6 +79,7 @@ if [[ -L "$NAVI_LIVE_LINK" || -d "$NAVI_LIVE_LINK" ]]; then
 fi
 
 export NAVI_SIZE_GRAPH_MIN_RATIO NAVI_SIZE_GRAPH_MAX_RATIO
+export NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE
 export NAVI_SIZE_POI_MIN_RATIO NAVI_SIZE_POI_MAX_RATIO
 export NAVI_SIZE_WETLAND_MIN_RATIO NAVI_SIZE_WETLAND_MAX_RATIO
 export NAVI_SIZE_TOTAL_MIN_RATIO NAVI_SIZE_TOTAL_MAX_RATIO
@@ -110,6 +114,7 @@ vs_prev_max = float(os.environ.get("NAVI_SIZE_VS_PREV_MAX_FACTOR", "3.0"))
 
 # Optional trailing key=value on regions.conf lines (after source).
 # Keys: {graph,poi,wetland,total}_{min,max}_ratio
+# Plus terrain_class=polar_sparse (relaxes graph_min only; see below).
 _OVERRIDE_KEYS = {
     "graph_min_ratio": ("graph", 0),
     "graph_max_ratio": ("graph", 1),
@@ -121,11 +126,19 @@ _OVERRIDE_KEYS = {
     "total_max_ratio": ("total", 1),
 }
 
-def load_region_band_overrides(conf: Path):
-    """Parse per-region size-band overrides from regions.conf. Additive only."""
-    out = {}
+# Pre-declared geography class: extreme road sparsity vs PBF size (polar /
+# Arctic archipelago / uninhabited sub-Antarctic). Does NOT widen the global
+# graph_min for untagged regions. Floor still catches empty/near-empty packs.
+_TERRAIN_CLASS_GRAPH_MIN = {
+    "polar_sparse": ratio_env("NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE", "0.001"),
+}
+
+def load_region_band_meta(conf: Path):
+    """Parse per-region size-band overrides + terrain_class. Additive only."""
+    overrides_out = {}
+    terrain_out = {}
     if not conf.is_file():
-        return out
+        return overrides_out, terrain_out
     for raw in conf.read_text(encoding="utf-8").splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
@@ -136,19 +149,26 @@ def load_region_band_overrides(conf: Path):
         rid = parts[0]
         # parts[1] is source; rest are optional key=value
         overrides = {}
+        terrain = None
         for tok in parts[2:]:
             if "=" not in tok:
                 continue
             k, v = tok.split("=", 1)
             k = k.strip().lower()
+            v = v.strip()
+            if k == "terrain_class":
+                terrain = v.lower()
+                continue
             if k not in _OVERRIDE_KEYS:
                 continue
-            overrides[k] = float(v.strip())
+            overrides[k] = float(v)
         if overrides:
-            out[rid] = overrides
-    return out
+            overrides_out[rid] = overrides
+        if terrain:
+            terrain_out[rid] = terrain
+    return overrides_out, terrain_out
 
-region_overrides = load_region_band_overrides(regions_conf)
+region_overrides, region_terrain = load_region_band_meta(regions_conf)
 # Also merge overrides from the weekly regions.conf when planet conf is active,
 # so per-region band overrides (e.g. hedmark wetland_max_ratio) still apply.
 _extra_overrides = os.environ.get("NAVI_REGIONS_OVERRIDES_CONF", "").strip()
@@ -159,13 +179,21 @@ if not _extra_overrides:
         if _cand.is_file() and _cand.resolve() != regions_conf.resolve():
             _extra_overrides = str(_cand)
 if _extra_overrides:
-    for _rid, _ov in load_region_band_overrides(Path(_extra_overrides)).items():
-        region_overrides.setdefault(_rid, {}).update(_ov)
+    _ov, _tc = load_region_band_meta(Path(_extra_overrides))
+    for _rid, _vals in _ov.items():
+        region_overrides.setdefault(_rid, {}).update(_vals)
+    for _rid, _cls in _tc.items():
+        region_terrain.setdefault(_rid, _cls)
 
 def bands_for_region(rid: str):
-    """Return (bands_dict, overridden_kinds set)."""
+    """Return (bands_dict, kind->note dict for OK/FLAG suffix)."""
     bands = {k: (lo, hi) for k, (lo, hi) in default_bands.items()}
-    overridden = set()
+    notes = {}
+    terrain = region_terrain.get(rid)
+    if terrain in _TERRAIN_CLASS_GRAPH_MIN:
+        lo, hi = bands["graph"]
+        bands["graph"] = (_TERRAIN_CLASS_GRAPH_MIN[terrain], hi)
+        notes["graph"] = f" (terrain_class={terrain})"
     for key, val in region_overrides.get(rid, {}).items():
         kind, idx = _OVERRIDE_KEYS[key]
         lo, hi = bands[kind]
@@ -173,8 +201,9 @@ def bands_for_region(rid: str):
             bands[kind] = (val, hi)
         else:
             bands[kind] = (lo, val)
-        overridden.add(kind)
-    return bands, overridden
+        # Explicit numeric override wins over terrain_class for the note too.
+        notes[kind] = " (region override)"
+    return bands, notes
 
 failures = []
 flags = []
@@ -369,13 +398,13 @@ for region_dir in region_dirs:
                 ("wetland", w),
                 ("total", total),
             ]
-            region_bands, overridden_kinds = bands_for_region(rid)
+            region_bands, band_notes = bands_for_region(rid)
             for kind, sz in checks:
                 if sz <= 0:
                     continue
                 r = sz / pbf_bytes
                 lo, hi = region_bands[kind]
-                band_note = " (region override)" if kind in overridden_kinds else ""
+                band_note = band_notes.get(kind, "")
                 msg = (
                     f"{rid}: {kind} ratio={r:.3f} "
                     f"(pack={mib(sz):.1f} MiB / pbf={mib(pbf_bytes):.1f} MiB) "

@@ -326,6 +326,21 @@ batch 1); keep that line in live `data/regions.conf` even when baking from
 overrides on top of the planet leaf list. When an override is in effect,
 validate logs `band=[lo,hi] (region override)`.
 
+**`terrain_class=polar_sparse`.** Separate from numeric band overrides: a
+pre-declared geography tag that relaxes **only** `graph_min` to
+`NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE` (default `0.001`). Global
+`NAVI_SIZE_GRAPH_MIN_RATIO=0.10` stays for every untagged region — this is
+not a loosened default. POI / wetland / total bands are unchanged.
+Use it for polar continents, Arctic archipelagos, and uninhabited
+sub-Antarctic extracts whose PBF is dominated by coastline / hydrography /
+`natural=*` rather than routable highways (measured anchors: Antarctica
+graph ratio ~0.059; Nunavut Qikiqtaaluk ~0.009). Cold alone is not enough:
+Greenland (~0.697), Iceland, and the Falklands passed the global `0.1`
+floor untagged. Keep tag lines in `data/regions.conf` (merge path);
+do not hand-edit auto-generated `regions.planet.conf`. Validate logs
+`band=[0.001,…] (terrain_class=polar_sparse)`. An explicit
+`graph_min_ratio=` on the same line still wins over the class floor.
+
 ### 5. Publish (blue-green)
 
 ```bash

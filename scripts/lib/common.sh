@@ -63,6 +63,8 @@ load_config() {
   # are sizing targets, not hard requirements for every region.
   : "${NAVI_SIZE_GRAPH_MIN_RATIO:=0.10}"
   : "${NAVI_SIZE_GRAPH_MAX_RATIO:=20.0}"
+  # Floor for terrain_class=polar_sparse only (does not widen the global min).
+  : "${NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE:=0.001}"
   : "${NAVI_SIZE_POI_MIN_RATIO:=0.01}"
   : "${NAVI_SIZE_POI_MAX_RATIO:=1.50}"
   : "${NAVI_SIZE_WETLAND_MIN_RATIO:=0.0}"
@@ -178,8 +180,9 @@ resolve_convert_bin() {
 #   url:<https://...>
 #   planet   (planet-latest from planet.openstreetmap.org)
 # Optional trailing key=value pairs override size bands for validate only
-# (see scripts/regions.example.conf). Blank lines and # comments ignored.
-# list_regions prints: region_id<TAB>source  (overrides are not included).
+# (see scripts/regions.example.conf), including terrain_class=polar_sparse.
+# Blank lines and # comments ignored.
+# list_regions prints: region_id<TAB>source  (overrides / terrain_class omitted).
 list_regions() {
   local conf="${1:-$NAVI_REGIONS_CONF}"
   [[ -f "$conf" ]] || die "regions config missing: $conf"
