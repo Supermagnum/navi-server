@@ -207,8 +207,10 @@ process_region() {
   bbox="$(region_bbox_csv "$rid")"
   if [[ -n "$bbox" ]]; then
     set +e
-    python3 "${SCRIPT_DIR}/prefetch-dem-bbox.py" \
-      --elev-dir "$NAVI_ELEV_DIR" --bbox="$bbox" --lease-id="$lease_id"
+    poly_path="${NAVI_EXTRACTS_DIR}/${rid}.poly"
+    dem_args=(--elev-dir "$NAVI_ELEV_DIR" --bbox="$bbox" --lease-id="$lease_id")
+    [[ -f "$poly_path" ]] && dem_args+=(--poly "$poly_path")
+    python3 "${SCRIPT_DIR}/prefetch-dem-bbox.py" "${dem_args[@]}"
     dem_rc=$?
     set -e
     if [[ $dem_rc -ne 0 ]]; then

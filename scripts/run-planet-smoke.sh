@@ -211,7 +211,11 @@ for rid in "${ALL_REGIONS[@]}"; do
     if [[ -n "$bbox" ]]; then
       set +e
       # Use --bbox=VALUE so negative latitudes are not parsed as flags.
-      python3 "${SCRIPT_DIR}/prefetch-dem-bbox.py" --elev-dir "$NAVI_ELEV_DIR" --bbox="$bbox"
+      # Optional --poly skips DEM cells outside extract (fail-open if missing).
+      poly_path="${NAVI_EXTRACTS_DIR}/${rid}.poly"
+      dem_args=(--elev-dir "$NAVI_ELEV_DIR" --bbox="$bbox")
+      [[ -f "$poly_path" ]] && dem_args+=(--poly "$poly_path")
+      python3 "${SCRIPT_DIR}/prefetch-dem-bbox.py" "${dem_args[@]}"
       dem_rc=$?
       set -e
       if [[ $dem_rc -ne 0 ]]; then

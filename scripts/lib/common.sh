@@ -241,9 +241,39 @@ region_md5_url() {
   esac
 }
 
+# Osmosis polygon filter (.poly) next to the extract, when the provider publishes one.
+# Geofabrik: https://download.geofabrik.de/<path>.poly
+# OSM.fr extracts: …/extracts/<path>-latest.osm.pbf → …/polygons/<path>.poly
+# Returns 1 when no known .poly URL exists (caller fails open for DEM ocean-skip).
+region_poly_url() {
+  local src="$1"
+  case "$src" in
+    geofabrik:*)
+      local path="${src#geofabrik:}"
+      path="${path#/}"
+      printf '%s/%s.poly\n' "$NAVI_GEOFABRIK_BASE" "$path"
+      ;;
+    url:https://download.openstreetmap.fr/extracts/*)
+      local rest="${src#url:https://download.openstreetmap.fr/extracts/}"
+      rest="${rest%-latest.osm.pbf}"
+      rest="${rest%.osm.pbf}"
+      [[ -n "$rest" ]] || return 1
+      printf 'https://download.openstreetmap.fr/polygons/%s.poly\n' "$rest"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 region_pbf_path() {
   local region_id="$1"
   printf '%s/%s-latest.osm.pbf\n' "$NAVI_EXTRACTS_DIR" "$region_id"
+}
+
+region_poly_path() {
+  local region_id="$1"
+  printf '%s/%s.poly\n' "$NAVI_EXTRACTS_DIR" "$region_id"
 }
 
 region_state_dir() {
