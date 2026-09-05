@@ -24,6 +24,8 @@
 /data/elevation/viewfinder/**
 /data/elevation/srtm/**
 !/data/elevation/**/.gitkeep
+# Persistent Copernicus ocean-404 negative cache (runtime; see elevation/README.md)
+/data/elevation/copernicus_ocean_404.txt
 
 # Editor / OS junk
 *.swp

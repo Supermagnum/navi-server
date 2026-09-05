@@ -11,6 +11,8 @@
 #
 # Stop file: touch ${NAVI_PACK_ROOT}/STOP_PLANET_LEAVES
 # Pause marker on failure: ${NAVI_LOG_DIR}/planet-leaves/PAUSED
+# After a Geofabrik fetch pause (502/etc): ./probe-geofabrik-health.sh until
+# STABLE, then --resume deliberately (probe never starts the bake).
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

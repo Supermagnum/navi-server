@@ -24,9 +24,12 @@ this tree. Convert never downloads DEM over the network.
 
 Copernicus GLO-30 does not publish ocean-only 1° cells (HTTP 404 on prefetch).
 `scripts/prefetch-dem-bbox.py` skips cells that do not intersect the extract
-Osmosis `.poly` (fetched alongside the PBF) and records confirmed 404 stems in
-`elevation/copernicus_ocean_404.txt` (persistent negative cache; not under
-scratch/). An empty tree or a missing tile still allows convert with Δh enabled.
+Osmosis `.poly` (soft-fetched by `fetch-extracts.sh` beside the PBF) and
+records confirmed 404 stems in `elevation/copernicus_ocean_404.txt`
+(persistent negative cache; gitignored; not under scratch/). Missing or
+unusable `.poly` fails open (full bbox grid). Unit tests:
+`scripts/test-dem-ocean-skip.py`. An empty tree or a missing tile still
+allows convert with Δh enabled.
 
 On disk in the graph pack:
 

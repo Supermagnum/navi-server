@@ -40,6 +40,8 @@ unconditional fallback and is untouched by this tree.
 | `scripts/lib/published_tree.py` | Nested `packs/` catalog rebuild (`current.json`) |
 | `scripts/migrate-published-to-geofabrik-paths.sh` | One-shot flat → Geofabrik-path published layout |
 | `scripts/run-planet-leaves-batched.sh` | Preferred full-leaf bake (batch, pause on fail) |
+| `scripts/probe-geofabrik-health.sh` | Pre-resume Geofabrik HEAD/range probe (does not start a bake) |
+| `scripts/prefetch-dem-bbox.py` | Copernicus DEM prefetch (`.poly` ocean-skip + 404 cache) |
 | `scripts/gen-geofabrik-leaves.py` | Build `regions.planet.conf` + bboxes from Geofabrik index |
 | `data/` | Runtime data root (any filesystem with enough disk space; ZFS optional) |
 | `data/published/` | Static pack tree for HTTP |
@@ -229,6 +231,9 @@ pipeline.
 ```
 
 - Downloads into `data/scratch/extracts/<region_id>-latest.osm.pbf`
+- Soft-fetches the matching Osmosis `.poly` beside the PBF when the provider
+  publishes one (Geofabrik `…/<path>.poly`; OSM.fr under `/polygons/…`). Missing
+  `.poly` is a WARN only — DEM prefetch fails open and grids the full bbox
 - Verifies `.md5` when Geofabrik/planet publish one; OSM.fr skips digest with a WARN
 - Skips download on HTTP 304 when validators match
 
@@ -263,6 +268,12 @@ NAVI_ELEV_DIR=/media/navi/navi-server/data/elevation
 DEM layout (`ElevationCache` in `pack-convert-core`): `data/elevation/{copernicus,viewfinder,srtm}/`.
 See [`data/elevation/README.md`](data/elevation/README.md). Tiles are not
 committed; populate that tree before baking Δh packs for real coverage.
+
+Planet / weekly runners call `prefetch-dem-bbox.py` with the extract `.poly`
+when present so ocean-only 1° Copernicus cells are skipped, and remember
+confirmed 404 stems in `data/elevation/copernicus_ocean_404.txt` (runtime
+negative cache; not under scratch/). Unit coverage:
+`scripts/test-dem-ocean-skip.py`.
 
 ### 3. Optional town-route bake
 
@@ -300,13 +311,18 @@ runaways. Genuine outliers get an explicit trailing `key=value` on their
 
 ```text
 hedmark  url:https://.../hedmark-latest.osm.pbf  wetland_max_ratio=1.0
+africa_guinea_bissau  geofabrik:africa/guinea-bissau  wetland_max_ratio=1.0
 ```
 
 Hedmark’s override is inland/mire-targeted (measured wetland ratio ~0.786;
 ~10% county area as mires per Skog og landskap / Ramsar Hedmarksvidda) —
 not a Norway-wide band. Vestlandet (coastal fjord/mountain) measured
-~0.214 under the global `0.5` band and needs no override. When an override
-is in effect, validate logs `band=[lo,hi] (region override)`.
+~0.214 under the global `0.5` band and needs no override. Guinea-Bissau’s
+override is mangrove / coastal-wetland dense (measured ~0.643 in planet-leaf
+batch 1); keep that line in live `data/regions.conf` even when baking from
+`regions.planet.conf` — `validate-packs.sh` merges weekly `regions.conf`
+overrides on top of the planet leaf list. When an override is in effect,
+validate logs `band=[lo,hi] (region override)`.
 
 ### 5. Publish (blue-green)
 
@@ -411,6 +427,21 @@ screen -dmS navi-planet-leaves bash -lc '
 # Soft-stop after current region:  touch data/STOP_PLANET_LEAVES
 # Resume after pause/fix:          ./run-planet-leaves-batched.sh --resume
 ```
+
+After a **fetch** pause (e.g. Geofabrik HTTP 502 / Squid error page), do **not**
+resume on a single successful HEAD. Run the health probe until it reports
+STABLE (three consecutive clean rounds; default 5 minutes apart). The probe
+never starts the bake:
+
+```bash
+./scripts/probe-geofabrik-health.sh              # loops until STABLE, then exits
+./scripts/probe-geofabrik-health.sh --once       # single round (not enough for GO)
+# Log: data/logs/geofabrik-health-probe.log
+```
+
+Then resume deliberately in a new screen and watch the first fetch through early
+progress (about 10%+ of the PBF, or a stable multi-MiB/s rate for a minute or
+two) before detaching.
 
 Path-parent composites that already have child leaves in `regions.planet.conf`
 (e.g. `north_america_us` when US state leaves exist) are skipped so coverage

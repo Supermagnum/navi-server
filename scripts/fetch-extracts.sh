@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Fetch step: pull regional .osm.pbf extracts into scratch, verify checksums
 # when published, skip unchanged regions via ETag / Last-Modified.
+# Soft-fetches Osmosis .poly beside the PBF when the provider publishes one
+# (DEM ocean-skip); missing .poly is WARN-only.
 #
 # Usage:
 #   ./fetch-extracts.sh                  # all regions in regions.conf
@@ -20,7 +22,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --force) FORCE=1; shift ;;
     -h|--help)
-      sed -n '2,12p' "$0"
+      sed -n '2,14p' "$0"
       exit 0
       ;;
     *) FILTER_IDS+=("$1"); shift ;;
