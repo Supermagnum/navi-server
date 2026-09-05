@@ -11,8 +11,10 @@
 #
 # Stop file: touch ${NAVI_PACK_ROOT}/STOP_PLANET_LEAVES
 # Pause marker on failure: ${NAVI_LOG_DIR}/planet-leaves/PAUSED
-# After a Geofabrik fetch pause (502/etc): ./probe-geofabrik-health.sh until
-# STABLE, then --resume deliberately (probe never starts the bake).
+# pause_run writes PAUSED then holds the process (screen stays up) until killed.
+# After a Geofabrik fetch pause exhausted its transient budget: probe / fix, then
+# kill the held session and ./run-planet-leaves-batched.sh --resume (or use
+# scripts/start-planet-leaves-screen.sh --resume).
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -76,8 +78,15 @@ pause_run() {
   local reason="$1"
   printf '%s\n' "$reason" >"$PAUSE_FILE"
   echo "{\"event\":\"paused\",\"reason\":$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$reason")}" >>"$STATE_FILE"
-  log_fail "PAUSED: ${reason} — see ${PAUSE_FILE}; fix then re-run with --resume"
-  exit 2
+  log_fail "PAUSED: ${reason} — see ${PAUSE_FILE}; fix then kill this session and re-run with --resume"
+  # Hold instead of exiting: historically `exit 2` plus a wrapper `set -e` made
+  # the screen session disappear, so operators only noticed hours later. The
+  # session staying up is intentional; do not auto-resume from this hold.
+  log_info "PAUSED hold active (orchestrator process stays alive); Ctrl-C / kill session when ready to --resume"
+  while true; do
+    sleep 300
+    log_info "still PAUSED: ${reason}"
+  done
 }
 
 already_published() {

@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch navi-planet-leaves orchestrator (alert only)
+Documentation=file:///media/navi/navi-server/README.md
+
+[Service]
+Type=oneshot
+Environment=SCREENDIR=%h/.screen
+ExecStart=/media/navi/navi-server/scripts/watch-planet-leaves.sh
+# Non-zero exit means an alert was logged; still considered a successful timer tick.
+SuccessExitStatus=0 1

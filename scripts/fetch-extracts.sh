@@ -3,6 +3,8 @@
 # when published, skip unchanged regions via ETag / Last-Modified.
 # Soft-fetches Osmosis .poly beside the PBF when the provider publishes one
 # (DEM ocean-skip); missing .poly is WARN-only.
+# Transient HTTP/network failures (502/503/timeout/…) retry with backoff until
+# NAVI_FETCH_TRANSIENT_BUDGET_SECS; 404/401/403 and ambiguous codes fail fast.
 #
 # Usage:
 #   ./fetch-extracts.sh                  # all regions in regions.conf
@@ -13,8 +15,18 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
 source "${SCRIPT_DIR}/lib/common.sh"
+# shellcheck source=lib/fetch_http_classify.sh
+source "${SCRIPT_DIR}/lib/fetch_http_classify.sh"
 load_config
 require_cmd curl md5sum
+
+# Transient Geofabrik/upstream flaps (502/503/timeout): retry with backoff
+# until this wall-clock budget is spent, then die → orchestrator PAUSED.
+: "${NAVI_FETCH_TRANSIENT_BUDGET_SECS:=3600}"
+: "${NAVI_FETCH_BACKOFF_INITIAL_SECS:=30}"
+: "${NAVI_FETCH_BACKOFF_MAX_SECS:=300}"
+: "${NAVI_FETCH_RECOVERY_CLEAN_NEED:=3}"
+: "${NAVI_FETCH_RECOVERY_INTERVAL_SECS:=30}"
 
 FORCE=0
 FILTER_IDS=()
@@ -44,11 +56,12 @@ fetch_one() {
 
   log_info "fetch region=${region_id} url=${url}"
 
-  local curl_args=(
+  # Outer transient-retry loop owns backoff. Do not also use curl --retry
+  # (that silently burns attempts without classification or budget accounting).
+  local curl_base_args=(
     -fL
     --connect-timeout "${NAVI_HTTP_TIMEOUT_SECS}"
-    --retry 3
-    --retry-delay 5
+    --retry 0
     -o "$tmp"
     -w '%{http_code}|%{size_download}|%{time_total}'
     -D "${state_dir}/headers.raw"
@@ -56,19 +69,32 @@ fetch_one() {
 
   if [[ "$FORCE" -eq 0 && -f "$pbf" ]]; then
     if [[ -f "$etag_file" ]]; then
-      curl_args+=(-H "If-None-Match: $(cat "$etag_file")")
+      curl_base_args+=(-H "If-None-Match: $(cat "$etag_file")")
     fi
     if [[ -f "$lm_file" ]]; then
-      curl_args+=(-H "If-Modified-Since: $(cat "$lm_file")")
+      curl_base_args+=(-H "If-Modified-Since: $(cat "$lm_file")")
     fi
   fi
 
   local result http_code
-  set +e
-  result="$(curl "${curl_args[@]}" "$url")"
-  local rc=$?
-  set -e
-  if [[ $rc -ne 0 ]]; then
+  local attempt=0
+  local budget_start budget_deadline backoff
+  budget_start="$(date +%s)"
+  budget_deadline=$((budget_start + NAVI_FETCH_TRANSIENT_BUDGET_SECS))
+  backoff="$NAVI_FETCH_BACKOFF_INITIAL_SECS"
+
+  while true; do
+    attempt=$((attempt + 1))
+    rm -f "$tmp"
+    set +e
+    result="$(curl "${curl_base_args[@]}" "$url")"
+    local rc=$?
+    set -e
+
+    if [[ $rc -eq 0 ]]; then
+      break
+    fi
+
     rm -f "$tmp"
     # curl -f treats 304 as failure; detect from headers if present
     if [[ -f "${state_dir}/headers.raw" ]] && grep -qiE '^HTTP/.* 304' "${state_dir}/headers.raw"; then
@@ -78,8 +104,41 @@ fetch_one() {
       fetch_region_poly "$region_id" "$src" || true
       return 0
     fi
-    die "download failed region=${region_id} curl_rc=${rc}"
-  fi
+
+    classify_fetch_failure "$rc" "${state_dir}/headers.raw"
+    log_warn "fetch attempt=${attempt} region=${region_id} class=${FETCH_FAIL_CLASS} ${FETCH_FAIL_REASON}"
+
+    if [[ "$FETCH_FAIL_CLASS" != "transient" ]]; then
+      die "download failed region=${region_id} class=${FETCH_FAIL_CLASS} ${FETCH_FAIL_REASON} curl_rc=${rc}"
+    fi
+
+    local now
+    now="$(date +%s)"
+    if [[ "$now" -ge "$budget_deadline" ]]; then
+      die "download failed region=${region_id} transient budget exhausted (${NAVI_FETCH_TRANSIENT_BUDGET_SECS}s) last=${FETCH_FAIL_REASON} curl_rc=${rc}"
+    fi
+
+    log_info "fetch transient backoff=${backoff}s then recovery probes region=${region_id} budget_left=$((budget_deadline - now))s"
+    local sleep_for="$backoff"
+    if [[ $((now + sleep_for)) -gt "$budget_deadline" ]]; then
+      sleep_for=$((budget_deadline - now))
+    fi
+    if [[ "$sleep_for" -gt 0 ]]; then
+      sleep "$sleep_for"
+    fi
+
+    if ! wait_url_recovered "$url" "$budget_deadline" \
+        "$NAVI_FETCH_RECOVERY_CLEAN_NEED" "$NAVI_FETCH_RECOVERY_INTERVAL_SECS"; then
+      die "download failed region=${region_id} transient recovery failed within budget last=${FETCH_FAIL_REASON}"
+    fi
+
+    if [[ "$backoff" -lt "$NAVI_FETCH_BACKOFF_MAX_SECS" ]]; then
+      backoff=$((backoff * 2))
+      if [[ "$backoff" -gt "$NAVI_FETCH_BACKOFF_MAX_SECS" ]]; then
+        backoff="$NAVI_FETCH_BACKOFF_MAX_SECS"
+      fi
+    fi
+  done
 
   http_code="${result%%|*}"
   if [[ "$http_code" == "304" ]]; then

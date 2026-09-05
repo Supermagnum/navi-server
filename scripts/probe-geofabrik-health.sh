@@ -41,12 +41,12 @@ STATE_DIR="${NAVI_STATE_DIR}/geofabrik-health"
 mkdir -p "$STATE_DIR"
 LENGTHS_FILE="${STATE_DIR}/content-lengths.env"
 
-# Greenland (paused fetch) + Iceland (also 502 at last check) + a not-yet-fetched
-# batch-1 leaf (Brazil Sul) as a third large object.
+# Current paused fetch (Guyane) + a recently-flapping leaf (Greenland) + a
+# not-yet-fetched batch-1 leaf (Brazil Centro-Oeste) as a third data point.
 PROBE_URLS=(
+  "https://download.geofabrik.de/europe/france/guyane-latest.osm.pbf"
   "https://download.geofabrik.de/north-america/greenland-latest.osm.pbf"
-  "https://download.geofabrik.de/europe/iceland-latest.osm.pbf"
-  "https://download.geofabrik.de/south-america/brazil/sul-latest.osm.pbf"
+  "https://download.geofabrik.de/south-america/brazil/centro-oeste-latest.osm.pbf"
 )
 
 probe_log() {

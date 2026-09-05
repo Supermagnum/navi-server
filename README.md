@@ -40,6 +40,8 @@ unconditional fallback and is untouched by this tree.
 | `scripts/lib/published_tree.py` | Nested `packs/` catalog rebuild (`current.json`) |
 | `scripts/migrate-published-to-geofabrik-paths.sh` | One-shot flat → Geofabrik-path published layout |
 | `scripts/run-planet-leaves-batched.sh` | Preferred full-leaf bake (batch, pause on fail) |
+| `scripts/start-planet-leaves-screen.sh` | Detached screen launcher (safe wrapper; `--resume`) |
+| `scripts/watch-planet-leaves.sh` | Alert-only orchestrator watchdog (no auto-resume) |
 | `scripts/probe-geofabrik-health.sh` | Pre-resume Geofabrik HEAD/range probe (does not start a bake) |
 | `scripts/prefetch-dem-bbox.py` | Copernicus DEM prefetch (`.poly` ocean-skip + 404 cache) |
 | `scripts/gen-geofabrik-leaves.py` | Build `regions.planet.conf` + bboxes from Geofabrik index |
@@ -415,33 +417,47 @@ on validate failure or crash — does not keep going past a bad region):
 # One-time (or when Geofabrik index changes): regenerate leaf list + bboxes
 ./scripts/gen-geofabrik-leaves.py -o /media/navi/navi-server/data/regions.planet.conf
 
-# Detached on the bake host (client may disconnect; server stays up):
-export SCREENDIR=$HOME/.screen   # if /run/screen is not writable
-screen -dmS navi-planet-leaves bash -lc '
-  cd /media/navi/navi-server/scripts
-  export NAVI_PACK_CONFIG=/media/navi/navi-server/data/config.env
-  export NAVI_PLANET_BATCH_SCRATCH_GIB=80
-  ./run-planet-leaves-batched.sh 2>&1 | tee -a ../data/logs/planet-leaves/run.log
-'
+# Preferred launcher (detached screen; wrapper always logs END; pause holds):
+export SCREENDIR=$HOME/.screen
+./scripts/start-planet-leaves-screen.sh
+./scripts/start-planet-leaves-screen.sh --resume
 # Reattach:  screen -r navi-planet-leaves
 # Soft-stop after current region:  touch data/STOP_PLANET_LEAVES
-# Resume after pause/fix:          ./run-planet-leaves-batched.sh --resume
 ```
 
-After a **fetch** pause (e.g. Geofabrik HTTP 502 / Squid error page), do **not**
-resume on a single successful HEAD. Run the health probe until it reports
-STABLE (three consecutive clean rounds; default 5 minutes apart). The probe
-never starts the bake:
+**Fetch retries.** Transient upstream failures (HTTP 502/503/504/408/429, connect
+timeout, DNS failure, connection reset) are retried inside `fetch-extracts.sh`
+with exponential backoff and recovery HEAD probes for up to
+`NAVI_FETCH_TRANSIENT_BUDGET_SECS` (default 1 hour) before the orchestrator
+writes `PAUSED`. Immediate pause (needs-human): HTTP 404/401/403, validate band
+failures, convert crashes, disk-quota gates. Ambiguous codes fail safe to
+needs-human. Classification: `scripts/lib/fetch_http_classify.sh`.
+
+**PAUSED hold.** On needs-human / exhausted-budget failures the orchestrator
+writes `data/logs/planet-leaves/PAUSED` and **keeps the process alive** (screen
+session stays reattachable) instead of exiting. Historically `pause_run` did
+`exit 2` and ad-hoc `screen … set -e` wrappers tore the session down, which
+looked like a mysterious disappearance — there was no OOM evidence on this host.
+Kill the held session when ready, then `--resume`. Optional alert-only watchdog
+(does not restart the bake):
+
+```bash
+# user timer (copy units, enable):
+mkdir -p ~/.config/systemd/user
+cp systemd/navi-planet-leaves-watchdog.* ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now navi-planet-leaves-watchdog.timer
+# Alerts append to data/logs/orchestrator-watchdog.log
+```
+
+After a **fetch** pause that exhausted the transient budget (or for manual
+confidence), you can still run the health probe before `--resume`:
 
 ```bash
 ./scripts/probe-geofabrik-health.sh              # loops until STABLE, then exits
 ./scripts/probe-geofabrik-health.sh --once       # single round (not enough for GO)
 # Log: data/logs/geofabrik-health-probe.log
 ```
-
-Then resume deliberately in a new screen and watch the first fetch through early
-progress (about 10%+ of the PBF, or a stable multi-MiB/s rate for a minute or
-two) before detaching.
 
 Path-parent composites that already have child leaves in `regions.planet.conf`
 (e.g. `north_america_us` when US state leaves exist) are skipped so coverage

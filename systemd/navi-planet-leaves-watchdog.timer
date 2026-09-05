@@ -1,0 +1,12 @@
+[Unit]
+Description=Timer: check navi-planet-leaves orchestrator every 10 minutes
+Documentation=file:///media/navi/navi-server/README.md
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=10min
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
