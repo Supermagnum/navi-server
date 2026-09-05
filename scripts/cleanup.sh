@@ -139,7 +139,7 @@ fi
 
 if [[ "$PRUNE_EXTRACTS" -eq 1 && -d "$NAVI_EXTRACTS_DIR" ]]; then
   log_info "pruning extracts older than ${EXTRACT_KEEP_DAYS}d under ${NAVI_EXTRACTS_DIR}"
-  find "$NAVI_EXTRACTS_DIR" -type f \( -name '*.osm.pbf' -o -name '*.md5' \) \
+  find "$NAVI_EXTRACTS_DIR" -type f \( -name '*.osm.pbf' -o -name '*.md5' -o -name '*.poly' -o -name '*.poly.partial' \) \
     -mtime "+${EXTRACT_KEEP_DAYS}" -print -delete
 fi
 

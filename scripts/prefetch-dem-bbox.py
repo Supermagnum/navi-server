@@ -9,8 +9,16 @@ Concurrency safety:
   elev_dir/.tile_leases/<stem>/<id>    — one file per active lease; refcount=file count
   Evict only removes tiles whose lease dir is empty (refcount 0).
 
+Ocean-skip:
+  --poly PATH  Osmosis/Geofabrik .poly for the extract. 1-degree cells with
+               no intersection are skipped before HTTP. Missing/invalid poly
+               => fail-open (fetch all bbox cells).
+  elev_dir/copernicus_ocean_404.txt  persistent negative cache of stems that
+               previously 404'd (survives scratch cleanup).
+
 Usage:
   ./prefetch-dem-bbox.py --elev-dir DIR --bbox=min_lat,min_lon,max_lat,max_lon
+  ./prefetch-dem-bbox.py --elev-dir DIR --bbox=… --poly /path/to/region.poly
   ./prefetch-dem-bbox.py --elev-dir DIR --bbox=… --lease-id REGION-PID
   ./prefetch-dem-bbox.py --elev-dir DIR --bbox=… --lease-release --lease-id …
   ./prefetch-dem-bbox.py --elev-dir DIR --bbox=… --evict
@@ -28,6 +36,11 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR / "lib"))
+from dem_ocean_404_cache import load_missing, remember_missing  # noqa: E402
+from dem_poly_filter import classify_bbox_tiles, try_load_poly  # noqa: E402
 
 BUCKET = "https://copernicus-dem-30m.s3.eu-central-1.amazonaws.com"
 
@@ -121,7 +134,6 @@ def evict_bbox(
         if not d.exists():
             continue
         shutil.rmtree(d, ignore_errors=True)
-        # Drop empty lease dir if present
         ld = lease_dir(elev, stem)
         if ld.is_dir():
             shutil.rmtree(ld, ignore_errors=True)
@@ -138,7 +150,6 @@ def download_locked(elev: Path, stem: str, url: str, dest: Path) -> bool:
         if dest.is_file() and dest.stat().st_size > 0:
             return True
         dest.parent.mkdir(parents=True, exist_ok=True)
-        # Unique partial per pid to avoid cross-writer corruption before rename.
         partial = dest.with_suffix(dest.suffix + f".partial.{os.getpid()}")
         try:
             req = urllib.request.Request(
@@ -150,7 +161,6 @@ def download_locked(elev: Path, stem: str, url: str, dest: Path) -> bool:
                     if not chunk:
                         break
                     out.write(chunk)
-            # Re-check winner under lock.
             if dest.is_file() and dest.stat().st_size > 0:
                 partial.unlink(missing_ok=True)
                 return True
@@ -170,6 +180,16 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--elev-dir", required=True)
     ap.add_argument("--bbox", required=True, help="min_lat,min_lon,max_lat,max_lon")
+    ap.add_argument(
+        "--poly",
+        default="",
+        help="Osmosis/Geofabrik .poly — skip DEM cells outside extract (fail-open)",
+    )
+    ap.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="classify only; no downloads (prints skip/fetch counts)",
+    )
     ap.add_argument(
         "--max-tiles",
         type=int,
@@ -222,26 +242,64 @@ def main() -> int:
         )
         return 3
 
-    ok = skip = miss = 0
-    for lat, lon in tiles:
+    ocean_skip = 0
+    fetch_tiles = tiles
+    if args.poly:
+        rings = try_load_poly(args.poly)
+        if rings is None:
+            print(
+                "dem_ocean_filter fail_open=1 reason=poly_unusable "
+                f"poly={args.poly} bbox_tiles={len(tiles)}"
+            )
+        else:
+            fetch_tiles, skipped = classify_bbox_tiles(tiles, rings)
+            ocean_skip = len(skipped)
+            print(
+                "dem_ocean_filter "
+                f"bbox_tiles={len(tiles)} fetch={len(fetch_tiles)} "
+                f"ocean_skip={ocean_skip} poly={args.poly}"
+            )
+
+    known_404 = load_missing(elev)
+    if args.dry_run:
+        neg = sum(1 for lat, lon in fetch_tiles if tile_stem(lat, lon) in known_404)
+        print(
+            f"dem_prefetch dry_run=1 ok=0 cached=0 miss=0 ocean_skip={ocean_skip} "
+            f"neg_cache_hit={neg} fetch={len(fetch_tiles)} total={len(tiles)}"
+        )
+        return 0
+
+    ok = cached = miss = neg_hit = 0
+    new_404: list[str] = []
+    for lat, lon in fetch_tiles:
         stem = tile_stem(lat, lon)
         if args.lease_id:
             acquire_lease(elev, stem, args.lease_id)
-        prefix = copernicus_prefix(lat, lon)
-        url = f"{BUCKET}/{prefix}/{prefix}.tif"
         dest = tile_dest(elev, lat, lon)
         if dest.is_file() and dest.stat().st_size > 0:
-            skip += 1
+            cached += 1
             continue
+        if stem in known_404:
+            neg_hit += 1
+            continue
+        prefix = copernicus_prefix(lat, lon)
+        url = f"{BUCKET}/{prefix}/{prefix}.tif"
         print(f"fetch {stem} …", flush=True)
         if download_locked(elev, stem, url, dest):
             ok += 1
         else:
             miss += 1
+            new_404.append(stem)
+            known_404.add(stem)
             print(f"  miss (404) {stem}", flush=True)
+
+    if new_404:
+        remember_missing(elev, new_404)
+
     lease_note = f" lease_id={args.lease_id}" if args.lease_id else ""
     print(
-        f"dem_prefetch ok={ok} cached={skip} miss={miss} total={len(tiles)}{lease_note}"
+        f"dem_prefetch ok={ok} cached={cached} miss={miss} ocean_skip={ocean_skip} "
+        f"neg_cache_hit={neg_hit} fetch={len(fetch_tiles)} total={len(tiles)}{lease_note}"
     )
     return 0
 

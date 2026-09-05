@@ -73,6 +73,7 @@ fetch_one() {
       log_info "skip unchanged region=${region_id} (HTTP 304)"
       printf '{"region_id":"%s","status":"unchanged","url":"%s"}\n' \
         "$region_id" "$url" >"$meta"
+      fetch_region_poly "$region_id" "$src" || true
       return 0
     fi
     die "download failed region=${region_id} curl_rc=${rc}"
@@ -84,6 +85,7 @@ fetch_one() {
     log_info "skip unchanged region=${region_id} (HTTP 304)"
     printf '{"region_id":"%s","status":"unchanged","url":"%s"}\n' \
       "$region_id" "$url" >"$meta"
+    fetch_region_poly "$region_id" "$src" || true
     return 0
   fi
 
@@ -134,6 +136,39 @@ fetch_one() {
 
   printf '{"region_id":"%s","status":"downloaded","url":"%s","bytes":%s,"path":"%s"}\n' \
     "$region_id" "$url" "$(file_size_bytes "$pbf")" "$pbf" >"$meta"
+
+  # Soft-fetch Osmosis .poly for DEM ocean-skip (fail-open later if missing).
+  fetch_region_poly "$region_id" "$src" || true
+}
+
+# Fetch extract boundary .poly when the provider publishes one. Soft-fail:
+# missing/404 does not fail the region — DEM prefetch fails open.
+fetch_region_poly() {
+  local region_id="$1"
+  local src="$2"
+  local poly_url poly_path tmp
+  if ! poly_url="$(region_poly_url "$src")"; then
+    return 0
+  fi
+  poly_path="$(region_poly_path "$region_id")"
+  if [[ -s "$poly_path" && "$FORCE" -eq 0 ]]; then
+    log_info "poly present region=${region_id} path=${poly_path}"
+    return 0
+  fi
+  tmp="${poly_path}.partial"
+  log_info "fetch poly region=${region_id} url=${poly_url}"
+  set +e
+  curl -fL --connect-timeout "${NAVI_HTTP_TIMEOUT_SECS}" --retry 2 --retry-delay 2 \
+    -o "$tmp" "$poly_url"
+  local rc=$?
+  set -e
+  if [[ $rc -ne 0 || ! -s "$tmp" ]]; then
+    rm -f "$tmp"
+    log_warn "poly unavailable region=${region_id} (DEM ocean-skip will fail open)"
+    return 0
+  fi
+  mv "$tmp" "$poly_path"
+  log_info "wrote ${poly_path} bytes=$(file_size_bytes "$poly_path")"
 }
 
 matched=0

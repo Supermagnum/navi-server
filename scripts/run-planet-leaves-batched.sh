@@ -254,7 +254,11 @@ process_region() {
     bbox="$(python3 -c "import json,sys; d=json.load(open(sys.argv[1])); b=d.get(sys.argv[2]); print(','.join(map(str,b)) if b else '')" "$BBOX_FILE" "$rid")"
     if [[ -n "$bbox" ]]; then
       set +e
-      python3 "${SCRIPT_DIR}/prefetch-dem-bbox.py" --elev-dir "$NAVI_ELEV_DIR" --bbox="$bbox"
+      # Optional --poly: skip DEM cells outside extract boundary (fail-open).
+      poly_path="${NAVI_EXTRACTS_DIR}/${rid}.poly"
+      dem_args=(--elev-dir "$NAVI_ELEV_DIR" --bbox="$bbox")
+      [[ -f "$poly_path" ]] && dem_args+=(--poly "$poly_path")
+      python3 "${SCRIPT_DIR}/prefetch-dem-bbox.py" "${dem_args[@]}"
       set -e
     fi
   fi
