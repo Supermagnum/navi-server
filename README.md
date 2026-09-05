@@ -312,19 +312,20 @@ runaways. Genuine outliers get an explicit trailing `key=value` on their
 `regions.conf` line (same pattern for graph/poi/total if needed later):
 
 ```text
-hedmark  url:https://.../hedmark-latest.osm.pbf  wetland_max_ratio=1.0
-africa_guinea_bissau  geofabrik:africa/guinea-bissau  wetland_max_ratio=1.0
+hedmark  url:https://.../hedmark-latest.osm.pbf  terrain_class=wetland_heavy
+africa_guinea_bissau  geofabrik:africa/guinea-bissau  terrain_class=wetland_heavy
 ```
 
-Hedmark’s override is inland/mire-targeted (measured wetland ratio ~0.786;
+Hedmark’s tag is inland/mire-targeted (measured wetland ratio ~0.786;
 ~10% county area as mires per Skog og landskap / Ramsar Hedmarksvidda) —
 not a Norway-wide band. Vestlandet (coastal fjord/mountain) measured
 ~0.214 under the global `0.5` band and needs no override. Guinea-Bissau’s
-override is mangrove / coastal-wetland dense (measured ~0.643 in planet-leaf
+tag is mangrove / coastal-wetland dense (measured ~0.643 in planet-leaf
 batch 1); keep that line in live `data/regions.conf` even when baking from
 `regions.planet.conf` — `validate-packs.sh` merges weekly `regions.conf`
-overrides on top of the planet leaf list. When an override is in effect,
-validate logs `band=[lo,hi] (region override)`.
+overrides on top of the planet leaf list. When a numeric override is in
+effect, validate logs `band=[lo,hi] (region override)`; terrain classes
+log `band=[lo,hi] (terrain_class=…)`.
 
 **`terrain_class=polar_sparse`.** Separate from numeric band overrides: a
 pre-declared geography tag that relaxes **only** `graph_min` to
@@ -340,6 +341,20 @@ floor untagged. Keep tag lines in `data/regions.conf` (merge path);
 do not hand-edit auto-generated `regions.planet.conf`. Validate logs
 `band=[0.001,…] (terrain_class=polar_sparse)`. An explicit
 `graph_min_ratio=` on the same line still wins over the class floor.
+
+**`terrain_class=wetland_heavy`.** Same shape for the wetland *max* band:
+relaxes **only** `wetland_max` to `NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY`
+(default `1.0`). Global `0.5` stays for untagged regions. Measured anchors
+that motivated the class (all convert-clean, graph/poi/total in band):
+Hedmark ~0.786 (inland mire), Guinea-Bissau ~0.643 (mangrove/estuary),
+Florida ~0.576 (Everglades / coastal marsh). Spread ~0.21 under a single
+`1.0` ceiling — the same value previously used as per-region
+`wetland_max_ratio=1.0`, so migrating Hedmark/Guinea-Bissau to the shared
+tag is behavior-preserving. “Wet climate” alone is not enough: Brazil Norte
+(Amazon) measured wetland ratio **0.054** because rainforest is mostly
+`natural=wood`/`forest` in OSM, not `natural=wetland`. Prefer this tag for
+mire-heavy inland, mangrove/estuary, coastal-marsh, and major-delta leaves;
+validate logs `band=[…,1.0] (terrain_class=wetland_heavy)`.
 
 ### 5. Publish (blue-green)
 

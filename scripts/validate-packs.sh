@@ -10,8 +10,10 @@
 # are trailing key=value fields on regions.conf lines (e.g.
 # wetland_max_ratio=1.0); when applied, OK/FLAG lines note "(region override)".
 # terrain_class=polar_sparse relaxes ONLY graph_min to
-# NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE (default 0.001); poi/wetland/total
-# stay on global bands. Explicit graph_min_ratio still wins when both set.
+# NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE (default 0.001).
+# terrain_class=wetland_heavy relaxes ONLY wetland_max to
+# NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY (default 1.0).
+# Explicit *_ratio keys still win when both set.
 #
 # Usage:
 #   ./validate-packs.sh /path/to/generation
@@ -82,6 +84,7 @@ export NAVI_SIZE_GRAPH_MIN_RATIO NAVI_SIZE_GRAPH_MAX_RATIO
 export NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE
 export NAVI_SIZE_POI_MIN_RATIO NAVI_SIZE_POI_MAX_RATIO
 export NAVI_SIZE_WETLAND_MIN_RATIO NAVI_SIZE_WETLAND_MAX_RATIO
+export NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY
 export NAVI_SIZE_TOTAL_MIN_RATIO NAVI_SIZE_TOTAL_MAX_RATIO
 export NAVI_SIZE_VS_PREV_MAX_FACTOR
 export NAVI_EXTRACTS_DIR FILTER_REGION GEN_DIR PREV_LIVE NAVI_REGIONS_CONF
@@ -114,7 +117,7 @@ vs_prev_max = float(os.environ.get("NAVI_SIZE_VS_PREV_MAX_FACTOR", "3.0"))
 
 # Optional trailing key=value on regions.conf lines (after source).
 # Keys: {graph,poi,wetland,total}_{min,max}_ratio
-# Plus terrain_class=polar_sparse (relaxes graph_min only; see below).
+# Plus terrain_class=polar_sparse | wetland_heavy (see below).
 _OVERRIDE_KEYS = {
     "graph_min_ratio": ("graph", 0),
     "graph_max_ratio": ("graph", 1),
@@ -126,11 +129,16 @@ _OVERRIDE_KEYS = {
     "total_max_ratio": ("total", 1),
 }
 
-# Pre-declared geography class: extreme road sparsity vs PBF size (polar /
-# Arctic archipelago / uninhabited sub-Antarctic). Does NOT widen the global
-# graph_min for untagged regions. Floor still catches empty/near-empty packs.
+# Pre-declared geography classes. Do NOT widen global bands for untagged
+# regions. polar_sparse: extreme road sparsity vs PBF (floor still catches
+# empty/near-empty graphs). wetland_heavy: mire / mangrove / coastal-marsh /
+# delta extracts where wetland pack/PBF is predictably high (ceiling still
+# catches runaway duplication, e.g. ratio 3+).
 _TERRAIN_CLASS_GRAPH_MIN = {
     "polar_sparse": ratio_env("NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE", "0.001"),
+}
+_TERRAIN_CLASS_WETLAND_MAX = {
+    "wetland_heavy": ratio_env("NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY", "1.0"),
 }
 
 def load_region_band_meta(conf: Path):
@@ -194,6 +202,10 @@ def bands_for_region(rid: str):
         lo, hi = bands["graph"]
         bands["graph"] = (_TERRAIN_CLASS_GRAPH_MIN[terrain], hi)
         notes["graph"] = f" (terrain_class={terrain})"
+    if terrain in _TERRAIN_CLASS_WETLAND_MAX:
+        lo, hi = bands["wetland"]
+        bands["wetland"] = (lo, _TERRAIN_CLASS_WETLAND_MAX[terrain])
+        notes["wetland"] = f" (terrain_class={terrain})"
     for key, val in region_overrides.get(rid, {}).items():
         kind, idx = _OVERRIDE_KEYS[key]
         lo, hi = bands[kind]

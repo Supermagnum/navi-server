@@ -69,6 +69,8 @@ load_config() {
   : "${NAVI_SIZE_POI_MAX_RATIO:=1.50}"
   : "${NAVI_SIZE_WETLAND_MIN_RATIO:=0.0}"
   : "${NAVI_SIZE_WETLAND_MAX_RATIO:=0.50}"
+  # Ceiling for terrain_class=wetland_heavy only (does not widen the global max).
+  : "${NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY:=1.0}"
   : "${NAVI_SIZE_TOTAL_MIN_RATIO:=0.05}"
   : "${NAVI_SIZE_TOTAL_MAX_RATIO:=25.0}"
   : "${NAVI_SIZE_VS_PREV_MAX_FACTOR:=3.0}"
@@ -180,7 +182,8 @@ resolve_convert_bin() {
 #   url:<https://...>
 #   planet   (planet-latest from planet.openstreetmap.org)
 # Optional trailing key=value pairs override size bands for validate only
-# (see scripts/regions.example.conf), including terrain_class=polar_sparse.
+# (see scripts/regions.example.conf), including terrain_class=polar_sparse
+# and terrain_class=wetland_heavy.
 # Blank lines and # comments ignored.
 # list_regions prints: region_id<TAB>source  (overrides / terrain_class omitted).
 list_regions() {

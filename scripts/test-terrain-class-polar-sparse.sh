@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Unit checks for terrain_class=polar_sparse band merge behavior.
+# Unit checks for terrain_class band merge (polar_sparse + wetland_heavy).
 # Does not touch the live planet bake.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,27 +15,32 @@ bad() { echo "FAIL: $*"; FAIL=$((FAIL + 1)); }
 TMP="$(mktemp -d "${TMPDIR:-/tmp}/navi-terrain-class.XXXXXX")"
 trap 'rm -rf "$TMP"' EXIT
 
-# Mirror the validate-packs.sh merge rules in a focused unit test.
 python3 - "$TMP" <<'PY'
 import os, sys
 from pathlib import Path
 
 tmp = Path(sys.argv[1])
 polar = float(os.environ.get("NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE", "0.001"))
+wet_hi = float(os.environ.get("NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY", "1.0"))
 global_min = float(os.environ.get("NAVI_SIZE_GRAPH_MIN_RATIO", "0.10"))
+global_wet_max = float(os.environ.get("NAVI_SIZE_WETLAND_MAX_RATIO", "0.50"))
 
 weekly = tmp / "regions.conf"
 planet = tmp / "regions.planet.conf"
 weekly.write_text(
     "antarctica\tgeofabrik:antarctica\tterrain_class=polar_sparse\n"
-    "africa_guinea_bissau\tgeofabrik:africa/guinea-bissau\twetland_max_ratio=1.0\n"
+    "africa_guinea_bissau\tgeofabrik:africa/guinea-bissau\tterrain_class=wetland_heavy\n"
+    "north_america_us_florida\tgeofabrik:north-america/us/florida\tterrain_class=wetland_heavy\n"
     "tagged_plus_numeric\tgeofabrik:x\tterrain_class=polar_sparse\tgraph_min_ratio=0.05\n"
+    "wet_plus_numeric\tgeofabrik:y\tterrain_class=wetland_heavy\twetland_max_ratio=0.9\n"
 )
 planet.write_text(
     "antarctica\tgeofabrik:antarctica\n"
     "north_america_us_ohio\tgeofabrik:north-america/us/ohio\n"
     "africa_guinea_bissau\tgeofabrik:africa/guinea-bissau\n"
+    "north_america_us_florida\tgeofabrik:north-america/us/florida\n"
     "tagged_plus_numeric\tgeofabrik:x\n"
+    "wet_plus_numeric\tgeofabrik:y\n"
 )
 
 _OVERRIDE_KEYS = {
@@ -43,10 +48,11 @@ _OVERRIDE_KEYS = {
     "graph_max_ratio": ("graph", 1),
     "wetland_max_ratio": ("wetland", 1),
 }
-_TERRAIN = {"polar_sparse": polar}
+_TERRAIN_G = {"polar_sparse": polar}
+_TERRAIN_W = {"wetland_heavy": wet_hi}
 default_bands = {
     "graph": (global_min, 20.0),
-    "wetland": (0.0, 0.50),
+    "wetland": (0.0, global_wet_max),
 }
 
 def load(conf: Path):
@@ -87,10 +93,14 @@ def bands_for(rid):
     bands = {k: v for k, v in default_bands.items()}
     notes = {}
     terrain = region_terrain.get(rid)
-    if terrain in _TERRAIN:
+    if terrain in _TERRAIN_G:
         lo, hi = bands["graph"]
-        bands["graph"] = (_TERRAIN[terrain], hi)
+        bands["graph"] = (_TERRAIN_G[terrain], hi)
         notes["graph"] = f" (terrain_class={terrain})"
+    if terrain in _TERRAIN_W:
+        lo, hi = bands["wetland"]
+        bands["wetland"] = (lo, _TERRAIN_W[terrain])
+        notes["wetland"] = f" (terrain_class={terrain})"
     for key, val in region_overrides.get(rid, {}).items():
         kind, idx = _OVERRIDE_KEYS[key]
         lo, hi = bands[kind]
@@ -102,15 +112,23 @@ checks = []
 b, n = bands_for("antarctica")
 checks.append(("antarctica graph_min", b["graph"][0] == polar, b, n))
 checks.append(("antarctica note", "terrain_class=polar_sparse" in n.get("graph", ""), n))
+checks.append(("antarctica wetland untouched", b["wetland"][1] == global_wet_max, b, n))
 b, n = bands_for("north_america_us_ohio")
 checks.append(("ohio untouched graph_min", b["graph"][0] == global_min, b, n))
-checks.append(("ohio no note", "graph" not in n, n))
+checks.append(("ohio untouched wetland", b["wetland"][1] == global_wet_max, b, n))
+checks.append(("ohio no note", not n, n))
 b, n = bands_for("africa_guinea_bissau")
-checks.append(("gw wetland max", b["wetland"][1] == 1.0, b, n))
+checks.append(("gw wetland max", b["wetland"][1] == wet_hi, b, n))
+checks.append(("gw wetland note", "terrain_class=wetland_heavy" in n.get("wetland", ""), n))
 checks.append(("gw graph still global", b["graph"][0] == global_min, b, n))
+b, n = bands_for("north_america_us_florida")
+checks.append(("florida wetland max", b["wetland"][1] == wet_hi, b, n))
 b, n = bands_for("tagged_plus_numeric")
-checks.append(("explicit wins", b["graph"][0] == 0.05, b, n))
-checks.append(("explicit note", n.get("graph") == " (region override)", n))
+checks.append(("explicit graph wins", b["graph"][0] == 0.05, b, n))
+checks.append(("explicit graph note", n.get("graph") == " (region override)", n))
+b, n = bands_for("wet_plus_numeric")
+checks.append(("explicit wetland wins", b["wetland"][1] == 0.9, b, n))
+checks.append(("explicit wetland note", n.get("wetland") == " (region override)", n))
 
 failed = 0
 for name, ok, *rest in checks:

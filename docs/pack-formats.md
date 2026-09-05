@@ -324,7 +324,7 @@ To inspect raw `edge_delta_h_m`, deserialize to `FlatGraphPack` yourself (the
 | Tool | Purpose |
 |---|---|
 | `navi-indexed-convert` | PBF (+ optional DEM) → packs + `.navi-manifest.json` |
-| `scripts/validate-packs.sh` | Presence, size bands (global `NAVI_SIZE_*` plus optional per-region `*_min_ratio` / `*_max_ratio` or `terrain_class=polar_sparse` on `regions.conf` lines), weak ≥64B header check (does **not** verify magic/version) |
+| `scripts/validate-packs.sh` | Presence, size bands (global `NAVI_SIZE_*` plus optional per-region `*_min_ratio` / `*_max_ratio` or `terrain_class=polar_sparse` / `wetland_heavy` on `regions.conf` lines), weak ≥64B header check (does **not** verify magic/version) |
 | `scripts/publish-packs.sh` | Staging → published under `packs/<geofabrik-path>/` + `manifest.json` / checksums / `current.json` |
 | `scripts/lib/publish-safe.sh` | Single-region publish used by planet smoke / batched leaves |
 | `scripts/lib/published_tree.py` | Nested packs tree walk + `current.json` rebuild |
@@ -333,13 +333,16 @@ To inspect raw `edge_delta_h_m`, deserialize to `FlatGraphPack` yourself (the
 **Size bands and `terrain_class`.** Global `NAVI_SIZE_*` ratios gate pack/PBF
 size sanity. Per-region trailing `key=value` on `regions.conf` lines can
 narrow or widen one band for one region (e.g. `wetland_max_ratio=1.0`).
-`terrain_class=polar_sparse` is a pre-declared exception class: it sets only
-`graph_min` to `NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE` (default `0.001`) so
-polar / Arctic-archipelago / uninhabited sub-Antarctic extracts are not
-paused for genuine road sparsity, while empty/near-empty graph packs still
-FLAG. Untagged regions keep the global graph floor (`0.10`). Keep tags in
-`data/regions.conf` (merged when baking from `regions.planet.conf`); do not
-hand-edit the auto-generated planet leaf list for overrides.
+`terrain_class=polar_sparse` sets only `graph_min` to
+`NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE` (default `0.001`).
+`terrain_class=wetland_heavy` sets only `wetland_max` to
+`NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY` (default `1.0`) for mire /
+mangrove / coastal-marsh / major-delta extracts (anchors: Hedmark 0.786,
+Guinea-Bissau 0.643, Florida 0.576). Untagged regions keep global floors/
+ceilings. “Wet climate” alone is not enough — Brazil Norte (Amazon) measured
+wetland ratio 0.054 because rainforest is mostly non-wetland OSM tags. Keep
+tags in `data/regions.conf` (merged when baking from `regions.planet.conf`);
+do not hand-edit the auto-generated planet leaf list for overrides.
 
 Build convert (in-repo `pack-convert-core` / `navi-indexed-convert`):
 
