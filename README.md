@@ -356,6 +356,22 @@ tag is behavior-preserving. “Wet climate” alone is not enough: Brazil Norte
 mire-heavy inland, mangrove/estuary, coastal-marsh, and major-delta leaves;
 validate logs `band=[…,1.0] (terrain_class=wetland_heavy)`.
 
+**`skip_reason=no_road_network` (orchestration skip, not a validate band).**
+Distinct from `terrain_class`: those tags relax size bands for regions that
+still have **some** routable highways (sparse polar / wetland-heavy).
+`skip_reason=no_road_network` is for Geofabrik leaves with **literally zero**
+`highway=*` ways — convert correctly hard-fails (`bbox graph empty` in
+`bbox_build.rs`) and must not be papered over with a band override. Tag the
+region in `data/regions.conf` (same trailing `key=value` style; planet conf
+is regenerated and must not be hand-edited for tags).
+`run-planet-leaves-batched.sh` reads the marker **before** fetch/convert/
+validate/publish, logs
+`skip region=… skip_reason=no_road_network evidence=0_highway_ways_in_source_pbf`,
+and counts the leaf as **processed** toward batch `N/M` progress (total leaf
+count stays the same; published catalog is smaller). Only tag after an
+osmium (or equivalent) probe confirms 0 highway ways — inhabited islands
+with a handful of streets stay in the normal pipeline.
+
 ### 5. Publish (blue-green)
 
 ```bash

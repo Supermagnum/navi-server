@@ -184,6 +184,9 @@ resolve_convert_bin() {
 # Optional trailing key=value pairs override size bands for validate only
 # (see scripts/regions.example.conf), including terrain_class=polar_sparse
 # and terrain_class=wetland_heavy.
+# skip_reason=no_road_network excludes a leaf from planet-leaves fetch/convert/
+# validate/publish (zero highway=* ways; convert would hard-fail). Keep this
+# tag in data/regions.conf — regions.planet.conf is regenerated.
 # Blank lines and # comments ignored.
 # list_regions prints: region_id<TAB>source  (overrides / terrain_class omitted).
 list_regions() {
@@ -199,6 +202,47 @@ list_regions() {
       print id "\t" src
     }
   ' "$conf"
+}
+
+# First matching trailing key=value for region_id across conf files (order = precedence).
+# Usage: region_conf_kv <region_id> <key> [conf ...]
+region_conf_kv() {
+  local rid="$1" key="$2"
+  shift 2
+  local conf val=""
+  for conf in "$@"; do
+    [[ -n "$conf" && -f "$conf" ]] || continue
+    val="$(awk -v rid="$rid" -v want="$key" '
+      /^[[:space:]]*#/ { next }
+      /^[[:space:]]*$/ { next }
+      $1 != rid { next }
+      {
+        for (i = 3; i <= NF; i++) {
+          eq = index($i, "=")
+          if (eq < 2) continue
+          k = substr($i, 1, eq - 1)
+          if (k == want) {
+            print substr($i, eq + 1)
+            exit
+          }
+        }
+      }
+    ' "$conf")"
+    if [[ -n "$val" ]]; then
+      printf '%s\n' "$val"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Orchestrator skip marker (planet-leaves). Prefer weekly regions.conf overrides.
+region_skip_reason() {
+  local rid="$1"
+  region_conf_kv "$rid" "skip_reason" \
+    "${NAVI_PACK_ROOT}/regions.conf" \
+    "${NAVI_REGIONS_CONF:-}" \
+    "${NAVI_PACK_ROOT}/regions.planet.conf" || true
 }
 
 region_source_kind() {

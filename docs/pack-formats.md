@@ -344,6 +344,15 @@ wetland ratio 0.054 because rainforest is mostly non-wetland OSM tags. Keep
 tags in `data/regions.conf` (merged when baking from `regions.planet.conf`);
 do not hand-edit the auto-generated planet leaf list for overrides.
 
+**`skip_reason=no_road_network`.** Orchestration exclusion for leaves with
+**zero** `highway=*` ways (convert hard-fails empty graphs by design).
+Not a size-band override and not `terrain_class` — those apply when some
+routable data exists but fails a heuristic. Keep the tag on
+`data/regions.conf`; `run-planet-leaves-batched.sh` skips
+fetch/convert/validate/publish before work starts, logs the reason, and
+still counts the leaf toward batch progress. Confirm 0 highways with a PBF
+probe before tagging.
+
 Build convert (in-repo `pack-convert-core` / `navi-indexed-convert`):
 
 ```bash

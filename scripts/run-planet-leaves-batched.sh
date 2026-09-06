@@ -221,6 +221,20 @@ PY
 process_region() {
   local rid="$1"
   local phase rc
+  local skip_reason
+
+  skip_reason="$(region_skip_reason "$rid")"
+  if [[ -n "$skip_reason" ]]; then
+    local evidence=""
+    if [[ "$skip_reason" == "no_road_network" ]]; then
+      evidence=" evidence=0_highway_ways_in_source_pbf"
+    fi
+    log_info "skip region=${rid} skip_reason=${skip_reason}${evidence} (no fetch/convert/validate/publish; counts as processed for batch progress; not published)"
+    echo "{\"event\":\"region_skip\",\"region_id\":\"${rid}\",\"reason\":\"${skip_reason}\"}" >>"$STATE_FILE"
+    # Drop any failed convert scratch left from a prior attempt at this leaf.
+    rm -rf "${NAVI_CONVERT_DIR}/${rid}" 2>/dev/null || true
+    return 0
+  fi
 
   if already_published "$rid"; then
     log_info "skip already published ${rid}"
@@ -302,6 +316,13 @@ process_region() {
 publish_and_clean_region() {
   local rid="$1"
   local gen_id
+  local skip_reason
+  skip_reason="$(region_skip_reason "$rid")"
+  if [[ -n "$skip_reason" ]]; then
+    log_info "skip publish region=${rid} skip_reason=${skip_reason}"
+    cleanup_region_scratch "$rid" || true
+    return 0
+  fi
   if already_published "$rid"; then
     cleanup_region_scratch "$rid" || true
     return 0
@@ -369,10 +390,10 @@ for bi in "${BATCH_INDEXES[@]}"; do
     fi
     process_region "$rid"
     done_in_batch=$((done_in_batch + 1))
-    log_info "batch ${bi} validated ${done_in_batch}/${local_n} region=${rid}"
+    log_info "batch ${bi} processed ${done_in_batch}/${local_n} region=${rid}"
   done
 
-  log_info "==== BATCH ${bi} all validated — publishing ===="
+  log_info "==== BATCH ${bi} all processed — publishing ===="
   for rid in "${REGIONS[@]}"; do
     publish_and_clean_region "$rid"
   done

@@ -36,10 +36,12 @@ LOG="${NAVI_LOG_DIR}/planet-leaves/run.log"
 mkdir -p "$(dirname "$LOG")"
 
 # shellcheck disable=SC2016
+# Drop caller scratch overrides (e.g. leftover incremental-test paths from an
+# interactive shell). Planet bake must use data/scratch/{extracts,convert}.
 screen -dmS navi-planet-leaves bash -lc '
   set -uo pipefail
   cd "'"${SCRIPT_DIR}"'"
-  unset NAVI_CONVERT_DIR NAVI_REGIONS_CONF || true
+  unset NAVI_CONVERT_DIR NAVI_EXTRACTS_DIR NAVI_SCRATCH_DIR NAVI_REGIONS_CONF || true
   export NAVI_PACK_CONFIG="'"${NAVI_PACK_CONFIG:-${NAVI_PACK_ROOT}/config.env}"'"
   export NAVI_PLANET_BATCH_SCRATCH_GIB="'"${NAVI_PLANET_BATCH_SCRATCH_GIB:-80}"'"
   export SCREENDIR="'"${SCREENDIR}"'"
