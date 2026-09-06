@@ -337,15 +337,22 @@ pre-declared geography tag that relaxes **only** `graph_min` to
 `NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE` (default `0.001`). Global
 `NAVI_SIZE_GRAPH_MIN_RATIO=0.10` stays for every untagged region — this is
 not a loosened default. POI / wetland / total bands are unchanged.
-Use it for polar continents, Arctic archipelagos, and uninhabited
-sub-Antarctic extracts whose PBF is dominated by coastline / hydrography /
-`natural=*` rather than routable highways (measured anchors: Antarctica
-graph ratio ~0.059; Nunavut Qikiqtaaluk ~0.009). Cold alone is not enough:
+Use it for extracts whose PBF is dominated by coastline / hydrography /
+`natural=*` rather than routable highways — typically polar continents,
+Arctic archipelagos, and uninhabited sub-Antarctic leaves (measured
+anchors: Antarctica graph ratio ~0.059; Nunavut Qikiqtaaluk ~0.009), and
+also the same bbox/PBF-bulk mechanism on non-polar maritime reef extracts
+when measured (Coral Sea Islands ~0.012). Cold alone is not enough:
 Greenland (~0.697), Iceland, and the Falklands passed the global `0.1`
-floor untagged. Keep tag lines in `data/regions.conf` (merge path);
-do not hand-edit auto-generated `regions.planet.conf`. Validate logs
-`band=[0.001,…] (terrain_class=polar_sparse)`. An explicit
-`graph_min_ratio=` on the same line still wins over the class floor.
+floor untagged. The name is slightly imprecise on purpose: one tag spans
+Arctic / Antarctic / tropical reef climates because the mechanism (huge
+Geofabrik bbox of empty ocean/ice/reef, tiny road network in one corner)
+is identical — prefer that over near-identical synonym tags. If a fourth
+or fifth measured case appears in yet another climate, consider renaming
+(e.g. `bbox_sparse`) rather than stacking synonyms. Keep tag lines in
+`data/regions.conf` (merge path); do not hand-edit auto-generated
+`regions.planet.conf`. Validate logs `band=[0.001,…] (terrain_class=polar_sparse)`.
+An explicit `graph_min_ratio=` on the same line still wins over the class floor.
 
 **`terrain_class=wetland_heavy`.** Same shape for the wetland *max* band:
 relaxes **only** `wetland_max` to `NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY`
