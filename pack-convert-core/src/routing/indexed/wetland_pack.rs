@@ -121,6 +121,7 @@ impl FlatWetlandPack {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rkyv::rancor::Error as RkyvError;
 
     #[test]
     fn roundtrip_soft_hard_rings() {
@@ -157,5 +158,28 @@ mod tests {
         assert_eq!(clipped.ring_count(), 1);
         assert_eq!(clipped.class_at(60.1, 10.1), Some(WetlandClass::HardAvoid));
         assert_eq!(clipped.class_at(61.05, 11.05), None);
+    }
+
+    /// Arid/rocky islands (e.g. Pitcairn) have zero wetland rings; convert must
+    /// still emit a serializable empty pack so validate/Ready do not hard-fail.
+    #[test]
+    fn empty_pack_roundtrip_and_rkyv() {
+        let pack = FlatWetlandPack::empty();
+        assert_eq!(pack.ring_count(), 0);
+        assert_eq!(pack.ring_offsets, vec![0]);
+        let back = pack.to_wetland_index(None);
+        assert_eq!(back.ring_count(), 0);
+        assert_eq!(back.class_at(0.0, 0.0), None);
+
+        let from_empty_index = FlatWetlandPack::from_wetland_index(&WetlandIndex::default());
+        assert_eq!(from_empty_index.ring_count(), 0);
+
+        let bytes = rkyv::to_bytes::<RkyvError>(&pack).expect("serialize empty wetland");
+        assert!(!bytes.is_empty(), "empty pack must still have an rkyv body");
+        let archived = rkyv::access::<ArchivedFlatWetlandPack, RkyvError>(&bytes)
+            .expect("access empty wetland");
+        let deser: FlatWetlandPack =
+            rkyv::deserialize::<FlatWetlandPack, RkyvError>(archived).expect("deser");
+        assert_eq!(deser.ring_count(), 0);
     }
 }

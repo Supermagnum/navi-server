@@ -210,8 +210,11 @@ impl ConvertCheckpoint {
                 WETLAND_FORMAT_VERSION,
             );
         }
+        // Zero wetland rings is valid, but still requires a written empty pack
+        // (or tiles). Do not treat "complete + no files" as present — that was
+        // the Pitcairn-shaped hole (tiled convert skips empty tiles).
         if self.wetland_tiles.is_empty() {
-            return true;
+            return false;
         }
         self.wetland_tiles.iter().all(|e| {
             archive_matches_preamble(
@@ -1052,6 +1055,33 @@ pub fn convert_region_packs(opts: &ConvertOptions) -> anyhow::Result<ConvertRepo
         let _ = ck.save(&ck_path);
         (wetland_tiles_out, wetland_rings, wetland_ms)
     };
+
+    // Tiled wetland convert skips tiles with ring_count==0. A region with no
+    // wetland features anywhere (arid/rocky islands) therefore writes nothing,
+    // leaving wetland_file unset — validate hard-fails "no wetland pack" and
+    // PackStatus::Ready requires a wetland archive. Zero rings is a valid
+    // outcome; emit a monolith empty NVWL pack (FlatWetlandPack::empty).
+    if wetland_tiles_out.is_empty() && !opts.data_dir.join(&wet_name).is_file() {
+        let wet_pack = FlatWetlandPack::empty();
+        let wet_payload = rkyv::to_bytes::<RkyvError>(&wet_pack)
+            .map_err(|e| anyhow::anyhow!("rkyv empty wetland serialize: {e}"))?;
+        let wet_path = opts.data_dir.join(&wet_name);
+        discard_partial(&wet_path);
+        write_archive_atomic(
+            &wet_path,
+            Preamble::new(MAGIC_WETLAND, WETLAND_FORMAT_VERSION),
+            wet_payload.as_ref(),
+        )?;
+        log::info!(
+            target: "NaviConvert",
+            "CONVERT_PHASE wrote empty wetland pack (0 rings) file={wet_name}"
+        );
+        ck.wetland_file = Some(wet_name.clone());
+        ck.wetland_complete = true;
+        ck.wetland_rings = wetland_rings;
+        let _ = ck.save(&ck_path);
+    }
+
     let (wetland_file, wetland_format_version) = if !wetland_tiles_out.is_empty() {
         (None, WETLAND_FORMAT_VERSION)
     } else if opts.data_dir.join(&wet_name).is_file() {
