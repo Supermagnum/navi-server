@@ -57,13 +57,15 @@ unconditional fallback and is untouched by this tree.
 | [`docs/pack-formats.md`](docs/pack-formats.md) | Binary and JSON pack formats, what they contain, and how to read them |
 | [`docs/client-fetch.md`](docs/client-fetch.md) | Future client HTTP GET contract and exposure surface |
 | [`docs/datex-npra.md`](docs/datex-npra.md) | Optional DATEX NPRA redistribution (**off by default**) |
+| [`docs/incremental-geofabrik.md`](docs/incremental-geofabrik.md) | Geofabrik `.osc.gz` incremental extract updates (**tested on one region; not on weekly/planet schedules yet**) |
 
 Data root detail:
 
 ```text
 /media/navi/navi-server/data/
   config.env                 # local settings (copy from scripts/config.example.env)
-  regions.conf               # weekly / smoke regions (copy from regions.example.conf)
+  regions.conf               # weekly / smoke regions (gitignored local copy from regions.example.conf;
+                             #   portable terrain_class / skip_reason / band tags live in the example)
   regions.planet.conf        # optional full Geofabrik leaf list (gen-geofabrik-leaves.py)
   regions.planet.conf.bboxes.json
   scratch/extracts/          # fetched <bake_id>-latest.osm.pbf
@@ -230,6 +232,9 @@ pipeline.
 ```bash
 ./fetch-extracts.sh hedmark
 ./fetch-extracts.sh --force hedmark   # ignore ETag / Last-Modified
+# Opt-in Geofabrik .osc.gz update of a held PBF (falls back to full fetch).
+# Not used by weekly/planet schedules yet — see docs/incremental-geofabrik.md.
+./fetch-extracts.sh --prefer-incremental us_west_virginia
 ```
 
 - Downloads into `data/scratch/extracts/<region_id>-latest.osm.pbf`

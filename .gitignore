@@ -11,7 +11,11 @@
 /data/published/current.json
 /data/published/.staging/
 
-# Local overrides (examples stay tracked under scripts/)
+# Local runtime copies (templates stay tracked under scripts/).
+# data/regions.conf is created by setup-server from regions.example.conf —
+# keep portable terrain_class / skip_reason / band overrides in the example
+# so investigative tags are versioned; the local file remains the runtime
+# merge source for planet-leaves and may diverge per deployment.
 /data/config.env
 /data/regions.conf
 /data/ddns.env
