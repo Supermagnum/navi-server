@@ -65,6 +65,8 @@ load_config() {
   : "${NAVI_SIZE_GRAPH_MAX_RATIO:=20.0}"
   # Floor for terrain_class=polar_sparse only (does not widen the global min).
   : "${NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE:=0.001}"
+  # Ceiling for terrain_class=dense_network only (does not widen the global max).
+  : "${NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK:=25.0}"
   : "${NAVI_SIZE_POI_MIN_RATIO:=0.01}"
   : "${NAVI_SIZE_POI_MAX_RATIO:=1.50}"
   : "${NAVI_SIZE_WETLAND_MIN_RATIO:=0.0}"
@@ -183,7 +185,7 @@ resolve_convert_bin() {
 #   planet   (planet-latest from planet.openstreetmap.org)
 # Optional trailing key=value pairs override size bands for validate only
 # (see scripts/regions.example.conf), including terrain_class=polar_sparse
-# and terrain_class=wetland_heavy.
+# and terrain_class=wetland_heavy / dense_network.
 # skip_reason=no_road_network excludes a leaf from planet-leaves fetch/convert/
 # validate/publish (zero highway=* ways; convert would hard-fail). Keep this
 # tag in data/regions.conf — regions.planet.conf is regenerated.

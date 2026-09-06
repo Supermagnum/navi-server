@@ -13,7 +13,10 @@
 # NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE (default 0.001).
 # terrain_class=wetland_heavy relaxes ONLY wetland_max to
 # NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY (default 1.0).
-# Explicit *_ratio keys still win when both set.
+# terrain_class=dense_network relaxes ONLY graph_max to
+# NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK (default 25.0).
+# Multiple classes allowed: terrain_class=wetland_heavy,dense_network
+# (comma or +). Explicit *_ratio keys still win when both set.
 #
 # Usage:
 #   ./validate-packs.sh /path/to/generation
@@ -82,6 +85,7 @@ fi
 
 export NAVI_SIZE_GRAPH_MIN_RATIO NAVI_SIZE_GRAPH_MAX_RATIO
 export NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE
+export NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK
 export NAVI_SIZE_POI_MIN_RATIO NAVI_SIZE_POI_MAX_RATIO
 export NAVI_SIZE_WETLAND_MIN_RATIO NAVI_SIZE_WETLAND_MAX_RATIO
 export NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY
@@ -117,7 +121,7 @@ vs_prev_max = float(os.environ.get("NAVI_SIZE_VS_PREV_MAX_FACTOR", "3.0"))
 
 # Optional trailing key=value on regions.conf lines (after source).
 # Keys: {graph,poi,wetland,total}_{min,max}_ratio
-# Plus terrain_class=polar_sparse | wetland_heavy (see below).
+# Plus terrain_class=polar_sparse | wetland_heavy | dense_network (see below).
 _OVERRIDE_KEYS = {
     "graph_min_ratio": ("graph", 0),
     "graph_max_ratio": ("graph", 1),
@@ -133,13 +137,36 @@ _OVERRIDE_KEYS = {
 # regions. polar_sparse: extreme road sparsity vs PBF (floor still catches
 # empty/near-empty graphs). wetland_heavy: mire / mangrove / coastal-marsh /
 # delta extracts where wetland pack/PBF is predictably high (ceiling still
-# catches runaway duplication, e.g. ratio 3+).
+# catches runaway duplication, e.g. ratio 3+). dense_network: fine-grained
+# residential/service tagging → high graph pack/PBF (ceiling still catches
+# runaway duplication well above 25).
 _TERRAIN_CLASS_GRAPH_MIN = {
     "polar_sparse": ratio_env("NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE", "0.001"),
+}
+_TERRAIN_CLASS_GRAPH_MAX = {
+    "dense_network": ratio_env("NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK", "25.0"),
 }
 _TERRAIN_CLASS_WETLAND_MAX = {
     "wetland_heavy": ratio_env("NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY", "1.0"),
 }
+
+def _parse_terrain_classes(raw: str):
+    """Split terrain_class=a,b or a+b into unique lowercase tokens."""
+    out = []
+    for tok in raw.replace("+", ",").split(","):
+        c = tok.strip().lower()
+        if c and c not in out:
+            out.append(c)
+    return out
+
+def _merge_terrain(dst: dict, rid: str, classes: list):
+    cur = dst.get(rid) or []
+    if isinstance(cur, str):
+        cur = [cur]
+    for c in classes:
+        if c not in cur:
+            cur.append(c)
+    dst[rid] = cur
 
 def load_region_band_meta(conf: Path):
     """Parse per-region size-band overrides + terrain_class. Additive only."""
@@ -157,7 +184,7 @@ def load_region_band_meta(conf: Path):
         rid = parts[0]
         # parts[1] is source; rest are optional key=value
         overrides = {}
-        terrain = None
+        classes = []
         for tok in parts[2:]:
             if "=" not in tok:
                 continue
@@ -165,15 +192,15 @@ def load_region_band_meta(conf: Path):
             k = k.strip().lower()
             v = v.strip()
             if k == "terrain_class":
-                terrain = v.lower()
+                classes.extend(_parse_terrain_classes(v))
                 continue
             if k not in _OVERRIDE_KEYS:
                 continue
             overrides[k] = float(v)
         if overrides:
             overrides_out[rid] = overrides
-        if terrain:
-            terrain_out[rid] = terrain
+        if classes:
+            _merge_terrain(terrain_out, rid, classes)
     return overrides_out, terrain_out
 
 region_overrides, region_terrain = load_region_band_meta(regions_conf)
@@ -190,22 +217,29 @@ if _extra_overrides:
     _ov, _tc = load_region_band_meta(Path(_extra_overrides))
     for _rid, _vals in _ov.items():
         region_overrides.setdefault(_rid, {}).update(_vals)
-    for _rid, _cls in _tc.items():
-        region_terrain.setdefault(_rid, _cls)
+    for _rid, _classes in _tc.items():
+        _merge_terrain(region_terrain, _rid, _classes if isinstance(_classes, list) else [_classes])
 
 def bands_for_region(rid: str):
     """Return (bands_dict, kind->note dict for OK/FLAG suffix)."""
     bands = {k: (lo, hi) for k, (lo, hi) in default_bands.items()}
     notes = {}
-    terrain = region_terrain.get(rid)
-    if terrain in _TERRAIN_CLASS_GRAPH_MIN:
-        lo, hi = bands["graph"]
-        bands["graph"] = (_TERRAIN_CLASS_GRAPH_MIN[terrain], hi)
-        notes["graph"] = f" (terrain_class={terrain})"
-    if terrain in _TERRAIN_CLASS_WETLAND_MAX:
-        lo, hi = bands["wetland"]
-        bands["wetland"] = (lo, _TERRAIN_CLASS_WETLAND_MAX[terrain])
-        notes["wetland"] = f" (terrain_class={terrain})"
+    terrains = region_terrain.get(rid) or []
+    if isinstance(terrains, str):
+        terrains = [terrains]
+    for terrain in terrains:
+        if terrain in _TERRAIN_CLASS_GRAPH_MIN:
+            lo, hi = bands["graph"]
+            bands["graph"] = (_TERRAIN_CLASS_GRAPH_MIN[terrain], hi)
+            notes["graph"] = f" (terrain_class={terrain})"
+        if terrain in _TERRAIN_CLASS_GRAPH_MAX:
+            lo, hi = bands["graph"]
+            bands["graph"] = (lo, _TERRAIN_CLASS_GRAPH_MAX[terrain])
+            notes["graph"] = f" (terrain_class={terrain})"
+        if terrain in _TERRAIN_CLASS_WETLAND_MAX:
+            lo, hi = bands["wetland"]
+            bands["wetland"] = (lo, _TERRAIN_CLASS_WETLAND_MAX[terrain])
+            notes["wetland"] = f" (terrain_class={terrain})"
     for key, val in region_overrides.get(rid, {}).items():
         kind, idx = _OVERRIDE_KEYS[key]
         lo, hi = bands[kind]
