@@ -552,6 +552,16 @@ Immediate pause (needs-human): HTTP 404/401/403, validate band failures,
 convert crashes, disk-quota gates. Ambiguous codes fail safe to needs-human.
 Classification: `scripts/lib/fetch_http_classify.sh`.
 
+**PBF integrity (HTML soft-404 / checksum).** Geofabrik can answer a missing or
+broken `-latest` extract with HTTP **302 → homepage** and a final **200
+`text/html`** body. `curl -fL` treats that as success, so a ~10 KiB HTML page
+was previously written as `*-latest.osm.pbf` and handed to convert (Enfield,
+2026-09-07: `blob header is too big`). The matching `.md5` often 404s in the
+same incident; an older soft-continue path logged `checksum URL failed … leaving
+PBF but flagging` and proceeded. `fetch-extracts.sh` now **rejects HTML bodies**
+before accept and **dies** when a provider-published checksum URL fails (deletes
+the unverified PBF). Regression: `./scripts/test-fetch-pbf-integrity.sh`.
+
 **PAUSED hold.** On needs-human / exhausted-budget failures the orchestrator
 writes `data/logs/planet-leaves/PAUSED` and **keeps the process alive** (screen
 session stays reattachable) instead of exiting. Historically `pause_run` did
@@ -590,9 +600,11 @@ they continue past some failures and are not the preferred full-planet path:
 ./scripts/run-planet-smoke.sh --resume
 ./scripts/run-planet-smoke-parallel.sh --dry-run --limit 4
 ./scripts/run-planet-smoke-parallel.sh --resume
-# Collision / sun-order regressions:
+# Collision / sun-order / fetch-integrity regressions:
 ./scripts/test-generation-id.sh
 ./scripts/test-sun-order-no-log-pollution.sh
+./scripts/test-fetch-transient-retry.sh
+./scripts/test-fetch-pbf-integrity.sh
 ```
 
 Concurrency for the parallel smoke is auto-detected from `nproc` +
