@@ -10,6 +10,10 @@
 #   ./fetch-extracts.sh                  # all regions in regions.conf
 #   ./fetch-extracts.sh hedmark          # single region id
 #   ./fetch-extracts.sh --force hedmark  # ignore conditional headers
+#   ./fetch-extracts.sh --prefer-incremental us_west_virginia
+#       # Opt-in Geofabrik .osc.gz update of a held PBF (fetch-incremental.sh).
+#       # Falls back to full fetch when incremental is unavailable.
+#       # NOT enabled by weekly/planet schedules yet.
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,12 +33,14 @@ require_cmd curl md5sum
 : "${NAVI_FETCH_RECOVERY_INTERVAL_SECS:=30}"
 
 FORCE=0
+PREFER_INCREMENTAL=0
 FILTER_IDS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --force) FORCE=1; shift ;;
+    --prefer-incremental) PREFER_INCREMENTAL=1; shift ;;
     -h|--help)
-      sed -n '2,14p' "$0"
+      sed -n '2,18p' "$0"
       exit 0
       ;;
     *) FILTER_IDS+=("$1"); shift ;;
@@ -53,6 +59,24 @@ fetch_one() {
   lm_file="${state_dir}/last-modified"
   meta="${state_dir}/fetch.json"
   tmp="${pbf}.partial"
+
+  # Opt-in incremental path (Geofabrik only). Skipped when --force.
+  if [[ "$PREFER_INCREMENTAL" -eq 1 && "$FORCE" -eq 0 ]]; then
+    set +e
+    "${SCRIPT_DIR}/fetch-incremental.sh" "$region_id"
+    local inc_rc=$?
+    set -e
+    if [[ "$inc_rc" -eq 0 ]]; then
+      printf '{"region_id":"%s","status":"incremental","url":"%s","path":"%s"}\n' \
+        "$region_id" "$url" "$pbf" >"$meta"
+      fetch_region_poly "$region_id" "$src" || true
+      return 0
+    fi
+    if [[ "$inc_rc" -ne 10 ]]; then
+      die "incremental fetch failed region=${region_id} rc=${inc_rc}"
+    fi
+    log_info "incremental unavailable, falling back to full fetch region=${region_id}"
+  fi
 
   log_info "fetch region=${region_id} url=${url}"
 

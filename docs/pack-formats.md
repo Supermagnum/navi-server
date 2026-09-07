@@ -7,6 +7,9 @@ Binary and JSON formats produced by `navi-indexed-convert` and published under
 
 HTTP fetch contract (URLs, digests, exposure surface): [client-fetch.md](client-fetch.md).
 
+Geofabrik extract refreshes via `.osc.gz` (optional, not on production
+schedules yet): [incremental-geofabrik.md](incremental-geofabrik.md).
+
 ---
 
 ## Published tree
