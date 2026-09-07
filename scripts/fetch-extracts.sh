@@ -184,6 +184,13 @@ fetch_one() {
     die "empty download region=${region_id}"
   fi
 
+  # Geofabrik (and similar) can 302 a missing/unavailable extract to an HTML
+  # landing page with HTTP 200. curl -fL treats that as success — reject it.
+  if head -c 256 "$tmp" | grep -qiE '<!DOCTYPE[[:space:]]+html|<html[[:space:]>]'; then
+    rm -f "$tmp"
+    die "download is HTML not PBF region=${region_id} (redirect/soft-404); refuse to proceed"
+  fi
+
   # Persist validators for next week.
   awk 'BEGIN{IGNORECASE=1} /^etag:/{sub(/\r$/,""); sub(/^[^:]+:[[:space:]]*/,""); print; exit}' \
     "${state_dir}/headers.raw" >"${etag_file}.new" || true
@@ -215,10 +222,10 @@ fetch_one() {
       fi
       log_info "checksum OK region=${region_id} md5=${actual}"
     else
-      log_warn "checksum URL failed for region=${region_id}; leaving PBF but flagging"
-      printf '{"region_id":"%s","status":"downloaded","checksum":"unavailable","url":"%s","bytes":%s}\n' \
-        "$region_id" "$url" "$(file_size_bytes "$pbf")" >"$meta"
-      return 0
+      # Provider publishes checksums (Geofabrik/planet). Soft-continuing here
+      # previously allowed HTML soft-404 bodies through to convert.
+      rm -f "$pbf" "$md5_file"
+      die "checksum URL failed for region=${region_id}; refusing unverified PBF"
     fi
   else
     log_warn "no published checksum for region=${region_id} (source=$(region_source_kind "$src")); verifying non-empty PBF only"
