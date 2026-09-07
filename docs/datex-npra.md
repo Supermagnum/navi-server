@@ -57,6 +57,13 @@ Secrets go only to `data/secrets/datex_npra.env` (mode `0600`). Other DATEX
 settings use defaults; set a real `NAVI_DATEX_NPRA_USER_AGENT` contact in
 `data/config.env` if the placeholder remains.
 
+**File edit (no prompts):** create `data/secrets/datex_npra.env` with
+`NAV_DATEX_USERNAME=` / `NAV_DATEX_PASSWORD=`, set `NAVI_DATEX_NPRA_ENABLED=1`
+and `NAVI_DATEX_NPRA_SECRETS_FILE` in `data/config.env`, install the systemd
+units from `systemd/navi-datex-npra.*`, then `systemctl enable --now
+navi-datex-npra.timer`. See README for the exact commands. Preview with
+`setup-server.sh --dry-run`.
+
 Uninstall (stops timer, removes units, strips cron crumbs, removes published
 cache; `--purge` also deletes secrets/state):
 

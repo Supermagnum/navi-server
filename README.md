@@ -47,7 +47,7 @@ unconditional fallback and is untouched by this tree.
 | `scripts/gen-geofabrik-leaves.py` | Build `regions.planet.conf` + bboxes from Geofabrik index |
 | `data/` | Runtime data root (any filesystem with enough disk space; ZFS optional) |
 | `data/published/` | Static pack tree for HTTP |
-| `http/` | Apache vhost: GET/HEAD only, DocumentRoot = `data/published` |
+| `http/` | Apache vhost + static landing `index.html` (DocumentRoot = `data/published`) |
 | `systemd/` | `navit-server.service`, bake timer (opt-in), daily scrub, optional `navi-ddns.timer` |
 
 ## Documentation
@@ -72,7 +72,7 @@ Data root detail:
   scratch/convert/<bake_id>/ # convert output before publish
   staging/<generation>/      # in-flight publish
   generations/<generation>/  # immutable published trees (internal)
-  published/                 # HTTP DocumentRoot only — packs + current.json
+  published/                 # HTTP DocumentRoot — index.html landing + packs + current.json
                              # packs/<geofabrik-path>/<generation>/ (matches app picker)
                              # (+ optional datex/ snapshots when DATEX enabled)
   live -> generations/...    # current (internal)
@@ -168,10 +168,14 @@ same read-only HTTP GET surface used for packs.
    - `GET /datex/GetSituation.xml` (and the other endpoint names)
 4. **Off by default.** Fresh setup leaves DATEX disabled until you answer
    **yes** to the DATEX provider prompt (full interactive setup or
-   `--apply-datex`) and supply username/password. Full detail and the
-   live-probe **UNVERIFIED** list: [`docs/datex-npra.md`](docs/datex-npra.md).
+   `--apply-datex`) and supply username/password, **or** until you enable it
+   by editing files (below). Full detail and the live-probe **UNVERIFIED**
+   list: [`docs/datex-npra.md`](docs/datex-npra.md).
 
 ```bash
+# Preview prompts / actions without changing anything:
+/media/navi/navi-server/scripts/setup-server.sh --dry-run
+
 # Interactive enable (yes/no, then username + password; password is not echoed):
 sudo /media/navi/navi-server/scripts/setup-server.sh --apply-datex
 systemctl list-timers navi-datex-npra.timer
@@ -182,6 +186,43 @@ curl -sI http://127.0.0.1/datex/GetSituation.xml
 
 sudo /media/navi/navi-server/scripts/uninstall-datex-npra.sh [--purge]
 ```
+
+**Set username/password by editing files** (instead of the interactive prompts):
+
+```bash
+# 1) Secrets file (mode 0600; never commit). Keys must be exact:
+sudo mkdir -p /media/navi/navi-server/data/secrets
+sudo tee /media/navi/navi-server/data/secrets/datex_npra.env >/dev/null <<'EOF'
+# DATEX NPRA credentials — mode 0600. Do not commit.
+NAV_DATEX_USERNAME=your_npra_username
+NAV_DATEX_PASSWORD=your_npra_password
+EOF
+sudo chmod 600 /media/navi/navi-server/data/secrets/datex_npra.env
+sudo chown navit-server:navit-server \
+  /media/navi/navi-server/data/secrets \
+  /media/navi/navi-server/data/secrets/datex_npra.env
+sudo chmod 700 /media/navi/navi-server/data/secrets
+
+# 2) In data/config.env (copy from scripts/config.example.env if missing), set:
+#    NAVI_DATEX_NPRA_ENABLED=1
+#    NAVI_DATEX_NPRA_SECRETS_FILE=/media/navi/navi-server/data/secrets/datex_npra.env
+#    Optionally replace the contact in NAVI_DATEX_NPRA_USER_AGENT.
+
+# 3) Install and start the poll timer (units from the repo):
+sudo install -m 0644 \
+  /media/navi/navi-server/systemd/navi-datex-npra.service \
+  /media/navi/navi-server/systemd/navi-datex-npra.timer \
+  /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now navi-datex-npra.timer
+sudo systemctl start navi-datex-npra.service
+```
+
+Prefer the secrets file over putting the password in `config.env`. You can also
+export `NAV_DATEX_USERNAME` / `NAV_DATEX_PASSWORD` in the service environment
+(same key names); the secrets file is the usual path. Do **not** run
+`--apply-datex` afterward if you only want file-based creds — that path
+re-prompts and would overwrite the secrets file.
 
 **Client fetch (same host, no credentials):** see
 [`docs/datex-npra.md` — How clients fetch DATEX data](docs/datex-npra.md#how-clients-fetch-datex-data)
@@ -426,6 +467,9 @@ trees (early planet-smoke) are moved in place with:
 ```
 
 Apache needs no path rules for nesting — DocumentRoot is `data/published`.
+`setup-server.sh` installs `http/index.html` → `data/published/index.html`
+(always overwrites; repo-owned). No Apache reload is required for that HTML
+file; pack URLs under `/packs/…` and `/current.json` are unchanged.
 See [`docs/client-fetch.md`](docs/client-fetch.md) and
 [`docs/pack-formats.md`](docs/pack-formats.md).
 

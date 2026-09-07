@@ -10,6 +10,8 @@
 /data/published/packs/
 /data/published/current.json
 /data/published/.staging/
+# Landing page is installed from http/index.html by setup-server.sh
+/data/published/index.html
 
 # Local runtime copies (templates stay tracked under scripts/).
 # data/regions.conf is created by setup-server from regions.example.conf —

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>navi-server — routing packs</title>
+  <style>
+    :root {
+      --ink: #1a1f1c;
+      --muted: #4a534c;
+      --paper: #f3f0e8;
+      --panel: #e8e4d8;
+      --line: #c4bfb0;
+      --accent: #2c5f4a;
+      --code-bg: #ddd8ca;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse 80% 50% at 10% -10%, #dfe8e1 0%, transparent 55%),
+        linear-gradient(165deg, var(--paper) 0%, #ebe6da 100%);
+      font-family: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+      font-size: 1.05rem;
+      line-height: 1.55;
+    }
+    main {
+      max-width: 40rem;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 4rem;
+    }
+    .brand {
+      font-size: clamp(2.4rem, 7vw, 3.4rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.05;
+      margin: 0 0 0.75rem;
+      color: var(--accent);
+    }
+    .lede {
+      font-size: 1.15rem;
+      color: var(--muted);
+      margin: 0 0 2rem;
+      max-width: 36rem;
+    }
+    h2 {
+      font-size: 1.15rem;
+      margin: 2rem 0 0.6rem;
+      letter-spacing: 0.01em;
+    }
+    p, li { color: var(--ink); }
+    ul { padding-left: 1.2rem; }
+    li { margin: 0.35rem 0; }
+    code, .path {
+      font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.86em;
+      background: var(--code-bg);
+      padding: 0.12em 0.35em;
+      border-radius: 3px;
+    }
+    pre {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 0.9rem 1rem;
+      overflow-x: auto;
+      font-family: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      line-height: 1.45;
+    }
+    a { color: var(--accent); }
+    a:hover { text-decoration-thickness: 2px; }
+    .note {
+      border-left: 3px solid var(--accent);
+      padding: 0.35rem 0 0.35rem 0.9rem;
+      margin: 1rem 0;
+      color: var(--muted);
+    }
+    footer {
+      margin-top: 2.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--line);
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 class="brand">navi-server</h1>
+    <p class="lede">
+      Pre-built routing packs for the Navi navigation app — graph, POI,
+      wetland/hazard, and elevation-aware costing — derived from OpenStreetMap
+      extracts. This host is not a general map-tile or basemap server.
+    </p>
+
+    <h2>What you get</h2>
+    <p>
+      Each published region is a set of binary packs plus JSON manifests that
+      Navi can download and use for offline routing. Content includes routing
+      geometry (profiles such as car / truck / foot / bicycle), named POIs and
+      barrier data, and wetland/hazard rings used in costing — not a
+      Protomaps-style labeled-region or park-boundary basemap layer.
+    </p>
+    <p class="note">
+      Format details live in the repo:
+      <code>docs/pack-formats.md</code>
+      (graph / POI-barrier / wetland archives and magic bytes).
+    </p>
+
+    <h2>URL layout</h2>
+    <p>
+      Packs are nested under Geofabrik download paths — the same
+      continent/country/region hierarchy the Navi app uses in its download
+      menu (for example <code>europe/norway/vestlandet</code> or
+      <code>north-america/us/west-virginia</code>).
+    </p>
+    <pre>GET /current.json
+GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/manifest.json
+GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-manifest.json
+GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-graph-*.rkyv
+GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-poi-barrier.rkyv
+GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-wetland*.rkyv</pre>
+    <p>
+      Start at <a href="/current.json"><code>/current.json</code></a> for the
+      live catalog (generation id and per-region
+      <code>manifest_url</code>). Then fetch that region’s
+      <code>manifest.json</code> and the files it lists (sha256 digests
+      included). The convert-style
+      <code>&lt;stem&gt;-latest.navi-manifest.json</code> sits beside those
+      packs in the same generation folder.
+    </p>
+
+    <h2>How to fetch a region</h2>
+    <ol>
+      <li>GET <code>/current.json</code> and pick a region entry.</li>
+      <li>GET its <code>manifest_url</code> (under <code>/packs/…/</code>).</li>
+      <li>Download each file named in the manifest; verify sha256.</li>
+    </ol>
+    <p>
+      Clients use ordinary HTTP GET/HEAD only — no auth handshake and no
+      upload API on this vhost. Full contract:
+      <code>docs/client-fetch.md</code> in the navi-server repository.
+    </p>
+
+    <h2>Update cadence</h2>
+    <p>
+      Packs are baked periodically, not live. A production weekly timer can
+      refresh configured regions (for example smoke / Hedmark-style pipelines)
+      when operators enable it. Wider planet leaf builds are occasional
+      full-tree runs, not a continuously refreshed feed. Treat freshness as
+      “last successful bake,” not real-time OSM.
+    </p>
+
+    <h2>Optional DATEX (Norway)</h2>
+    <p>
+      This host may also cache NPRA DATEX II snapshots under
+      <code>/datex/</code> for Navi clients. That feature is <strong>off by
+      default</strong>, separate from routing packs, and holds credentials only
+      on the server. See <code>docs/datex-npra.md</code> in the repository.
+    </p>
+
+    <footer>
+      <p>
+        Map data © OpenStreetMap contributors, available under the
+        <a href="https://opendatacommons.org/licenses/odbl/">Open Database License (ODbL)</a>.
+        Extracts typically come via Geofabrik or OSM.fr. This server redistributes
+        <em>derived</em> Navi routing packs, not a raw dump of the OSM database.
+      </p>
+      <p>
+        Operator docs and source:
+        <a href="https://github.com/Supermagnum/navi-server">github.com/Supermagnum/navi-server</a>
+      </p>
+    </footer>
+  </main>
+</body>
+</html>

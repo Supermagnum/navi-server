@@ -12,6 +12,7 @@
 #   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-ddns
 #   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-datex
 #   /media/navi/navi-server/scripts/setup-server.sh --check
+#   /media/navi/navi-server/scripts/setup-server.sh --dry-run
 # Uninstall helpers:
 #   sudo /media/navi/navi-server/scripts/uninstall-ddns.sh [--purge]
 #   sudo /media/navi/navi-server/scripts/uninstall-datex-npra.sh [--purge]
@@ -43,6 +44,7 @@ APPLY_SERVICE=0
 APPLY_DDNS=0
 APPLY_DATEX=0
 CHECK_ONLY=0
+DRY_RUN=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --apply-apache) APPLY_APACHE=1; shift ;;
@@ -50,8 +52,9 @@ while [[ $# -gt 0 ]]; do
     --apply-ddns) APPLY_DDNS=1; shift ;;
     --apply-datex) APPLY_DATEX=1; shift ;;
     --check) CHECK_ONLY=1; shift ;;
+    --dry-run) DRY_RUN=1; shift ;;
     -h|--help)
-      sed -n '2,18p' "$0"
+      sed -n '2,20p' "$0"
       exit 0
       ;;
     *) echo "unknown arg: $1" >&2; exit 1 ;;
@@ -61,6 +64,60 @@ done
 log() { printf '%s [%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "INFO" "$*"; }
 warn() { printf '%s [%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "WARN" "$*"; }
 fail() { printf '%s [%s] %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "FAILED" "$*"; exit 1; }
+
+LANDING_SRC="${NAVI_SERVER_ROOT}/http/index.html"
+LANDING_DST="${DATA}/published/index.html"
+
+# Always overwrite — landing page is repo-owned (http/index.html), not
+# operator-customized. Edit the source under http/ and re-run setup.
+install_published_landing() {
+  if [[ ! -f "$LANDING_SRC" ]]; then
+    warn "missing landing page source ${LANDING_SRC}"
+    return 0
+  fi
+  mkdir -p "${DATA}/published"
+  cp "$LANDING_SRC" "$LANDING_DST"
+  chmod a+r "$LANDING_DST"
+  log "installed published landing page ${LANDING_DST} (from http/index.html; setup always overwrites)"
+}
+
+# Print what interactive DATEX / full setup would do — no writes, no systemctl.
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  cat <<EOF
+== setup-server.sh dry-run (no changes) ==
+root: ${NAVI_SERVER_ROOT}
+data: ${DATA}
+
+Would install static landing page:
+  ${LANDING_SRC}
+    -> ${LANDING_DST}
+  (repo-owned; setup always overwrites; no Apache reload needed for the HTML file)
+
+Full interactive sudo run would:
+  1. Enable Apache site apache-navi-packs on :80
+  2. Ensure service user ${SERVICE_USER} + bake/scrub systemd units
+  3. Offer DATEX (interactive TTY only):
+       Prompt: Do you want to set up a DATEX provider? [yes/no]
+       If no:  leave NAVI_DATEX_NPRA_ENABLED=0 (no secrets, no timer)
+       If yes: Prompt: DATEX username
+               Prompt: DATEX password (hidden)
+               Prompt: Confirm password (hidden)
+               Write:  ${DATEX_SECRETS} (mode 0600; NAV_DATEX_USERNAME / NAV_DATEX_PASSWORD)
+               Set:    NAVI_DATEX_NPRA_ENABLED=1 in ${DATA}/config.env
+               Install/enable: navi-datex-npra.timer (+ one poll start)
+
+--apply-datex alone would run only step 3 (same prompts).
+
+File edit instead of prompts (no interactive setup required):
+  See README.md "DATEX NPRA" — create ${DATEX_SECRETS} and set
+  NAVI_DATEX_NPRA_ENABLED=1 in ${DATA}/config.env, then enable the timer.
+
+Current flags that would apply if not --dry-run:
+  APPLY_APACHE=${APPLY_APACHE} APPLY_SERVICE=${APPLY_SERVICE}
+  APPLY_DDNS=${APPLY_DDNS} APPLY_DATEX=${APPLY_DATEX}
+EOF
+  exit 0
+fi
 
 require_root() {
   local what="$1"
@@ -322,6 +379,11 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
   echo "== navi-server setup check =="
   echo "root: ${NAVI_SERVER_ROOT}"
   [[ -d "${DATA}/published" ]] && echo "OK published/" || echo "MISSING published/"
+  if [[ -f "${DATA}/published/index.html" ]]; then
+    echo "OK published/index.html landing page"
+  else
+    echo "MISSING published/index.html (re-run setup-server.sh to install from http/index.html)"
+  fi
   [[ -f "${DATA}/config.env" ]] && echo "OK config.env" || echo "MISSING config.env"
   [[ -f "${DATA}/regions.conf" ]] && echo "OK regions.conf" || echo "MISSING regions.conf"
   if [[ -x "$CONVERT_BIN" ]]; then
@@ -383,6 +445,8 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
   fi
   code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/current.json || true)"
   echo "GET /current.json -> ${code}"
+  root_code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/ || true)"
+  echo "GET / -> ${root_code} (want 200 when published/index.html is installed)"
   post="$(curl -s -o /dev/null -w '%{http_code}' -X POST -d x http://127.0.0.1/current.json || true)"
   echo "POST /current.json -> ${post} (want 403)"
   exit 0
@@ -402,6 +466,8 @@ mkdir -p \
   "${DATA}/elevation/copernicus" \
   "${DATA}/elevation/viewfinder" \
   "${DATA}/elevation/srtm"
+
+install_published_landing
 
 if [[ ! -f "${DATA}/config.env" ]]; then
   cp "${NAVI_SERVER_ROOT}/scripts/config.example.env" "${DATA}/config.env"
