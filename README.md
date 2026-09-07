@@ -497,11 +497,14 @@ export SCREENDIR=$HOME/.screen
 
 **Fetch retries.** Transient upstream failures (HTTP 502/503/504/408/429, connect
 timeout, DNS failure, connection reset) are retried inside `fetch-extracts.sh`
-with exponential backoff and recovery HEAD probes for up to
-`NAVI_FETCH_TRANSIENT_BUDGET_SECS` (default 1 hour) before the orchestrator
-writes `PAUSED`. Immediate pause (needs-human): HTTP 404/401/403, validate band
-failures, convert crashes, disk-quota gates. Ambiguous codes fail safe to
-needs-human. Classification: `scripts/lib/fetch_http_classify.sh`.
+with exponential backoff (30s…cap 300s) and recovery HEAD probes every
+`NAVI_FETCH_RECOVERY_INTERVAL_SECS` (default **60s**) for up to
+`NAVI_FETCH_TRANSIENT_BUDGET_SECS` (default **2 hours**) before the orchestrator
+writes `PAUSED`. Tuned 2026-09-07 after a ~1h Geofabrik 502 outage exhausted
+the prior 1h budget (PAUSED escalate was correct; the ceiling was tight).
+Immediate pause (needs-human): HTTP 404/401/403, validate band failures,
+convert crashes, disk-quota gates. Ambiguous codes fail safe to needs-human.
+Classification: `scripts/lib/fetch_http_classify.sh`.
 
 **PAUSED hold.** On needs-human / exhausted-budget failures the orchestrator
 writes `data/logs/planet-leaves/PAUSED` and **keeps the process alive** (screen

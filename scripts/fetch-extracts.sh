@@ -26,11 +26,16 @@ require_cmd curl md5sum
 
 # Transient Geofabrik/upstream flaps (502/503/timeout): retry with backoff
 # until this wall-clock budget is spent, then die → orchestrator PAUSED.
-: "${NAVI_FETCH_TRANSIENT_BUDGET_SECS:=3600}"
+# Defaults tuned 2026-09-07 after a ~1h Geofabrik 502 outage exhausted the
+# prior 3600s budget (PAUSED escalate worked; headroom was insufficient).
+# Probe cadence 60s (was 30s) cuts request pressure; budget 7200s (~2h).
+# Backoff curve unchanged: 30s → … cap 300s between download cycles — still
+# fine under a longer window (cap reached in a few steps; probes own the wait).
+: "${NAVI_FETCH_TRANSIENT_BUDGET_SECS:=7200}"
 : "${NAVI_FETCH_BACKOFF_INITIAL_SECS:=30}"
 : "${NAVI_FETCH_BACKOFF_MAX_SECS:=300}"
 : "${NAVI_FETCH_RECOVERY_CLEAN_NEED:=3}"
-: "${NAVI_FETCH_RECOVERY_INTERVAL_SECS:=30}"
+: "${NAVI_FETCH_RECOVERY_INTERVAL_SECS:=60}"
 
 FORCE=0
 PREFER_INCREMENTAL=0

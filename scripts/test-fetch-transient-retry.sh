@@ -56,6 +56,27 @@ classify_fetch_failure 35 ""
 assert_eq "$FETCH_FAIL_CLASS" "ambiguous" "SSL 35 -> ambiguous"
 rm -f "$hdr"
 
+# --- production defaults (integration cases below override with short budgets) ---
+# Tuned 2026-09-07: 7200s / 60s probe (was 3600s / 30s).
+default_budget="$(
+  awk -F= '/^: "\$\{NAVI_FETCH_TRANSIENT_BUDGET_SECS:=/{
+    gsub(/[^0-9]/, "", $2); print $2; exit
+  }' "${SCRIPT_DIR}/fetch-extracts.sh"
+)"
+default_interval="$(
+  awk -F= '/^: "\$\{NAVI_FETCH_RECOVERY_INTERVAL_SECS:=/{
+    gsub(/[^0-9]/, "", $2); print $2; exit
+  }' "${SCRIPT_DIR}/fetch-extracts.sh"
+)"
+default_interval_lib="$(
+  awk -F= '/NAVI_FETCH_RECOVERY_INTERVAL_SECS:-[0-9]+/{
+    if (match($0, /:-[0-9]+/)) print substr($0, RSTART+2, RLENGTH-2); exit
+  }' "${SCRIPT_DIR}/lib/fetch_http_classify.sh"
+)"
+assert_eq "$default_budget" "7200" "default NAVI_FETCH_TRANSIENT_BUDGET_SECS=7200"
+assert_eq "$default_interval" "60" "default NAVI_FETCH_RECOVERY_INTERVAL_SECS=60"
+assert_eq "$default_interval_lib" "60" "fetch_http_classify wait_url_recovered default interval=60"
+
 # --- mock server integration ---
 TMP="$(mktemp -d)"
 cleanup() {
@@ -215,6 +236,15 @@ if [[ $rc -ne 0 ]] && rg -q 'budget exhausted|recovery failed' "$TMP/out_502.txt
   PASS=$((PASS + 1))
 else
   echo "FAIL always-502 rc=$rc"
+  cat "$TMP/out_502.txt"
+  FAIL=$((FAIL + 1))
+fi
+# Short-budget config sets RECOVERY_INTERVAL_SECS=1 — confirm cadence is applied.
+if rg -q 'fetch recovery sleep 1s' "$TMP/out_502.txt"; then
+  echo "PASS always-502 used configured 1s recovery interval"
+  PASS=$((PASS + 1))
+else
+  echo "FAIL always-502 did not log 1s recovery sleep (interval not applied?)"
   cat "$TMP/out_502.txt"
   FAIL=$((FAIL + 1))
 fi

@@ -3,6 +3,8 @@
 #
 # Classes:
 #   transient   — retry with backoff until NAVI_FETCH_TRANSIENT_BUDGET_SECS
+#                 (default 7200; see fetch-extracts.sh). Recovery probe cadence
+#                 default NAVI_FETCH_RECOVERY_INTERVAL_SECS=60.
 #   needs_human — escalate immediately (404/401/403, etc.)
 #   ambiguous   — fail-safe: treat as needs_human
 
@@ -127,7 +129,7 @@ wait_url_recovered() {
   local url="$1"
   local deadline_epoch="$2"
   local need="${3:-${NAVI_FETCH_RECOVERY_CLEAN_NEED:-3}}"
-  local interval="${4:-${NAVI_FETCH_RECOVERY_INTERVAL_SECS:-30}}"
+  local interval="${4:-${NAVI_FETCH_RECOVERY_INTERVAL_SECS:-60}}"
   local streak=0
   local round=0
   local now sleep_for
