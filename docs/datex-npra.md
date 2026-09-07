@@ -39,20 +39,23 @@ public NPRA DATEX documentation.
 |---|---|
 | `scripts/datex-npra-poll.sh` | Exits 0 before importing poller / reading secrets |
 | `plugins/datex_npra.poll` | Same enable check first; no credential load, no HTTP |
-| `setup-server.sh` (normal) | Does **not** install DATEX units or ask for secrets |
+| `setup-server.sh` (normal, interactive) | Asks “Do you want to set up a DATEX provider?”; **no** leaves DATEX off; **yes** asks username + password and enables |
+| `setup-server.sh` (non-interactive) | Does **not** install DATEX units or ask for secrets |
 | Apache | `/datex/` 404s until the poller writes files; listing disabled |
 | `run-weekly.sh` | Untouched |
 
-Enable only with an interactive TTY:
+Enable with an interactive TTY (full setup offers the same prompts):
 
 ```bash
 sudo /media/navi/navi-server/scripts/setup-server.sh --apply-datex
 ```
 
-Passwords are read with `read -s` (no terminal echo), are not written to
-setup `log()` lines, and are not placed in shell history (`set +o history`
-for the prompt section). Secrets go only to `data/secrets/datex_npra.env`
-(mode `0600`).
+Prompts: yes/no for DATEX, then username and password (confirm). Passwords are
+read with `read -s` (no terminal echo), are not written to setup `log()` lines,
+and are not placed in shell history (`set +o history` for the prompt section).
+Secrets go only to `data/secrets/datex_npra.env` (mode `0600`). Other DATEX
+settings use defaults; set a real `NAVI_DATEX_NPRA_USER_AGENT` contact in
+`data/config.env` if the placeholder remains.
 
 Uninstall (stops timer, removes units, strips cron crumbs, removes published
 cache; `--purge` also deletes secrets/state):

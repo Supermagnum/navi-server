@@ -110,8 +110,10 @@ cargo build --release -p navi-indexed-convert
 `--apply-service` creates system user **`navit-server`**, owns `data/`, installs
 `navit-server.service` / bake units, and **enables** daily
 `navi-pack-scrub.timer` (automatic scrub of outdated files). The weekly bake
-timer is **not** enabled by this step. DATEX NPRA redistribution stays **off**
-unless you later run `--apply-datex`.
+timer is **not** enabled by this step. On a full interactive `sudo setup-server.sh`
+run you are asked whether to set up a DATEX provider; answer **no** to leave it
+off, or **yes** and supply username/password. You can also enable later with
+`--apply-datex` (same yes/no + credentials prompts).
 
 ### Dynamic DNS (optional)
 
@@ -164,13 +166,13 @@ same read-only HTTP GET surface used for packs.
    `data/published/`, so clients fetch plain files:
    - `GET /datex/source.json` — NPRA attribution / NLOD note (no secrets)
    - `GET /datex/GetSituation.xml` (and the other endpoint names)
-4. **Off by default.** Fresh setup does not install the timer, does not read
-   credentials, and does not create `/datex/` until you explicitly enable it.
-   Full detail and the live-probe **UNVERIFIED** list:
-   [`docs/datex-npra.md`](docs/datex-npra.md).
+4. **Off by default.** Fresh setup leaves DATEX disabled until you answer
+   **yes** to the DATEX provider prompt (full interactive setup or
+   `--apply-datex`) and supply username/password. Full detail and the
+   live-probe **UNVERIFIED** list: [`docs/datex-npra.md`](docs/datex-npra.md).
 
 ```bash
-# Interactive enable (asks for NPRA username/password; password is not echoed):
+# Interactive enable (yes/no, then username + password; password is not echoed):
 sudo /media/navi/navi-server/scripts/setup-server.sh --apply-datex
 systemctl list-timers navi-datex-npra.timer
 journalctl -u navi-datex-npra.service -n 50
@@ -622,5 +624,6 @@ PBF→pack growth when building the ~80 GiB scratch batch plan.
 - Prototype first: single region by hand, then widen `regions.conf`, then enable the timer
 - Optional DATEX NPRA redistribution is **off by default** and must not run
   (no vegvesen.no traffic, no credential read, no `/datex/` files) unless
-  explicitly enabled via `setup-server.sh --apply-datex` — see
+  you answer **yes** to the DATEX provider prompt and supply credentials
+  (`setup-server.sh` full interactive run or `--apply-datex`) — see
   [`docs/datex-npra.md`](docs/datex-npra.md)

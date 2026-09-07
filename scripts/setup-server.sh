@@ -191,11 +191,12 @@ ddns_apply() {
   log "uninstall with: sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-ddns.sh [--purge]"
 }
 
-# Interactive DATEX NPRA enable: prompts for credentials/settings, writes
-# secrets (0600), flips NAVI_DATEX_NPRA_ENABLED=1, installs poll timer.
-# Fresh setup without --apply-datex does not touch this feature.
+# Interactive DATEX NPRA enable: yes/no, then username + password.
+# Writes secrets (0600), flips NAVI_DATEX_NPRA_ENABLED=1, installs poll timer.
+# Other settings use defaults from config.example.env (edit config.env later).
+# Called from full sudo setup and from --apply-datex.
 datex_apply() {
-  require_root "--apply-datex"
+  require_root "DATEX setup"
   command -v systemctl >/dev/null 2>&1 || fail "systemctl not found"
   command -v python3 >/dev/null 2>&1 || fail "python3 not found"
   [[ -f "$DATEX_UNIT_SRC" ]] || fail "missing ${DATEX_UNIT_SRC}"
@@ -205,37 +206,58 @@ datex_apply() {
   if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
     fail "service user ${SERVICE_USER} missing — run --apply-service first"
   fi
-  [[ -t 0 ]] || fail "--apply-datex requires an interactive TTY to ask for NPRA values"
+  [[ -t 0 ]] || fail "DATEX setup requires an interactive TTY (yes/no + credentials)"
 
   # Do not record interactive answers in shell history (passwords especially).
   set +o history 2>/dev/null || true
 
   echo
-  echo "=== DATEX NPRA redistribution (optional) ==="
+  echo "=== DATEX provider (optional) ==="
   echo "Credentials stay on this host; Navi clients only GET cached XML."
   echo "NPRA access: https://www.vegvesen.no/en/fag/technology/open-data/..."
   echo
 
-  local username password password2 contact poll_secs endpoints base_url
-  read -r -p "NPRA DATEX username: " username
+  local ans want_datex=0
+  while true; do
+    read -r -p "Do you want to set up a DATEX provider? [yes/no]: " ans
+    case "${ans,,}" in
+      y|yes)
+        want_datex=1
+        break
+        ;;
+      n|no)
+        want_datex=0
+        break
+        ;;
+      *)
+        echo "Please answer yes or no."
+        ;;
+    esac
+  done
+
+  if [[ "$want_datex" -eq 0 ]]; then
+    log "DATEX provider skipped (left disabled)"
+    return 0
+  fi
+
+  local username password password2
+  local poll_secs=300
+  local endpoints="GetSituation,GetTravelTimeData,GetMeasuredWeatherData,GetCCTVSiteTable"
+  local base_url="https://datex-server-get-v3-1.atlas.vegvesen.no"
+  # Identifying contact for upstream User-Agent — edit NAVI_DATEX_NPRA_USER_AGENT
+  # in data/config.env if you need a real email/URL (NPRA/MET-style rules).
+  local contact="REPLACE_WITH_YOUR_EMAIL_OR_URL"
+
+  read -r -p "DATEX username: " username
   [[ -n "$username" ]] || fail "username required"
   # -s: no terminal echo. Values are never passed on argv or written to setup logs.
-  read -r -s -p "NPRA DATEX password: " password
+  read -r -s -p "DATEX password: " password
   echo
   read -r -s -p "Confirm password: " password2
   echo
   [[ "$password" == "$password2" ]] || fail "passwords do not match"
   [[ -n "$password" ]] || fail "password required"
   password2=""
-
-  read -r -p "Contact email/URL for User-Agent [required]: " contact
-  [[ -n "$contact" ]] || fail "contact identifier required (NPRA/MET-style UA rules)"
-  read -r -p "Poll interval seconds [300]: " poll_secs
-  poll_secs="${poll_secs:-300}"
-  read -r -p "Endpoints comma-separated [GetSituation,GetTravelTimeData,GetMeasuredWeatherData,GetCCTVSiteTable]: " endpoints
-  endpoints="${endpoints:-GetSituation,GetTravelTimeData,GetMeasuredWeatherData,GetCCTVSiteTable}"
-  read -r -p "Base URL [https://datex-server-get-v3-1.atlas.vegvesen.no]: " base_url
-  base_url="${base_url:-https://datex-server-get-v3-1.atlas.vegvesen.no}"
 
   mkdir -p "${DATA}/secrets" "${DATA}/datex_npra/state" "${DATA}/datex_npra/cache"
   # Password via stdin only — never argv, never setup log(), never env.
@@ -248,7 +270,7 @@ user = sys.argv[2]
 password = sys.stdin.read()
 path.parent.mkdir(parents=True, exist_ok=True)
 text = (
-    "# Written by setup-server.sh --apply-datex — mode 0600. Do not commit.\n"
+    "# Written by setup-server.sh DATEX setup — mode 0600. Do not commit.\n"
     f"NAV_DATEX_USERNAME={user}\n"
     f"NAV_DATEX_PASSWORD={password}\n"
 )
@@ -291,6 +313,7 @@ path.chmod(0o600)
   systemctl start navi-datex-npra.service \
     || warn "initial DATEX poll failed — check journalctl -u navi-datex-npra.service (operator only)"
   log "enabled DATEX NPRA poll: navi-datex-npra.timer"
+  log "set NAVI_DATEX_NPRA_USER_AGENT contact in ${DATA}/config.env if still a placeholder"
   log "client cache path (after successful poll): ${DATA}/published/datex/"
   log "uninstall: sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-datex-npra.sh [--purge]"
 }
@@ -433,10 +456,14 @@ if [[ "$APPLY_APACHE" -eq 1 ]]; then
   require_root "--apply-apache"
   apache_apply
 elif [[ "$(id -u)" -eq 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 ]]; then
-  # Full sudo run without flags: configure Apache + service user.
-  # DATEX stays off (no interactive prompt here — use --apply-datex).
+  # Full sudo run without flags: configure Apache + service user, then offer DATEX.
   apache_apply
   navit_server_apply
+  if [[ -t 0 ]]; then
+    datex_apply
+  else
+    log "DATEX left disabled (non-interactive; re-run with --apply-datex on a TTY to enable)"
+  fi
 elif [[ "$(id -u)" -ne 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_APACHE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 ]]; then
   cat <<EOF
 
@@ -447,13 +474,13 @@ Apache / dedicated service user / optional plugins are not configured by this no
   # Optional Dynamic DNS (edit data/ddns.env first):
   sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-ddns
   sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-ddns.sh [--purge]
-  # Optional DATEX NPRA redistribution (interactive; OFF by default):
+  # Optional DATEX (asks yes/no, then username + password):
   sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-datex
   sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-datex-npra.sh [--purge]
 
-Or Apache + service in one sudo:
+Or full sudo setup (Apache + service + DATEX yes/no prompt):
 
-  sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-apache --apply-service
+  sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh
 
 EOF
 fi
