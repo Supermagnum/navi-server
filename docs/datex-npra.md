@@ -85,7 +85,8 @@ fields, and a placeholder User-Agent contact string only.
 | `NAVI_DATEX_NPRA_ENABLED` | `0` | Master switch |
 | `NAVI_DATEX_NPRA_BASE_URL` | `https://datex-server-get-v3-1.atlas.vegvesen.no` | DATEX node |
 | `NAVI_DATEX_NPRA_ENDPOINTS` | four GET snapshot names | Comma-separated |
-| `NAVI_DATEX_NPRA_POLL_INTERVAL_SECS` | `300` | Cadence hint / jitter base |
+| `NAVI_DATEX_NPRA_POLL_INTERVAL_SECS` | `300` | Fallback interval / jitter base for unlisted endpoints |
+| `NAVI_DATEX_NPRA_ENDPOINT_INTERVALS` | see defaults | `Endpoint=secs` map: Situation/TravelTime `300`, Weather `600`, CCTVSiteTable `43200` (12h site metadata) |
 | `NAVI_DATEX_NPRA_USE_IF_MODIFIED_SINCE` | `1` | Conditional GET |
 | `NAVI_DATEX_NPRA_USER_AGENT` | quoted placeholder contact | Sent on upstream GET |
 | `NAVI_DATEX_NPRA_SECRETS_FILE` | `data/secrets/datex_npra.env` | Mode `0600` |

@@ -76,7 +76,7 @@ disk_report() {
 
 pause_run() {
   local reason="$1"
-  printf '%s\n' "$reason" >"$PAUSE_FILE"
+  atomic_write_file "$PAUSE_FILE" '%s\n' "$reason"
   echo "{\"event\":\"paused\",\"reason\":$(python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$reason")}" >>"$STATE_FILE"
   log_fail "PAUSED: ${reason} — see ${PAUSE_FILE}; fix then kill this session and re-run with --resume"
   # Hold instead of exiting: historically `exit 2` plus a wrapper `set -e` made
@@ -207,7 +207,9 @@ plan = {
         for i, b in enumerate(batches)
     ],
 }
-plan_path.write_text(json.dumps(plan) + "\n")
+_partial = plan_path.with_name(plan_path.name + ".partial")
+_partial.write_text(json.dumps(plan) + "\n")
+_partial.replace(plan_path)
 print(f"batches={len(batches)} total_pbf_GiB={plan['total_pbf_bytes']/(1024**3):.1f}", flush=True)
 for b in plan["batches"]:
     print(

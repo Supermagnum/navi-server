@@ -115,6 +115,171 @@ run you are asked whether to set up a DATEX provider; answer **no** to leave it
 off, or **yes** and supply username/password. You can also enable later with
 `--apply-datex` (same yes/no + credentials prompts).
 
+### Docker / Linux containers
+
+There is **no first-party container image in this repo yet**. The supported
+production layout on a host is still **systemd + Apache** via
+`setup-server.sh`. Containers (Docker, Podman, LXC/LXD) work if you treat the
+tree as a normal Linux install and adapt scheduling / HTTP serving.
+
+#### Path convention
+
+Systemd units under `systemd/` and `http/apache-navi-packs.conf` hard-code
+`/media/navi/navi-server`. In a container, either:
+
+1. **Mount the tree at that path** (simplest — units and Apache config apply
+   unchanged), or
+2. Edit those paths (and `NAVI_PACK_CONFIG` / `WorkingDirectory`) to match your
+   mount, and set `NAVI_PACK_ROOT` / `NAVI_PACK_CONFIG` when invoking scripts.
+
+`scripts/lib/common.sh` resolves the repo from its own location, so hand-run
+scripts work from any checkout path; only the shipped units/vhost assume
+`/media/navi/navi-server`.
+
+#### What runs where
+
+| Role | On a bare-metal host | In a container |
+|---|---|---|
+| Build `navi-indexed-convert` | `cargo build --release -p navi-indexed-convert` | Same, in an image build stage or first boot |
+| Bake / scrub / DATEX | systemd timers + `navit-server` user | Cron, a supervisor, **or** host systemd calling `docker exec` / `podman exec` |
+| Serve `data/published/` | Apache vhost (`--apply-apache`) | Apache/nginx in the same or a second container; or `http/static-packs-server.py` on an internal port |
+| Durable state | `data/` on local/ZFS disk | **Named volume or bind-mount** for `data/` (never keep packs only in the writable layer) |
+
+Do **not** publish `data/scratch/`, `data/state/`, `data/secrets/`, `data/datex_npra/`,
+`scripts/`, or `systemd/` over HTTP. Only `data/published/` is the DocumentRoot.
+
+#### Minimal image sketch (Docker / Podman)
+
+Example multi-stage build (adjust base tags to your distro policy). This is a
+starting point, not a published official image:
+
+```dockerfile
+# syntax=docker/dockerfile:1
+FROM rust:1.98-bookworm AS build
+WORKDIR /src
+COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
+COPY pack-convert-core ./pack-convert-core
+COPY navi-indexed-convert ./navi-indexed-convert
+RUN cargo build --release -p navi-indexed-convert
+
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates curl python3 apache2 \
+    && rm -rf /var/lib/apt/lists/*
+# Keep the conventional path so shipped units/vhost need no edits:
+WORKDIR /media/navi/navi-server
+COPY --from=build /src/target/release/navi-indexed-convert \
+      /media/navi/navi-server/target/release/navi-indexed-convert
+COPY scripts ./scripts
+COPY plugins ./plugins
+COPY http ./http
+COPY systemd ./systemd
+COPY docs ./docs
+RUN mkdir -p data/published/packs \
+    && cp http/apache-navi-packs.conf /etc/apache2/sites-available/ \
+    && a2dissite 000-default \
+    && a2ensite apache-navi-packs \
+    && a2enmod rewrite
+EXPOSE 80
+# Default: serve packs only. Run bakes via `docker exec` / cron (see below).
+CMD ["apache2ctl", "-D", "FOREGROUND"]
+```
+
+Build and run with a persistent data volume:
+
+```bash
+docker build -t navi-server:local .
+docker volume create navi-server-data
+
+docker run -d --name navi-server \
+  -p 80:80 \
+  -v navi-server-data:/media/navi/navi-server/data \
+  navi-server:local
+
+# First-time config inside the volume (once):
+docker exec -u root navi-server bash -c '
+  cp -n /media/navi/navi-server/scripts/config.example.env \
+        /media/navi/navi-server/data/config.env || true
+  cp -n /media/navi/navi-server/scripts/regions.example.conf \
+        /media/navi/navi-server/data/regions.conf || true
+'
+# Then edit data/config.env on the volume (or bind-mount your own file over it).
+
+# Hand-run a scoped weekly bake (same flags as on the host):
+docker exec navi-server \
+  /media/navi/navi-server/scripts/run-weekly.sh \
+  --region hedmark --region us_west_virginia
+```
+
+Podman is the same with `podman` in place of `docker` (rootless: map ports
+and ensure the volume UID can write `data/`).
+
+Compose sketch:
+
+```yaml
+services:
+  navi-server:
+    build: .
+    ports: ["80:80"]
+    volumes:
+      - navi-data:/media/navi/navi-server/data
+    restart: unless-stopped
+volumes:
+  navi-data:
+```
+
+#### Scheduling without systemd-in-Docker
+
+Shipping units expect a real systemd on the host. Prefer one of:
+
+1. **Host timer → `docker exec`** (keeps scheduling outside the container):
+
+   ```bash
+   # Example host drop-in / cron: weekly bake
+   docker exec navi-server /media/navi/navi-server/scripts/run-weekly.sh
+   # Daily scrub
+   docker exec navi-server /media/navi/navi-server/scripts/cleanup.sh --skip-quota-gate
+   # Optional DATEX (only if enabled + secrets mounted mode 0600):
+   docker exec navi-server /media/navi/navi-server/scripts/datex-npra-poll.sh
+   ```
+
+2. **Cron inside the container** (`apt install cron`, crontab entries calling the
+   same scripts). Simpler images; worse visibility than host systemd journals.
+
+3. **Systemd-enabled container / LXC** (see below) if you want
+   `setup-server.sh --apply-service` largely unchanged.
+
+ZFS quota helpers in `check-disk-quota.sh` fall back to `df` when
+`NAVI_ZFS_DATASET` is unset — fine for typical container volumes.
+
+#### LXC / LXD (full OS container)
+
+An unprivileged or privileged LXC/LXD guest that looks like a normal Debian /
+Ubuntu VM can run the **same** host install path:
+
+```bash
+# Inside the container, after cloning/copying the tree to /media/navi/navi-server:
+/media/navi/navi-server/scripts/setup-server.sh
+sudo /media/navi/navi-server/scripts/setup-server.sh --apply-apache --apply-service
+cargo build --release -p navi-indexed-convert
+/media/navi/navi-server/scripts/setup-server.sh --check
+```
+
+Give the guest enough disk for `data/published/` (hundreds of GiB for planet-scale
+bakes), working outbound HTTPS for Geofabrik / OSM extracts, and bind-mount or
+ZFS dataset backing if you want host-level snapshots.
+
+#### Security notes for containers
+
+- Mount DATEX / DDNS secrets read-only where possible; keep mode `0600` and
+  never bake them into the image layer.
+- Publish only port 80/443 for the static vhost; do not expose bake scratch.
+- Resource limits: convert is CPU- and RAM-heavy (multi-GB RSS on large
+  regions). Set container memory/CPU accordingly.
+- `--apply-service` / `--apply-apache` inside a slim Docker image often fight
+  the image’s lack of systemd — prefer the exec/cron pattern above unless you
+  deliberately run a systemd-based image or LXC.
+
 ### Dynamic DNS (optional)
 
 Keeps a public hostname pointed at this box’s current IPv4 (DuckDNS, Cloudflare,

@@ -138,6 +138,20 @@ atomic_log_abort() {
   ATOMIC_LOG_FINAL=""
 }
 
+# Atomic replace for small durable text/state files (PAUSED markers, etc.).
+# Writes ${path}.partial then mv -f into place (same inode-replace pattern as
+# weekly logs / DATEX state). Not for append-only streams.
+atomic_write_file() {
+  local path="$1"
+  local partial="${path}.partial"
+  mkdir -p "$(dirname "$path")"
+  # Remaining args are printf format + values (caller supplies format).
+  shift
+  # shellcheck disable=SC2059
+  printf "$@" >"$partial"
+  mv -f "$partial" "$path"
+}
+
 require_cmd() {
   local c
   for c in "$@"; do

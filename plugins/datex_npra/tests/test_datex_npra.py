@@ -241,5 +241,101 @@ class EnabledPollWritesAttribution(unittest.TestCase):
             self.assertNotEqual(source.get("username", None), "u")
 
 
+
+
+class IntervalHoldTests(unittest.TestCase):
+    def test_parse_endpoint_intervals_defaults(self):
+        cfg = load_config({"NAVI_DATEX_NPRA_ENABLED": "1"}, pack_root=Path("/tmp"))
+        self.assertEqual(cfg.interval_for("GetSituation"), 300)
+        self.assertEqual(cfg.interval_for("GetMeasuredWeatherData"), 600)
+        self.assertEqual(cfg.interval_for("GetCCTVSiteTable"), 43200)
+
+    def test_parse_endpoint_intervals_override(self):
+        cfg = load_config(
+            {
+                "NAVI_DATEX_NPRA_ENABLED": "1",
+                "NAVI_DATEX_NPRA_ENDPOINT_INTERVALS": "GetCCTVSiteTable=7200,GetMeasuredWeatherData=900",
+            },
+            pack_root=Path("/tmp"),
+        )
+        self.assertEqual(cfg.interval_for("GetCCTVSiteTable"), 7200)
+        self.assertEqual(cfg.interval_for("GetMeasuredWeatherData"), 900)
+        self.assertEqual(cfg.interval_for("GetSituation"), 300)
+
+    def test_interval_hold_skips_network(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cfg = load_config(
+                {
+                    "NAVI_DATEX_NPRA_ENABLED": "1",
+                    "NAVI_DATEX_NPRA_ENDPOINTS": "GetSituation",
+                    "NAVI_DATEX_NPRA_ENDPOINT_INTERVALS": "GetSituation=600",
+                },
+                pack_root=root,
+            )
+            cfg.publish_dir.mkdir(parents=True)
+            cfg.state_dir.mkdir(parents=True)
+            body = b"<xml>cached</xml>"
+            (cfg.publish_dir / "GetSituation.xml").write_bytes(body)
+            now = 1_700_000_000.0
+            (cfg.state_dir / "GetSituation.json").write_text(
+                json.dumps(
+                    {
+                        "last_status": 200,
+                        "fail_count": 0,
+                        "last_success_unix": int(now),
+                        "next_attempt_unix": int(now) + 600,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            def boom(request, timeout):
+                raise AssertionError("must not open network during interval_hold")
+
+            from plugins.datex_npra.auth import Credentials
+
+            result = fetch_endpoint(
+                cfg,
+                "GetSituation",
+                Credentials("u", "p"),
+                opener=boom,
+                jitter=False,
+                now=now + 10,
+            )
+            self.assertEqual(result.status, 0)
+            self.assertIn("interval_hold", result.error or "")
+
+    def test_success_schedules_next_attempt(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cfg = load_config(
+                {
+                    "NAVI_DATEX_NPRA_ENABLED": "1",
+                    "NAVI_DATEX_NPRA_ENDPOINTS": "GetMeasuredWeatherData",
+                    "NAVI_DATEX_NPRA_ENDPOINT_INTERVALS": "GetMeasuredWeatherData=600",
+                },
+                pack_root=root,
+            )
+            body = b"<xml>wx</xml>"
+            now = 1_700_000_000.0
+
+            def opener(request, timeout):
+                return _ResponseShim(200, body, {})
+
+            from plugins.datex_npra.auth import Credentials
+
+            result = fetch_endpoint(
+                cfg,
+                "GetMeasuredWeatherData",
+                Credentials("u", "p"),
+                opener=opener,
+                jitter=False,
+                now=now,
+            )
+            self.assertEqual(result.status, 200)
+            state = json.loads((cfg.state_dir / "GetMeasuredWeatherData.json").read_text())
+            self.assertEqual(state["next_attempt_unix"], int(now) + 600)
+
 if __name__ == "__main__":
     unittest.main()

@@ -237,12 +237,18 @@ for region in gen_man.get("regions", []):
         "navi_manifest": navi_manifest_name,
         "files": file_digests,
     }
-    (dst / "manifest.json").write_text(
-        json.dumps(client_manifest, indent=2) + "\n", encoding="utf-8"
+    def _atomic_write_text(path, text):
+        partial = path.with_name(path.name + ".partial")
+        partial.write_text(text, encoding="utf-8")
+        partial.replace(path)
+
+    _atomic_write_text(
+        dst / "manifest.json",
+        json.dumps(client_manifest, indent=2) + "\n",
     )
-    (dst / "checksums.sha256").write_text(
+    _atomic_write_text(
+        dst / "checksums.sha256",
         "\n".join(checksum_lines) + ("\n" if checksum_lines else ""),
-        encoding="utf-8",
     )
     marker.unlink(missing_ok=True)
 

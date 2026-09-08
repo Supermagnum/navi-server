@@ -70,12 +70,19 @@ def poll_once(
             LOG.error("%s", exc)
             fatal_auth = True
             break
-        if result.error and result.status == 0 and "backoff" in (result.error or ""):
+        if result.error and result.status == 0 and (
+            "backoff" in (result.error or "") or "interval_hold" in (result.error or "")
+        ):
+            kind = "interval_hold" if "interval_hold" in (result.error or "") else "backoff"
             LOG.info(
-                "endpoint=%s status=backoff detail=%s",
+                "endpoint=%s status=%s detail=%s",
                 endpoint,
+                kind,
                 result.error,
             )
+            # Keep attribution for cached snapshots skipped by per-endpoint cadence.
+            if kind == "interval_hold" and (cfg.publish_dir / f"{endpoint}.xml").is_file():
+                ok_endpoints.append(endpoint)
             continue
         if result.error:
             LOG.warning(

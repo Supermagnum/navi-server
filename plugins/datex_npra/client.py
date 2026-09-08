@@ -150,18 +150,21 @@ def fetch_endpoint(
     state = _load_state(cfg, endpoint)
     next_attempt = float(state.get("next_attempt_unix") or 0)
     if next_attempt > now:
+        # fail_count>0 => error backoff; else per-endpoint cadence hold.
+        kind = "backoff" if int(state.get("fail_count") or 0) > 0 else "interval_hold"
         return FetchResult(
             endpoint=endpoint,
             status=0,
             bytes=0,
             not_modified=False,
             cached_path=cfg.publish_dir / f"{endpoint}.xml",
-            error=f"backoff until unix={int(next_attempt)}",
+            error=f"{kind} until unix={int(next_attempt)}",
         )
 
+    interval = cfg.interval_for(endpoint)
     if jitter:
         # MET Norway-style: avoid exact clock alignment (±10% of interval, capped).
-        span = min(30.0, max(0.0, cfg.poll_interval_secs * 0.1))
+        span = min(30.0, max(0.0, interval * 0.1))
         if span > 0:
             time.sleep(random.uniform(0.0, span))
 
@@ -239,7 +242,7 @@ def fetch_endpoint(
     if status == 304:
         state["last_status"] = 304
         state["fail_count"] = 0
-        state["next_attempt_unix"] = 0
+        state["next_attempt_unix"] = int(now) + interval
         state["last_success_unix"] = int(now)
         if last_mod:
             state["last_modified"] = last_mod
@@ -274,7 +277,7 @@ def fetch_endpoint(
     state["last_status"] = 200
     state["last_bytes"] = len(body)
     state["fail_count"] = 0
-    state["next_attempt_unix"] = 0
+    state["next_attempt_unix"] = int(now) + interval
     state["last_success_unix"] = int(now)
     if last_mod:
         state["last_modified"] = last_mod

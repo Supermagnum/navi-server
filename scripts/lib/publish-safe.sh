@@ -103,8 +103,13 @@ man = {
     "navi_manifest": navi_man,
     "files": files,
 }
-(pub / "manifest.json").write_text(json.dumps(man, indent=2) + "\n", encoding="utf-8")
-(pub / "checksums.sha256").write_text("\n".join(lines) + "\n", encoding="utf-8")
+def _atomic_write_text(path, text):
+    partial = path.with_name(path.name + ".partial")
+    partial.write_text(text, encoding="utf-8")
+    partial.replace(path)
+
+_atomic_write_text(pub / "manifest.json", json.dumps(man, indent=2) + "\n")
+_atomic_write_text(pub / "checksums.sha256", "\n".join(lines) + "\n")
 
 # Drop in-progress marker only after manifests are durable.
 marker = pub / ".publish_in_progress"
