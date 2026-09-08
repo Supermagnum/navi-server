@@ -22,6 +22,8 @@
 /data/regions.conf
 /data/ddns.env
 /data/secrets/
+# DATEX II NPRA credentials — never push (also covered by /data/secrets/)
+/data/secrets/datex_npra.env
 /data/datex_npra/
 /data/published/datex/
 
