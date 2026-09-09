@@ -44,7 +44,7 @@ unconditional fallback and is untouched by this tree.
 | `scripts/watch-planet-leaves.sh` | Alert-only orchestrator watchdog (no auto-resume) |
 | `scripts/probe-geofabrik-health.sh` | Pre-resume Geofabrik HEAD/range probe (does not start a bake) |
 | `scripts/prefetch-dem-bbox.py` | Copernicus DEM prefetch (`.poly` ocean-skip + 404 cache) |
-| `scripts/gen-geofabrik-leaves.py` | Build `regions.planet.conf` + bboxes from Geofabrik index |
+| `scripts/gen-geofabrik-leaves.py` | Build `regions.planet.conf` + bboxes from Geofabrik index; OSM.fr Sweden län (21) replace country leaf |
 | `data/` | Runtime data root (any filesystem with enough disk space; ZFS optional) |
 | `data/published/` | Static pack tree for HTTP |
 | `http/` | Apache vhost + static landing `index.html` (DocumentRoot = `data/published`) |
@@ -697,6 +697,8 @@ on validate failure or crash — does not keep going past a bad region):
 ```bash
 # One-time (or when Geofabrik index changes): regenerate leaf list + bboxes
 ./scripts/gen-geofabrik-leaves.py -o /media/navi/navi-server/data/regions.planet.conf
+# Sweden: Geofabrik has no län; generator pulls 21 OSM.fr extracts and omits
+# europe/sweden country leaf. Disable with --no-sweden-lan if needed.
 
 # Preferred launcher (detached screen; wrapper always logs END; pause holds):
 export SCREENDIR=$HOME/.screen

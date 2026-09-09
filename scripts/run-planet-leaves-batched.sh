@@ -114,33 +114,50 @@ plan_path = Path(__import__("sys").argv[2])
 budget_gib = float(__import__("sys").argv[3])
 bbox = json.loads(Path(str(conf) + ".bboxes.json").read_text())
 
-rows = []
+rows = []  # (rid, publish_path, head_url)
 for line in conf.read_text().splitlines():
     line = line.strip()
     if not line or line.startswith("#"):
         continue
     parts = line.split()
     rid, src = parts[0], parts[1]
-    if not src.startswith("geofabrik:"):
+    if src.startswith("geofabrik:"):
+        path = src.split(":", 1)[1].strip("/")
+        url = f"https://download.geofabrik.de/{path}-latest.osm.pbf"
+        rows.append((rid, path, url))
+    elif src.startswith("url:"):
+        url = src[4:]
+        # Derive a publish-style path for parent-skip (OSM.fr extracts/...).
+        path = ""
+        prefix = "https://download.openstreetmap.fr/extracts/"
+        if url.startswith(prefix):
+            rest = url[len(prefix):]
+            if rest.endswith("-latest.osm.pbf"):
+                rest = rest[: -len("-latest.osm.pbf")]
+            elif rest.endswith(".osm.pbf"):
+                rest = rest[: -len(".osm.pbf")]
+            path = rest.strip("/")
+        if not path:
+            path = rid.replace("_", "/")
+        rows.append((rid, path, url))
+    else:
         continue
-    path = src.split(":", 1)[1].strip("/")
-    rows.append((rid, path))
 
 # Skip path-parents (e.g. north-america/us when states exist under it).
-paths = {rid: path for rid, path in rows}
+paths = {rid: path for rid, path, _url in rows}
 parents = {
     rid
-    for rid, path in rows
+    for rid, path in paths.items()
     if any(p != path and p.startswith(path + "/") for p in paths.values())
 }
 
-ids = [rid for rid, _ in rows if rid not in parents]
+ids = [rid for rid, path, _url in rows if rid not in parents]
+url_by_rid = {rid: url for rid, _path, url in rows}
 print(f"skip_parents={sorted(parents)} bake_leaves={len(ids)}", flush=True)
 
 # HEAD sizes
-def head_one(rid_path):
-    rid, path = rid_path
-    url = f"https://download.geofabrik.de/{path}-latest.osm.pbf"
+def head_one(rid):
+    url = url_by_rid[rid]
     try:
         req = urllib.request.Request(url, method="HEAD")
         with urllib.request.urlopen(req, timeout=60) as r:
@@ -151,7 +168,7 @@ def head_one(rid_path):
 
 sizes = {}
 with cf.ThreadPoolExecutor(max_workers=32) as ex:
-    for rid, sz in ex.map(head_one, [(r, paths[r]) for r in ids]):
+    for rid, sz in ex.map(head_one, ids):
         sizes[rid] = sz
 
 # Sun-order

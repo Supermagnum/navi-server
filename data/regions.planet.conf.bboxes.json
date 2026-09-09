@@ -1,63 +1,9 @@
 {
-  "australia_oceania_australia_act": [
-    -35.92548,
-    148.7583,
-    -35.12093,
-    149.4018
-  ],
-  "asia_afghanistan": [
-    29.36856,
-    60.48761,
-    38.50674,
-    74.90017
-  ],
-  "europe_albania": [
-    39.62738,
-    18.89648,
-    42.66313,
-    21.06285
-  ],
-  "north_america_canada_alberta": [
-    48.99251,
-    -120.0043,
-    60.00254,
-    -110.0018
-  ],
   "africa_algeria": [
     18.92874,
     -8.704895,
     37.77284,
     12.03598
-  ],
-  "europe_alps": [
-    42.69859,
-    4.842221,
-    48.40094,
-    16.76239
-  ],
-  "europe_france_alsace": [
-    47.41798,
-    6.838921,
-    49.07898,
-    8.235465
-  ],
-  "australia_oceania_american_oceania": [
-    -17.644,
-    -179.9209,
-    22.02463,
-    169.8706
-  ],
-  "europe_spain_andalucia": [
-    35.70638,
-    -7.52466,
-    38.73347,
-    -1.332095
-  ],
-  "europe_andorra": [
-    42.4276,
-    1.412368,
-    42.65717,
-    1.787481
   ],
   "africa_angola": [
     -18.06508,
@@ -65,227 +11,17 @@
     -4.327925,
     24.10297
   ],
-  "asia_china_anhui": [
-    29.38816,
-    114.8693,
-    34.65496,
-    119.6566
-  ],
-  "antarctica": [
-    -90.0,
-    -180.0,
-    -60.0,
-    180.0
-  ],
-  "europe_france_aquitaine": [
-    42.77334,
-    -1.842771,
-    45.71724,
-    1.450577
-  ],
-  "europe_spain_aragon": [
-    39.83833,
-    -2.17907,
-    42.92677,
-    0.772562
-  ],
-  "south_america_argentina": [
-    -55.68296,
-    -73.61453,
-    -21.72575,
-    -53.63534
-  ],
-  "asia_armenia": [
-    38.83743,
-    43.43821,
-    41.31029,
-    46.64262
-  ],
-  "europe_germany_nordrhein_westfalen_arnsberg_regbez": [
-    50.67897,
-    7.099633,
-    51.74709,
-    8.972531
-  ],
-  "australia_oceania_australia_ashmore_cartier": [
-    -12.8482,
-    122.5681,
-    -11.89266,
-    124.0416
-  ],
-  "europe_spain_asturias": [
-    42.87886,
-    -7.188576,
-    44.01101,
-    -4.39956
-  ],
-  "europe_austria": [
-    46.36979,
-    9.52678,
-    49.02403,
-    17.16408
-  ],
-  "europe_france_auvergne": [
-    44.6146,
-    2.060519,
-    46.80668,
-    4.492907
-  ],
-  "asia_azerbaijan": [
-    38.24727,
-    44.75006,
-    42.67437,
-    51.7231
-  ],
-  "europe_azores": [
-    35.67791,
-    -31.57293,
-    40.0757,
-    -23.71814
-  ],
-  "central_america_bahamas": [
-    20.27251,
-    -81.51857,
-    27.97497,
-    -71.86673
-  ],
-  "asia_bangladesh": [
-    18.58403,
-    87.99765,
-    26.64677,
-    92.69714
-  ],
-  "europe_france_basse_normandie": [
-    48.17802,
-    -2.087526,
-    49.88523,
-    0.979067
-  ],
-  "europe_united_kingdom_england_bedfordshire": [
-    51.8036,
-    -0.704092,
-    52.32483,
-    -0.142022
-  ],
-  "asia_china_beijing": [
-    39.44083,
-    115.4155,
-    41.06382,
-    117.5095
-  ],
-  "europe_belarus": [
-    51.23441,
-    23.1748,
-    56.17385,
-    32.76947
-  ],
-  "europe_belgium": [
-    49.49489,
-    2.340725,
-    51.59839,
-    6.410265
-  ],
-  "central_america_belize": [
-    15.88308,
-    -89.22892,
-    18.4984,
-    -86.85983
-  ],
   "africa_benin": [
     5.984817,
     0.761489,
     12.43658,
     3.861694
   ],
-  "europe_united_kingdom_england_berkshire": [
-    51.32802,
-    -1.589073,
-    51.57873,
-    -0.489118
-  ],
-  "europe_germany_berlin": [
-    52.33446,
-    13.08283,
-    52.6783,
-    13.76225
-  ],
-  "europe_united_kingdom_bermuda": [
-    32.02158,
-    -65.2005,
-    32.62324,
-    -64.39406
-  ],
-  "asia_bhutan": [
-    26.6948,
-    88.73917,
-    28.25372,
-    92.13159
-  ],
-  "south_america_bolivia": [
-    -22.92551,
-    -69.65675,
-    -9.63866,
-    -57.43481
-  ],
-  "europe_bosnia_herzegovina": [
-    42.55239,
-    15.7156,
-    45.27803,
-    19.62639
-  ],
   "africa_botswana": [
     -26.91539,
     19.98745,
     -17.77403,
     29.38549
-  ],
-  "europe_france_bourgogne": [
-    46.15484,
-    2.843279,
-    48.40136,
-    5.519965
-  ],
-  "europe_germany_brandenburg": [
-    51.35252,
-    11.22404,
-    53.5784,
-    14.77481
-  ],
-  "europe_germany_bremen": [
-    53.01034,
-    8.480959,
-    53.61063,
-    8.991268
-  ],
-  "europe_france_bretagne": [
-    47.07722,
-    -5.848854,
-    49.40025,
-    -1.014538
-  ],
-  "europe_united_kingdom_england_bristol": [
-    51.39611,
-    -2.734665,
-    51.54562,
-    -2.509528
-  ],
-  "europe_britain_and_ireland": [
-    49.0,
-    -15.05625,
-    61.13564,
-    3.454774
-  ],
-  "europe_united_kingdom_england_buckinghamshire": [
-    51.48571,
-    -1.140791,
-    52.19561,
-    -0.482713
-  ],
-  "europe_bulgaria": [
-    41.22681,
-    22.34875,
-    44.21777,
-    29.18819
   ],
   "africa_burkina_faso": [
     9.384107,
@@ -299,18 +35,6 @@
     -2.307893,
     30.85115
   ],
-  "asia_cambodia": [
-    8.858092,
-    101.8522,
-    14.71875,
-    107.6397
-  ],
-  "europe_united_kingdom_england_cambridgeshire": [
-    52.00517,
-    -0.502126,
-    52.74155,
-    0.516191
-  ],
   "africa_cameroon": [
     1.645663,
     8.33,
@@ -323,35 +47,11 @@
     30.25648,
     -12.47875
   ],
-  "europe_spain_cantabria": [
-    42.75458,
-    -4.861622,
-    43.86548,
-    -3.144983
-  ],
   "africa_cape_verde": [
     14.00485,
     -26.32379,
     18.005,
     -21.39096
-  ],
-  "europe_spain_castilla_la_mancha": [
-    38.0201,
-    -5.41111,
-    41.33223,
-    -0.912552
-  ],
-  "europe_spain_castilla_y_leon": [
-    40.08044,
-    -7.080517,
-    43.24095,
-    -1.766053
-  ],
-  "europe_spain_cataluna": [
-    40.21245,
-    0.156383,
-    42.8632,
-    4.174794
   ],
   "africa_central_african_republic": [
     2.208735,
@@ -359,101 +59,11 @@
     11.03264,
     27.47578
   ],
-  "russia_central_fed_district": [
-    49.50446,
-    30.69976,
-    59.6533,
-    47.67023
-  ],
-  "asia_india_central_zone": [
-    17.77092,
-    74.01489,
-    31.49075,
-    84.64657
-  ],
-  "europe_france_centre": [
-    46.34591,
-    0.051538,
-    48.9423,
-    3.129925
-  ],
-  "europe_italy_centro": [
-    40.21443,
-    9.306459,
-    44.4797,
-    14.66855
-  ],
-  "south_america_brazil_centro_oeste": [
-    -24.18381,
-    -61.66496,
-    -7.317334,
-    -45.87758
-  ],
-  "europe_spain_ceuta": [
-    35.86702,
-    -5.391024,
-    35.95869,
-    -5.256615
-  ],
   "africa_chad": [
     7.428518,
     13.40129,
     23.53793,
     24.02527
-  ],
-  "europe_france_champagne_ardenne": [
-    47.57553,
-    3.382419,
-    50.17007,
-    5.892182
-  ],
-  "europe_united_kingdom_england_cheshire": [
-    52.94553,
-    -3.129775,
-    53.48263,
-    -1.973135
-  ],
-  "south_america_chile": [
-    -58.45195,
-    -113.2233,
-    -17.45743,
-    -65.5141
-  ],
-  "asia_china_chongqing": [
-    28.15132,
-    105.283,
-    32.20641,
-    110.2004
-  ],
-  "australia_oceania_australia_christmas_island": [
-    -10.82656,
-    105.2993,
-    -10.171,
-    105.9946
-  ],
-  "asia_japan_chubu": [
-    34.26649,
-    135.4393,
-    38.90717,
-    139.909
-  ],
-  "asia_japan_chugoku": [
-    33.54225,
-    129.8975,
-    36.9681,
-    134.5244
-  ],
-  "australia_oceania_australia_cocos_islands": [
-    -12.5527,
-    96.45345,
-    -11.54681,
-    97.24842
-  ],
-  "south_america_colombia": [
-    -4.25732,
-    -83.23104,
-    16.41924,
-    -66.81472
   ],
   "africa_comores": [
     -12.969,
@@ -473,179 +83,17 @@
     5.401396,
     31.33569
   ],
-  "australia_oceania_cook_islands": [
-    -25.28867,
-    -168.4661,
-    -5.800506,
-    -154.8056
-  ],
-  "australia_oceania_australia_coral_sea_islands": [
-    -30.57831,
-    146.8651,
-    -14.98146,
-    160.4218
-  ],
-  "europe_united_kingdom_england_cornwall": [
-    49.57808,
-    -6.820424,
-    50.93213,
-    -4.146631
-  ],
-  "europe_france_corse": [
-    41.31103,
-    8.317882,
-    43.16589,
-    9.751243
-  ],
-  "central_america_costa_rica": [
-    4.937746,
-    -87.82473,
-    11.2237,
-    -82.34952
-  ],
-  "russia_crimean_fed_district": [
-    44.13411,
-    32.15053,
-    46.28118,
-    36.68355
-  ],
-  "europe_croatia": [
-    42.16483,
-    13.08916,
-    46.55756,
-    19.45997
-  ],
-  "central_america_cuba": [
-    19.2533,
-    -85.4242,
-    23.60427,
-    -73.70831
-  ],
-  "europe_united_kingdom_england_cumbria": [
-    53.90063,
-    -3.907471,
-    55.18863,
-    -2.159588
-  ],
-  "europe_cyprus": [
-    34.23374,
-    31.95244,
-    36.00323,
-    34.96147
-  ],
-  "europe_dach": [
-    45.81617,
-    5.864417,
-    55.14777,
-    17.16273
-  ],
-  "europe_denmark": [
-    54.44065,
-    7.7011,
-    58.06239,
-    15.65449
-  ],
-  "europe_united_kingdom_england_derbyshire": [
-    52.6955,
-    -2.035756,
-    53.54172,
-    -1.164792
-  ],
-  "europe_germany_nordrhein_westfalen_detmold_regbez": [
-    51.4369,
-    8.074053,
-    52.53345,
-    9.468311
-  ],
-  "europe_united_kingdom_england_devon": [
-    50.11104,
-    -4.752335,
-    51.30895,
-    -2.881604
-  ],
   "africa_djibouti": [
     10.88824,
     41.76177,
     12.82615,
     43.84569
   ],
-  "europe_poland_dolnoslaskie": [
-    50.08251,
-    14.80839,
-    51.81417,
-    17.80584
-  ],
-  "europe_united_kingdom_england_dorset": [
-    50.49829,
-    -2.962969,
-    51.0827,
-    -1.680036
-  ],
-  "europe_netherlands_drenthe": [
-    52.61093,
-    6.118592,
-    53.20513,
-    7.095411
-  ],
-  "europe_germany_nordrhein_westfalen_duesseldorf_regbez": [
-    51.01422,
-    5.941466,
-    51.90781,
-    7.314306
-  ],
-  "europe_united_kingdom_england_durham": [
-    54.4502,
-    -2.356677,
-    54.91986,
-    -1.101584
-  ],
-  "europe_united_kingdom_england_east_sussex": [
-    50.69996,
-    -0.136786,
-    51.14781,
-    0.869466
-  ],
-  "asia_east_timor": [
-    -9.690103,
-    123.7912,
-    -8.057869,
-    127.5911
-  ],
-  "europe_united_kingdom_england_east_yorkshire_with_hull": [
-    53.55447,
-    -1.105174,
-    54.21045,
-    0.48944
-  ],
-  "asia_india_eastern_zone": [
-    17.78056,
-    81.36749,
-    27.52837,
-    89.91829
-  ],
-  "south_america_ecuador": [
-    -5.024173,
-    -93.56487,
-    2.843487,
-    -75.16149
-  ],
   "africa_egypt": [
     21.9838,
     24.62628,
     32.52518,
     37.16263
-  ],
-  "central_america_el_salvador": [
-    12.03598,
-    -90.50091,
-    14.45762,
-    -87.58438
-  ],
-  "europe_united_kingdom_england_london_enfield": [
-    51.60542,
-    -0.185433,
-    51.69193,
-    -0.008839
   ],
   "africa_equatorial_guinea": [
     -1.792669,
@@ -659,89 +107,11 @@
     18.32962,
     43.33233
   ],
-  "europe_united_kingdom_england_essex": [
-    51.45008,
-    -0.019651,
-    52.09464,
-    1.307251
-  ],
-  "europe_estonia": [
-    57.49764,
-    20.85166,
-    59.99705,
-    28.21426
-  ],
   "africa_ethiopia": [
     3.389192,
     32.96722,
     14.91626,
     48.00545
-  ],
-  "europe_spain_extremadura": [
-    37.93851,
-    -7.54369,
-    40.48913,
-    -4.64241
-  ],
-  "europe_united_kingdom_falklands": [
-    -53.40604,
-    -62.20142,
-    -50.67405,
-    -56.44453
-  ],
-  "russia_far_eastern_fed_district": [
-    37.34659,
-    -180.0,
-    82.00023,
-    180.0
-  ],
-  "europe_faroe_islands": [
-    60.86632,
-    -8.690197,
-    62.90523,
-    -5.515148
-  ],
-  "australia_oceania_fiji": [
-    -25.08127,
-    -180.0,
-    -9.783321,
-    180.0
-  ],
-  "europe_finland": [
-    59.28783,
-    19.02427,
-    70.09959,
-    31.6159
-  ],
-  "europe_netherlands_flevoland": [
-    52.24826,
-    5.059593,
-    52.84516,
-    6.018276
-  ],
-  "europe_france_franche_comte": [
-    46.25975,
-    5.25076,
-    48.02537,
-    7.14439
-  ],
-  "europe_germany_baden_wuerttemberg_freiburg_regbez": [
-    47.53076,
-    7.506494,
-    48.72373,
-    9.246965
-  ],
-  "europe_netherlands_friesland": [
-    52.76362,
-    4.597294,
-    53.68089,
-    6.428358
-  ],
-  "asia_china_fujian": [
-    23.18252,
-    115.8409,
-    28.32237,
-    121.6277
   ],
   "africa_gabon": [
     -5.995799,
@@ -749,107 +119,11 @@
     2.325716,
     14.55139
   ],
-  "europe_spain_galicia": [
-    41.80443,
-    -9.779014,
-    44.14855,
-    -6.727066
-  ],
-  "asia_china_gansu": [
-    32.58438,
-    92.29907,
-    42.81354,
-    108.7193
-  ],
-  "asia_gcc_states": [
-    15.24752,
-    34.43489,
-    32.19653,
-    60.94748
-  ],
-  "europe_netherlands_gelderland": [
-    51.73231,
-    4.992647,
-    52.52322,
-    6.835752
-  ],
-  "europe_georgia": [
-    41.05117,
-    39.88093,
-    43.5899,
-    46.73959
-  ],
   "africa_ghana": [
     3.704056,
     -3.807399,
     11.17772,
     1.394038
-  ],
-  "europe_united_kingdom_england_gloucestershire": [
-    51.41465,
-    -2.711909,
-    52.11556,
-    -1.612605
-  ],
-  "europe_great_britain": [
-    49.523,
-    -14.9907,
-    61.13564,
-    2.513672
-  ],
-  "europe_united_kingdom_england_greater_manchester": [
-    53.32613,
-    -2.732097,
-    53.68742,
-    -1.90804
-  ],
-  "europe_greece": [
-    34.59111,
-    18.97064,
-    41.74954,
-    29.65683
-  ],
-  "north_america_greenland": [
-    58.67169,
-    -75.3894,
-    84.44358,
-    -9.454384
-  ],
-  "europe_netherlands_groningen": [
-    52.83734,
-    6.166463,
-    53.65732,
-    7.230455
-  ],
-  "europe_france_guadeloupe": [
-    15.49074,
-    -62.15241,
-    16.82426,
-    -60.60471
-  ],
-  "asia_china_guangdong": [
-    20.05851,
-    109.3565,
-    25.52432,
-    117.665
-  ],
-  "asia_china_guangxi": [
-    20.74224,
-    104.4419,
-    26.39648,
-    112.0654
-  ],
-  "central_america_guatemala": [
-    12.74168,
-    -92.73303,
-    17.83533,
-    -87.95177
-  ],
-  "europe_guernsey_jersey": [
-    49.00381,
-    -3.573306,
-    50.06948,
-    -1.791572
   ],
   "africa_guinea": [
     7.183332,
@@ -863,59 +137,299 @@
     12.6936,
     -13.62923
   ],
+  "africa_ivory_coast": [
+    4.141916,
+    -8.633881,
+    10.75034,
+    -2.476215
+  ],
+  "africa_kenya": [
+    -4.816276,
+    33.8679,
+    4.629931,
+    41.97685
+  ],
+  "africa_lesotho": [
+    -30.68472,
+    27.0092,
+    -28.56734,
+    29.46393
+  ],
+  "africa_liberia": [
+    -0.681003,
+    -14.95454,
+    8.570158,
+    -7.24572
+  ],
+  "africa_libya": [
+    19.45087,
+    9.374405,
+    33.57972,
+    25.40726
+  ],
+  "africa_madagascar": [
+    -26.5823,
+    42.30124,
+    -11.02746,
+    51.14843
+  ],
+  "africa_malawi": [
+    -17.13324,
+    32.66441,
+    -9.362691,
+    35.92941
+  ],
+  "africa_mali": [
+    10.1176,
+    -12.24701,
+    25.09499,
+    4.330257
+  ],
+  "africa_mauritania": [
+    14.71578,
+    -17.35016,
+    27.33613,
+    -4.816056
+  ],
+  "africa_mauritius": [
+    -22.2411,
+    53.54727,
+    -9.183617,
+    64.66991
+  ],
+  "africa_morocco": [
+    20.40373,
+    -18.1835,
+    36.06077,
+    -0.993576
+  ],
+  "africa_mozambique": [
+    -26.93837,
+    30.20742,
+    -9.986206,
+    42.53489
+  ],
+  "africa_namibia": [
+    -30.20686,
+    9.784615,
+    -16.91682,
+    25.26589
+  ],
+  "africa_niger": [
+    11.68684,
+    0.119721,
+    23.56864,
+    16.05605
+  ],
+  "africa_nigeria": [
+    2.674022,
+    2.664528,
+    13.89874,
+    14.68057
+  ],
+  "africa_rwanda": [
+    -2.848747,
+    28.8593,
+    -1.03831,
+    30.90864
+  ],
+  "africa_saint_helena_ascension_and_tristan_da_cunha": [
+    -43.83245,
+    -15.57026,
+    -4.591221,
+    -2.781278
+  ],
+  "africa_sao_tome_and_principe": [
+    -0.525565,
+    5.273916,
+    2.440286,
+    8.366995
+  ],
+  "africa_senegal_and_gambia": [
+    12.01511,
+    -19.85623,
+    16.70088,
+    -11.33595
+  ],
+  "africa_seychelles": [
+    -12.55844,
+    45.68495,
+    -3.17239,
+    57.57433
+  ],
+  "africa_sierra_leone": [
+    5.391619,
+    -14.76451,
+    10.00571,
+    -10.2558
+  ],
+  "africa_somalia": [
+    -1.816753,
+    40.97489,
+    12.51177,
+    52.44871
+  ],
+  "africa_south_africa": [
+    -47.58493,
+    15.99606,
+    -22.11736,
+    39.24259
+  ],
+  "africa_south_africa_and_lesotho": [
+    -47.58493,
+    15.99606,
+    -22.11736,
+    39.24259
+  ],
+  "africa_south_sudan": [
+    3.461547,
+    23.42491,
+    12.23937,
+    35.96298
+  ],
+  "africa_sudan": [
+    8.653747,
+    21.781,
+    22.34706,
+    39.62781
+  ],
+  "africa_swaziland": [
+    -27.31826,
+    30.78575,
+    -25.71781,
+    32.13698
+  ],
+  "africa_tanzania": [
+    -11.77595,
+    29.24395,
+    -0.974988,
+    40.69487
+  ],
+  "africa_togo": [
+    5.892541,
+    -0.148338,
+    11.14395,
+    1.810942
+  ],
+  "africa_tunisia": [
+    30.20864,
+    7.513961,
+    37.77474,
+    12.068
+  ],
+  "africa_uganda": [
+    -1.487315,
+    29.57056,
+    4.250552,
+    35.01031
+  ],
+  "africa_zambia": [
+    -18.08777,
+    21.98982,
+    -8.239483,
+    33.71773
+  ],
+  "africa_zimbabwe": [
+    -22.44725,
+    25.2229,
+    -15.58707,
+    33.08541
+  ],
+  "antarctica": [
+    -90.0,
+    -180.0,
+    -60.0,
+    180.0
+  ],
+  "asia_afghanistan": [
+    29.36856,
+    60.48761,
+    38.50674,
+    74.90017
+  ],
+  "asia_armenia": [
+    38.83743,
+    43.43821,
+    41.31029,
+    46.64262
+  ],
+  "asia_azerbaijan": [
+    38.24727,
+    44.75006,
+    42.67437,
+    51.7231
+  ],
+  "asia_bangladesh": [
+    18.58403,
+    87.99765,
+    26.64677,
+    92.69714
+  ],
+  "asia_bhutan": [
+    26.6948,
+    88.73917,
+    28.25372,
+    92.13159
+  ],
+  "asia_cambodia": [
+    8.858092,
+    101.8522,
+    14.71875,
+    107.6397
+  ],
+  "asia_china_anhui": [
+    29.38816,
+    114.8693,
+    34.65496,
+    119.6566
+  ],
+  "asia_china_beijing": [
+    39.44083,
+    115.4155,
+    41.06382,
+    117.5095
+  ],
+  "asia_china_chongqing": [
+    28.15132,
+    105.283,
+    32.20641,
+    110.2004
+  ],
+  "asia_china_fujian": [
+    23.18252,
+    115.8409,
+    28.32237,
+    121.6277
+  ],
+  "asia_china_gansu": [
+    32.58438,
+    92.29907,
+    42.81354,
+    108.7193
+  ],
+  "asia_china_guangdong": [
+    20.05851,
+    109.3565,
+    25.52432,
+    117.665
+  ],
+  "asia_china_guangxi": [
+    20.74224,
+    104.4419,
+    26.39648,
+    112.0654
+  ],
   "asia_china_guizhou": [
     24.61706,
     103.5982,
     29.23204,
     109.5594
   ],
-  "south_america_guyana": [
-    1.149369,
-    -61.42101,
-    9.182536,
-    -56.42321
-  ],
-  "europe_france_guyane": [
-    2.093117,
-    -54.62299,
-    6.370288,
-    -50.8667
-  ],
   "asia_china_hainan": [
     14.29739,
     108.3153,
     20.40385,
     118.4373
-  ],
-  "central_america_haiti_and_domrep": [
-    16.99901,
-    -74.82529,
-    21.45307,
-    -68.05482
-  ],
-  "europe_germany_hamburg": [
-    53.39183,
-    7.967833,
-    54.06261,
-    10.33196
-  ],
-  "europe_united_kingdom_england_hampshire": [
-    50.69041,
-    -1.959101,
-    51.38712,
-    -0.726306
-  ],
-  "europe_france_haute_normandie": [
-    48.66574,
-    0.009482,
-    50.08769,
-    1.803956
-  ],
-  "australia_oceania_australia_heard_mcdonald": [
-    -53.54549,
-    71.99912,
-    -52.66308,
-    74.45294
   ],
   "asia_china_hebei": [
     36.04299,
@@ -935,36 +449,6 @@
     36.36801,
     116.647
   ],
-  "europe_united_kingdom_england_herefordshire": [
-    51.82618,
-    -3.142889,
-    52.39531,
-    -2.338434
-  ],
-  "europe_united_kingdom_england_hertfordshire": [
-    51.59798,
-    -0.746833,
-    52.08224,
-    0.197098
-  ],
-  "europe_germany_hessen": [
-    49.39321,
-    7.768021,
-    51.65916,
-    10.24595
-  ],
-  "asia_japan_hokkaido": [
-    41.15098,
-    137.9346,
-    45.8154,
-    146.2476
-  ],
-  "central_america_honduras": [
-    12.96943,
-    -89.36005,
-    17.93171,
-    -81.66138
-  ],
   "asia_china_hong_kong": [
     22.13041,
     113.813,
@@ -983,113 +467,11 @@
     30.138,
     114.2585
   ],
-  "europe_hungary": [
-    45.73207,
-    16.10845,
-    48.58921,
-    22.90649
-  ],
-  "europe_iceland": [
-    62.84553,
-    -25.7,
-    67.50085,
-    -12.41708
-  ],
-  "australia_oceania_ile_de_clipperton": [
-    9.595339,
-    -110.1215,
-    11.15685,
-    -108.3746
-  ],
-  "europe_france_ile_de_france": [
-    48.11918,
-    1.445097,
-    49.24271,
-    3.560409
-  ],
   "asia_china_inner_mongolia": [
     37.39962,
     97.14328,
     53.44515,
     126.0767
-  ],
-  "north_america_canada_british_columbia_interior_admreg": [
-    49.60359,
-    -128.8637,
-    53.55744,
-    -118.7691
-  ],
-  "asia_iran": [
-    24.03947,
-    44.02303,
-    39.79045,
-    63.35413
-  ],
-  "asia_iraq": [
-    29.01775,
-    38.784,
-    37.39063,
-    49.55108
-  ],
-  "europe_ireland_and_northern_ireland": [
-    49.60002,
-    -14.40224,
-    56.86553,
-    -5.059265
-  ],
-  "north_america_canada_british_columbia_island_admreg": [
-    48.12648,
-    -129.3393,
-    52.05756,
-    -122.9789
-  ],
-  "europe_spain_islas_baleares": [
-    38.05675,
-    0.615229,
-    40.7098,
-    4.938349
-  ],
-  "europe_isle_of_man": [
-    53.73236,
-    -5.434554,
-    54.6706,
-    -3.688718
-  ],
-  "europe_united_kingdom_england_isle_of_wight": [
-    50.50555,
-    -1.659074,
-    50.80102,
-    -1.03137
-  ],
-  "europe_italy_isole": [
-    35.07638,
-    7.718453,
-    41.51893,
-    15.70887
-  ],
-  "asia_israel_and_palestine": [
-    29.4396,
-    33.99994,
-    33.45436,
-    35.91531
-  ],
-  "africa_ivory_coast": [
-    4.141916,
-    -8.633881,
-    10.75034,
-    -2.476215
-  ],
-  "central_america_jamaica": [
-    16.35,
-    -78.85,
-    19.16,
-    -75.51
-  ],
-  "asia_indonesia_java": [
-    -9.541155,
-    104.1394,
-    -3.951935,
-    116.5814
   ],
   "asia_china_jiangsu": [
     30.75899,
@@ -1103,191 +485,11 @@
     30.08841,
     118.4865
   ],
-  "europe_czech_republic_jihocesky": [
-    48.54292,
-    13.53386,
-    49.62122,
-    15.60644
-  ],
-  "europe_czech_republic_jihomoravsky": [
-    48.61008,
-    15.54023,
-    49.63471,
-    17.64952
-  ],
   "asia_china_jilin": [
     40.78952,
     121.6276,
     46.31469,
     131.3514
-  ],
-  "asia_jordan": [
-    29.18213,
-    34.86886,
-    33.37922,
-    39.31022
-  ],
-  "asia_indonesia_kalimantan": [
-    -5.59958,
-    104.9606,
-    4.404166,
-    119.9267
-  ],
-  "russia_kaliningrad": [
-    54.31723,
-    19.40837,
-    55.3899,
-    22.88747
-  ],
-  "asia_japan_kansai": [
-    33.07898,
-    133.9644,
-    36.4582,
-    137.6573
-  ],
-  "asia_japan_kanto": [
-    20.08228,
-    134.5757,
-    37.15988,
-    154.4709
-  ],
-  "europe_czech_republic_karlovarsky": [
-    49.88988,
-    12.08477,
-    50.47322,
-    13.30247
-  ],
-  "europe_germany_baden_wuerttemberg_karlsruhe_regbez": [
-    48.29792,
-    7.949946,
-    49.736,
-    9.605534
-  ],
-  "asia_kazakhstan": [
-    40.55346,
-    46.42304,
-    55.50799,
-    87.35359
-  ],
-  "europe_united_kingdom_england_kent": [
-    50.81013,
-    0.030546,
-    51.49664,
-    1.521262
-  ],
-  "africa_kenya": [
-    -4.816276,
-    33.8679,
-    4.629931,
-    41.97685
-  ],
-  "australia_oceania_kiribati": [
-    -13.83833,
-    -180.0,
-    6.472283,
-    180.0
-  ],
-  "north_america_canada_nunavut_kitikmeot": [
-    64.51803,
-    -120.737,
-    73.93962,
-    -88.98445
-  ],
-  "north_america_canada_nunavut_kivalliq": [
-    56.95134,
-    -105.0092,
-    67.00034,
-    -80.01994
-  ],
-  "europe_germany_nordrhein_westfalen_koeln_regbez": [
-    50.32088,
-    5.864417,
-    51.253,
-    7.794411
-  ],
-  "north_america_canada_british_columbia_kootenay_admreg": [
-    48.99463,
-    -119.3857,
-    51.85325,
-    -114.049
-  ],
-  "europe_kosovo": [
-    41.85408,
-    20.01357,
-    43.27753,
-    21.79327
-  ],
-  "europe_czech_republic_kralovehradecky": [
-    50.03735,
-    15.10268,
-    50.78739,
-    16.59925
-  ],
-  "europe_poland_kujawsko_pomorskie": [
-    52.32112,
-    17.23935,
-    53.7917,
-    19.77239
-  ],
-  "asia_kyrgyzstan": [
-    39.15136,
-    69.25507,
-    43.2812,
-    80.2771
-  ],
-  "asia_japan_kyushu": [
-    21.38691,
-    122.5814,
-    35.09724,
-    132.8044
-  ],
-  "europe_spain_la_rioja": [
-    41.91403,
-    -3.140202,
-    42.64621,
-    -1.673012
-  ],
-  "europe_united_kingdom_england_lancashire": [
-    53.47507,
-    -3.092156,
-    54.24645,
-    -2.0395
-  ],
-  "europe_france_languedoc_roussillon": [
-    42.32755,
-    1.686256,
-    44.97821,
-    4.847979
-  ],
-  "asia_laos": [
-    13.90159,
-    100.0828,
-    22.52825,
-    107.6503
-  ],
-  "europe_latvia": [
-    55.66109,
-    19.73348,
-    58.0947,
-    28.25501
-  ],
-  "asia_lebanon": [
-    33.05299,
-    34.76799,
-    34.80253,
-    36.63666
-  ],
-  "europe_united_kingdom_england_leicestershire": [
-    52.3936,
-    -1.596388,
-    52.9776,
-    -0.663929
-  ],
-  "africa_lesotho": [
-    -30.68472,
-    27.0092,
-    -28.56734,
-    29.46393
   ],
   "asia_china_liaoning": [
     38.26191,
@@ -1295,377 +497,11 @@
     43.49303,
     125.7959
   ],
-  "europe_czech_republic_liberecky": [
-    50.47113,
-    14.34201,
-    51.03171,
-    15.63443
-  ],
-  "africa_liberia": [
-    -0.681003,
-    -14.95454,
-    8.570158,
-    -7.24572
-  ],
-  "africa_libya": [
-    19.45087,
-    9.374405,
-    33.57972,
-    25.40726
-  ],
-  "europe_liechtenstein": [
-    47.04774,
-    9.471078,
-    47.27128,
-    9.636217
-  ],
-  "europe_netherlands_limburg": [
-    50.74753,
-    5.563304,
-    51.77992,
-    6.22939
-  ],
-  "europe_france_limousin": [
-    44.91842,
-    0.627097,
-    46.45781,
-    2.61384
-  ],
-  "europe_united_kingdom_england_lincolnshire": [
-    52.63954,
-    -0.950922,
-    53.73003,
-    0.494382
-  ],
-  "europe_lithuania": [
-    53.89221,
-    20.61859,
-    56.45329,
-    26.83873
-  ],
-  "europe_poland_lodzkie": [
-    50.83091,
-    18.06227,
-    52.40624,
-    20.6691
-  ],
-  "europe_france_lorraine": [
-    47.81188,
-    4.886022,
-    49.61946,
-    7.640105
-  ],
-  "europe_poland_lubelskie": [
-    50.23654,
-    21.60285,
-    52.30035,
-    24.16102
-  ],
-  "europe_poland_lubuskie": [
-    51.34865,
-    14.49548,
-    53.12806,
-    16.42999
-  ],
-  "europe_luxembourg": [
-    49.44553,
-    5.733033,
-    50.18496,
-    6.532249
-  ],
   "asia_china_macau": [
     22.07546,
     113.5272,
     22.21708,
     113.6325
-  ],
-  "europe_macedonia": [
-    40.84759,
-    20.44671,
-    42.37969,
-    23.04012
-  ],
-  "africa_madagascar": [
-    -26.5823,
-    42.30124,
-    -11.02746,
-    51.14843
-  ],
-  "europe_spain_madrid": [
-    39.88116,
-    -4.589539,
-    41.16864,
-    -3.050423
-  ],
-  "africa_malawi": [
-    -17.13324,
-    32.66441,
-    -9.362691,
-    35.92941
-  ],
-  "asia_malaysia_singapore_brunei": [
-    0.830813,
-    99.25611,
-    7.736849,
-    119.6683
-  ],
-  "asia_maldives": [
-    -1.36,
-    71.7,
-    7.69,
-    74.5
-  ],
-  "africa_mali": [
-    10.1176,
-    -12.24701,
-    25.09499,
-    4.330257
-  ],
-  "europe_poland_malopolskie": [
-    49.16487,
-    19.07492,
-    50.53221,
-    21.43328
-  ],
-  "europe_malta": [
-    35.51985,
-    14.0,
-    36.33296,
-    14.8561
-  ],
-  "asia_indonesia_maluku": [
-    -9.524903,
-    123.8928,
-    3.727232,
-    135.412
-  ],
-  "north_america_canada_manitoba": [
-    48.99056,
-    -102.014,
-    60.00845,
-    -88.12183
-  ],
-  "australia_oceania_marshall_islands": [
-    1.777314,
-    156.8453,
-    17.94606,
-    175.5118
-  ],
-  "europe_france_martinique": [
-    14.13392,
-    -61.63056,
-    15.15167,
-    -60.42755
-  ],
-  "africa_mauritania": [
-    14.71578,
-    -17.35016,
-    27.33613,
-    -4.816056
-  ],
-  "africa_mauritius": [
-    -22.2411,
-    53.54727,
-    -9.183617,
-    64.66991
-  ],
-  "europe_france_mayotte": [
-    -13.47243,
-    44.62646,
-    -12.14406,
-    45.6784
-  ],
-  "europe_poland_mazowieckie": [
-    50.98451,
-    19.23355,
-    53.5116,
-    23.15637
-  ],
-  "europe_germany_mecklenburg_vorpommern": [
-    53.10619,
-    10.58807,
-    54.9837,
-    14.42292
-  ],
-  "europe_spain_melilla": [
-    35.26393,
-    -2.972424,
-    35.32393,
-    -2.908201
-  ],
-  "europe_united_kingdom_england_merseyside": [
-    53.2854,
-    -3.342781,
-    53.70528,
-    -2.575686
-  ],
-  "north_america_mexico": [
-    9.456709,
-    -132.4952,
-    32.72067,
-    -85.49087
-  ],
-  "australia_oceania_micronesia": [
-    -1.147444,
-    135.3124,
-    13.21917,
-    165.6345
-  ],
-  "europe_france_midi_pyrenees": [
-    42.56793,
-    -0.327537,
-    45.04779,
-    3.453264
-  ],
-  "europe_germany_bayern_mittelfranken": [
-    48.85325,
-    10.06565,
-    49.79103,
-    11.60553
-  ],
-  "europe_moldova": [
-    45.46164,
-    26.61232,
-    48.49397,
-    30.19249
-  ],
-  "europe_monaco": [
-    43.48382,
-    7.408583,
-    43.75293,
-    7.595671
-  ],
-  "asia_mongolia": [
-    41.50035,
-    87.70255,
-    52.19582,
-    120.0201
-  ],
-  "europe_montenegro": [
-    41.61621,
-    18.17282,
-    43.56217,
-    20.35883
-  ],
-  "europe_czech_republic_moravskoslezky": [
-    49.37126,
-    17.14468,
-    50.3303,
-    18.86321
-  ],
-  "africa_morocco": [
-    20.40373,
-    -18.1835,
-    36.06077,
-    -0.993576
-  ],
-  "africa_mozambique": [
-    -26.93837,
-    30.20742,
-    -9.986206,
-    42.53489
-  ],
-  "europe_germany_nordrhein_westfalen_muenster_regbez": [
-    51.47971,
-    6.38588,
-    52.47682,
-    8.321177
-  ],
-  "europe_spain_murcia": [
-    37.11215,
-    -2.351246,
-    38.76024,
-    -0.247194
-  ],
-  "asia_myanmar": [
-    9.510211,
-    90.65133,
-    28.57476,
-    101.1971
-  ],
-  "africa_namibia": [
-    -30.20686,
-    9.784615,
-    -16.91682,
-    25.26589
-  ],
-  "australia_oceania_nauru": [
-    -3.771196,
-    163.7052,
-    2.693851,
-    168.5599
-  ],
-  "europe_spain_navarra": [
-    41.90611,
-    -2.502308,
-    43.31655,
-    -0.716515
-  ],
-  "asia_nepal": [
-    26.3445,
-    80.04913,
-    30.47822,
-    88.22213
-  ],
-  "north_america_canada_new_brunswick": [
-    44.19205,
-    -69.05975,
-    48.38075,
-    -62.88575
-  ],
-  "australia_oceania_new_caledonia": [
-    -25.0,
-    157.9,
-    -16.9,
-    174.1
-  ],
-  "australia_oceania_australia_new_south_wales": [
-    -37.75984,
-    140.9948,
-    -28.13898,
-    160.0747
-  ],
-  "australia_oceania_new_zealand": [
-    -56.75268,
-    -179.989,
-    -28.488,
-    179.9999
-  ],
-  "north_america_canada_newfoundland_and_labrador": [
-    44.45787,
-    -67.87079,
-    60.50864,
-    -44.17684
-  ],
-  "central_america_nicaragua": [
-    10.70177,
-    -87.9774,
-    15.1119,
-    -82.37865
-  ],
-  "europe_germany_bayern_niederbayern": [
-    48.20179,
-    11.59302,
-    49.17605,
-    13.84947
-  ],
-  "europe_germany_niedersachsen": [
-    51.29348,
-    6.295338,
-    54.23955,
-    11.60731
-  ],
-  "africa_niger": [
-    11.68684,
-    0.119721,
-    23.56864,
-    16.05605
-  ],
-  "africa_nigeria": [
-    2.674022,
-    2.664528,
-    13.89874,
-    14.68057
   ],
   "asia_china_ningxia": [
     35.23272,
@@ -1673,503 +509,11 @@
     39.38606,
     107.6571
   ],
-  "australia_oceania_niue": [
-    -22.47347,
-    -172.027,
-    -16.63667,
-    -166.2989
-  ],
-  "europe_netherlands_noord_brabant": [
-    51.21808,
-    4.189152,
-    51.83181,
-    6.049354
-  ],
-  "europe_netherlands_noord_holland": [
-    52.16497,
-    3.896906,
-    53.28945,
-    5.378479
-  ],
-  "north_america_us_california_norcal": [
-    35.78528,
-    -125.8935,
-    42.01618,
-    -115.6468
-  ],
-  "europe_italy_nord_est": [
-    43.72977,
-    9.195461,
-    47.10005,
-    13.92878
-  ],
-  "europe_norway_nord_norge": [
-    64.93917,
-    7.840204,
-    72.4056,
-    33.63965
-  ],
-  "europe_italy_nord_ovest": [
-    43.48099,
-    6.602696,
-    46.64119,
-    11.43336
-  ],
-  "europe_france_nord_pas_de_calais": [
-    49.96764,
-    1.278311,
-    51.28121,
-    4.236622
-  ],
-  "south_america_brazil_nordeste": [
-    -18.59514,
-    -48.77554,
-    2.673015,
-    -28.42028
-  ],
-  "europe_united_kingdom_england_norfolk": [
-    52.35478,
-    0.15447,
-    53.35573,
-    1.992789
-  ],
-  "australia_oceania_australia_norfolk_island": [
-    -29.46068,
-    167.6245,
-    -28.75781,
-    168.3456
-  ],
-  "south_america_brazil_norte": [
-    -13.73407,
-    -74.02313,
-    5.522895,
-    -42.87915
-  ],
-  "north_america_canada_british_columbia_north_admreg": [
-    51.0635,
-    -141.7761,
-    60.00678,
-    -117.938
-  ],
-  "russia_north_caucasus_fed_district": [
-    41.1355,
-    40.67265,
-    46.23914,
-    48.86453
-  ],
-  "asia_india_north_eastern_zone": [
-    21.92712,
-    88.00852,
-    29.42883,
-    97.41989
-  ],
-  "asia_north_korea": [
-    37.61103,
-    123.697,
-    43.02043,
-    131.6447
-  ],
-  "europe_united_kingdom_england_north_yorkshire": [
-    53.61999,
-    -2.567177,
-    54.70222,
-    -0.040615
-  ],
-  "europe_united_kingdom_england_northamptonshire": [
-    51.9765,
-    -1.334028,
-    52.64459,
-    -0.34068
-  ],
-  "australia_oceania_australia_northern_territory": [
-    -26.00085,
-    128.6705,
-    -9.971934,
-    140.4241
-  ],
-  "asia_india_northern_zone": [
-    23.04688,
-    69.43908,
-    35.73091,
-    79.48883
-  ],
-  "europe_united_kingdom_england_northumberland": [
-    54.78162,
-    -2.690724,
-    55.84866,
-    -1.223287
-  ],
-  "north_america_canada_northwest_territories": [
-    59.9896,
-    -136.6974,
-    81.65483,
-    -101.976
-  ],
-  "russia_northwestern_fed_district": [
-    54.31282,
-    19.40837,
-    82.54561,
-    72.62481
-  ],
-  "europe_united_kingdom_england_nottinghamshire": [
-    52.78153,
-    -1.344477,
-    53.50315,
-    -0.666651
-  ],
-  "north_america_canada_nova_scotia": [
-    42.10691,
-    -67.24728,
-    47.89793,
-    -58.22593
-  ],
-  "asia_indonesia_nusa_tenggara": [
-    -11.60655,
-    114.4089,
-    -6.675509,
-    128.408
-  ],
-  "europe_germany_bayern_oberbayern": [
-    47.3913,
-    10.71268,
-    49.09052,
-    13.10973
-  ],
-  "europe_germany_bayern_oberfranken": [
-    49.5854,
-    10.43816,
-    50.52571,
-    12.27356
-  ],
-  "europe_germany_bayern_oberpfalz": [
-    48.76243,
-    11.18231,
-    50.08323,
-    13.17628
-  ],
-  "north_america_canada_british_columbia_okanagan_admreg": [
-    48.99456,
-    -121.1,
-    52.57309,
-    -116.8259
-  ],
-  "europe_czech_republic_olomoucky": [
-    49.26735,
-    16.70909,
-    50.45234,
-    17.92035
-  ],
-  "north_america_canada_ontario": [
-    41.66009,
-    -95.15965,
-    57.50826,
-    -74.30998
-  ],
-  "europe_poland_opolskie": [
-    49.95766,
-    16.9015,
-    51.2014,
-    18.70219
-  ],
-  "europe_norway_ostlandet": [
-    58.5968,
-    7.095391,
-    62.69734,
-    12.88071
-  ],
-  "europe_netherlands_overijssel": [
-    52.11349,
-    5.776793,
-    52.85539,
-    7.075066
-  ],
-  "europe_united_kingdom_england_oxfordshire": [
-    51.46057,
-    -1.719533,
-    52.16807,
-    -0.86985
-  ],
-  "europe_spain_pais_vasco": [
-    42.46919,
-    -3.454342,
-    43.74729,
-    -1.666284
-  ],
-  "asia_pakistan": [
-    23.3763,
-    60.82168,
-    37.10667,
-    77.22427
-  ],
-  "australia_oceania_palau": [
-    1.621407,
-    130.1034,
-    11.48818,
-    136.9541
-  ],
-  "central_america_panama": [
-    6.644027,
-    -83.46462,
-    11.20708,
-    -77.08126
-  ],
-  "asia_indonesia_papua": [
-    -9.495116,
-    128.2819,
-    2.075967,
-    141.0217
-  ],
-  "australia_oceania_papua_new_guinea": [
-    -14.74845,
-    139.2014,
-    2.587814,
-    162.8034
-  ],
-  "south_america_paraguay": [
-    -27.65675,
-    -62.69475,
-    -19.24012,
-    -54.20176
-  ],
-  "europe_czech_republic_pardubicky": [
-    49.57176,
-    15.3626,
-    50.21306,
-    16.86804
-  ],
-  "europe_france_pays_de_la_loire": [
-    46.21875,
-    -2.674666,
-    48.57002,
-    0.918996
-  ],
-  "south_america_peru": [
-    -20.30552,
-    -86.02509,
-    0.060049,
-    -68.55439
-  ],
-  "asia_philippines": [
-    4.382696,
-    112.1661,
-    21.53021,
-    127.0742
-  ],
-  "europe_france_picardie": [
-    48.83599,
-    1.360085,
-    50.37125,
-    4.256744
-  ],
-  "australia_oceania_pitcairn_islands": [
-    -27.66403,
-    -133.0664,
-    -21.59613,
-    -118.3448
-  ],
-  "europe_czech_republic_plzensky": [
-    48.93387,
-    12.38887,
-    50.10566,
-    13.84247
-  ],
-  "europe_poland_podkarpackie": [
-    48.98642,
-    21.13433,
-    50.82591,
-    23.5536
-  ],
-  "europe_poland_podlaskie": [
-    52.27112,
-    21.58465,
-    54.4254,
-    23.96141
-  ],
-  "europe_france_poitou_charentes": [
-    45.0868,
-    -1.898565,
-    47.17837,
-    1.214991
-  ],
-  "australia_oceania_polynesie_francaise": [
-    -31.54105,
-    -158.5547,
-    -4.915789,
-    -132.5391
-  ],
-  "europe_poland_pomorskie": [
-    53.4806,
-    16.68699,
-    55.07949,
-    19.66069
-  ],
-  "europe_portugal": [
-    29.7,
-    -31.6,
-    42.1639,
-    -6.179513
-  ],
-  "europe_czech_republic_praha": [
-    49.94151,
-    14.22365,
-    50.17756,
-    14.70695
-  ],
-  "north_america_canada_prince_edward_island": [
-    45.82497,
-    -64.60236,
-    47.68573,
-    -61.24878
-  ],
-  "europe_france_provence_alpes_cote_d_azur": [
-    42.31539,
-    4.144746,
-    45.12887,
-    7.748528
-  ],
-  "north_america_canada_nunavut_qikiqtaaluk": [
-    51.1268,
-    -110.0345,
-    84.32633,
-    -53.98957
-  ],
   "asia_china_qinghai": [
     31.58673,
     89.39,
     39.22162,
     103.0727
-  ],
-  "north_america_canada_quebec": [
-    44.98552,
-    -79.8404,
-    62.6262,
-    -57.08908
-  ],
-  "australia_oceania_australia_queensland": [
-    -29.1831,
-    137.9902,
-    -8.841629,
-    154.2005
-  ],
-  "europe_france_reunion": [
-    -21.72922,
-    54.94688,
-    -20.58589,
-    56.11999
-  ],
-  "europe_germany_rheinland_pfalz": [
-    48.96377,
-    6.109129,
-    50.94404,
-    8.511228
-  ],
-  "europe_france_rhone_alpes": [
-    44.11274,
-    3.686075,
-    46.52248,
-    7.19206
-  ],
-  "europe_romania": [
-    43.61247,
-    20.24181,
-    48.26948,
-    30.27896
-  ],
-  "europe_united_kingdom_england_rutland": [
-    52.52355,
-    -0.822934,
-    52.76109,
-    -0.427654
-  ],
-  "africa_rwanda": [
-    -2.848747,
-    28.8593,
-    -1.03831,
-    30.90864
-  ],
-  "europe_germany_saarland": [
-    49.10807,
-    6.354475,
-    49.64146,
-    7.406287
-  ],
-  "europe_germany_sachsen": [
-    50.16658,
-    11.86685,
-    51.68735,
-    15.05078
-  ],
-  "europe_germany_sachsen_anhalt": [
-    50.92887,
-    10.54725,
-    53.0566,
-    13.21268
-  ],
-  "africa_saint_helena_ascension_and_tristan_da_cunha": [
-    -43.83245,
-    -15.57026,
-    -4.591221,
-    -2.781278
-  ],
-  "australia_oceania_samoa": [
-    -15.87838,
-    -174.5114,
-    -10.96083,
-    -170.5427
-  ],
-  "africa_sao_tome_and_principe": [
-    -0.525565,
-    5.273916,
-    2.440286,
-    8.366995
-  ],
-  "north_america_canada_saskatchewan": [
-    48.9876,
-    -110.0069,
-    60.00052,
-    -101.3614
-  ],
-  "europe_germany_schleswig_holstein": [
-    53.3569,
-    7.46458,
-    55.14634,
-    11.79931
-  ],
-  "europe_germany_bayern_schwaben": [
-    47.26543,
-    9.512461,
-    49.0366,
-    11.31348
-  ],
-  "europe_united_kingdom_scotland": [
-    54.54001,
-    -14.86155,
-    61.13564,
-    0.216055
-  ],
-  "asia_sea": [
-    -11.60655,
-    90.65133,
-    28.57476,
-    141.0217
-  ],
-  "africa_senegal_and_gambia": [
-    12.01511,
-    -19.85623,
-    16.70088,
-    -11.33595
-  ],
-  "europe_serbia": [
-    42.22979,
-    18.80894,
-    46.19207,
-    23.01035
-  ],
-  "africa_seychelles": [
-    -12.55844,
-    45.68495,
-    -3.17239,
-    57.57433
   ],
   "asia_china_shaanxi": [
     31.695,
@@ -2195,131 +539,77 @@
     40.75116,
     114.57
   ],
-  "asia_japan_shikoku": [
-    32.22959,
-    131.7698,
-    34.65151,
-    135.1794
-  ],
-  "europe_united_kingdom_england_shropshire": [
-    52.30616,
-    -3.235577,
-    52.99693,
-    -2.23354
-  ],
-  "russia_siberian_fed_district": [
-    49.02101,
-    70.27478,
-    81.88747,
-    147.7133
-  ],
   "asia_china_sichuan": [
     26.04599,
     97.31277,
     34.33153,
     108.5508
   ],
-  "africa_sierra_leone": [
-    5.391619,
-    -14.76451,
-    10.00571,
-    -10.2558
+  "asia_china_tianjin": [
+    38.55327,
+    116.6944,
+    40.25307,
+    118.063
   ],
-  "europe_poland_slaskie": [
-    49.38,
-    18.02213,
-    51.1129,
-    19.98542
+  "asia_china_tibet": [
+    27.19968,
+    78.29403,
+    36.53,
+    99.12552
   ],
-  "europe_slovakia": [
-    47.72646,
-    16.83071,
-    49.6186,
-    22.57051
+  "asia_china_xinjiang": [
+    34.26775,
+    73.41788,
+    49.26201,
+    96.43
   ],
-  "europe_slovenia": [
-    45.42081,
-    13.30509,
-    46.87956,
-    16.60034
+  "asia_china_yunnan": [
+    21.04476,
+    97.42851,
+    29.23518,
+    106.215
   ],
-  "north_america_us_california_socal": [
-    32.48438,
-    -121.4401,
-    35.81055,
-    -114.1291
+  "asia_china_zhejiang": [
+    26.69164,
+    118.0206,
+    31.19078,
+    123.8379
   ],
-  "australia_oceania_solomon_islands": [
-    -16.12694,
-    154.5856,
-    -4.139945,
-    173.5934
+  "asia_east_timor": [
+    -9.690103,
+    123.7912,
+    -8.057869,
+    127.5911
   ],
-  "africa_somalia": [
-    -1.816753,
-    40.97489,
-    12.51177,
-    52.44871
+  "asia_gcc_states": [
+    15.24752,
+    34.43489,
+    32.19653,
+    60.94748
   ],
-  "europe_united_kingdom_england_somerset": [
-    50.81995,
-    -3.84094,
-    51.50392,
-    -2.243303
+  "asia_india_central_zone": [
+    17.77092,
+    74.01489,
+    31.49075,
+    84.64657
   ],
-  "europe_norway_sorlandet": [
-    57.58445,
-    5.698662,
-    59.67468,
-    10.10434
+  "asia_india_eastern_zone": [
+    17.78056,
+    81.36749,
+    27.52837,
+    89.91829
   ],
-  "africa_south_africa": [
-    -47.58493,
-    15.99606,
-    -22.11736,
-    39.24259
+  "asia_india_north_eastern_zone": [
+    21.92712,
+    88.00852,
+    29.42883,
+    97.41989
   ],
-  "africa_south_africa_and_lesotho": [
-    -47.58493,
-    15.99606,
-    -22.11736,
-    39.24259
-  ],
-  "australia_oceania_australia_south_australia": [
-    -39.83156,
-    128.9993,
-    -25.99303,
-    141.0073
-  ],
-  "russia_south_fed_district": [
-    43.18958,
-    36.52315,
-    51.2554,
-    49.93666
-  ],
-  "asia_south_korea": [
-    32.36076,
-    124.3188,
-    38.64966,
-    132.3386
-  ],
-  "africa_south_sudan": [
-    3.461547,
-    23.42491,
-    12.23937,
-    35.96298
-  ],
-  "europe_united_kingdom_england_south_yorkshire": [
-    53.29889,
-    -1.825872,
-    53.66326,
-    -0.852889
-  ],
-  "north_america_canada_british_columbia_southcoast_admreg": [
-    48.98059,
-    -124.2851,
-    51.22667,
-    -120.8077
+  "asia_india_northern_zone": [
+    23.04688,
+    69.43908,
+    35.73091,
+    79.48883
   ],
   "asia_india_southern_zone": [
     5.943921,
@@ -2327,59 +617,41 @@
     19.92268,
     95.51383
   ],
-  "asia_sri_lanka": [
-    5.621275,
-    79.16416,
-    10.07153,
-    82.64612
+  "asia_india_western_zone": [
+    14.38929,
+    67.67457,
+    24.71756,
+    80.91362
   ],
-  "europe_united_kingdom_england_staffordshire": [
-    52.42202,
-    -2.47182,
-    53.22743,
-    -1.58449
+  "asia_indonesia_java": [
+    -9.541155,
+    104.1394,
+    -3.951935,
+    116.5814
   ],
-  "europe_czech_republic_stredocesky": [
-    49.50088,
-    13.39579,
-    50.61926,
-    15.53613
+  "asia_indonesia_kalimantan": [
+    -5.59958,
+    104.9606,
+    4.404166,
+    119.9267
   ],
-  "europe_germany_baden_wuerttemberg_stuttgart_regbez": [
-    48.49386,
-    8.741474,
-    49.79456,
-    10.51495
+  "asia_indonesia_maluku": [
+    -9.524903,
+    123.8928,
+    3.727232,
+    135.412
   ],
-  "europe_italy_sud": [
-    37.80152,
-    13.00131,
-    42.91363,
-    19.12499
+  "asia_indonesia_nusa_tenggara": [
+    -11.60655,
+    114.4089,
+    -6.675509,
+    128.408
   ],
-  "africa_sudan": [
-    8.653747,
-    21.781,
-    22.34706,
-    39.62781
-  ],
-  "south_america_brazil_sudeste": [
-    -25.4993,
-    -53.1189,
-    -14.22445,
-    -28.19195
-  ],
-  "europe_united_kingdom_england_suffolk": [
-    51.93285,
-    0.339563,
-    52.55013,
-    1.763681
-  ],
-  "south_america_brazil_sul": [
-    -34.86424,
-    -57.67273,
-    -22.51383,
-    -44.2463
+  "asia_indonesia_papua": [
+    -9.495116,
+    128.2819,
+    2.075967,
+    141.0217
   ],
   "asia_indonesia_sulawesi": [
     -8.02115,
@@ -2393,47 +665,167 @@
     6.99933,
     109.7524
   ],
-  "south_america_suriname": [
-    1.816773,
-    -58.08461,
-    7.761698,
-    -53.32819
+  "asia_iran": [
+    24.03947,
+    44.02303,
+    39.79045,
+    63.35413
   ],
-  "europe_united_kingdom_england_surrey": [
-    51.0715,
-    -0.850593,
-    51.47288,
-    0.059897
+  "asia_iraq": [
+    29.01775,
+    38.784,
+    37.39063,
+    49.55108
   ],
-  "europe_norway_svalbard_janmayen": [
-    70.26127,
-    -10.49539,
-    81.05183,
-    35.34074
+  "asia_israel_and_palestine": [
+    29.4396,
+    33.99994,
+    33.45436,
+    35.91531
   ],
-  "africa_swaziland": [
-    -27.31826,
-    30.78575,
-    -25.71781,
-    32.13698
+  "asia_japan_chubu": [
+    34.26649,
+    135.4393,
+    38.90717,
+    139.909
   ],
-  "europe_sweden": [
-    55.02652,
-    10.54138,
-    69.06643,
-    24.22472
+  "asia_japan_chugoku": [
+    33.54225,
+    129.8975,
+    36.9681,
+    134.5244
   ],
-  "europe_poland_swietokrzyskie": [
-    50.17974,
-    19.69901,
-    51.34824,
-    21.8758
+  "asia_japan_hokkaido": [
+    41.15098,
+    137.9346,
+    45.8154,
+    146.2476
   ],
-  "europe_switzerland": [
-    45.81642,
-    5.954418,
-    47.81126,
-    10.49584
+  "asia_japan_kansai": [
+    33.07898,
+    133.9644,
+    36.4582,
+    137.6573
+  ],
+  "asia_japan_kanto": [
+    20.08228,
+    134.5757,
+    37.15988,
+    154.4709
+  ],
+  "asia_japan_kyushu": [
+    21.38691,
+    122.5814,
+    35.09724,
+    132.8044
+  ],
+  "asia_japan_shikoku": [
+    32.22959,
+    131.7698,
+    34.65151,
+    135.1794
+  ],
+  "asia_japan_tohoku": [
+    36.52861,
+    138.9325,
+    41.64179,
+    142.8782
+  ],
+  "asia_jordan": [
+    29.18213,
+    34.86886,
+    33.37922,
+    39.31022
+  ],
+  "asia_kazakhstan": [
+    40.55346,
+    46.42304,
+    55.50799,
+    87.35359
+  ],
+  "asia_kyrgyzstan": [
+    39.15136,
+    69.25507,
+    43.2812,
+    80.2771
+  ],
+  "asia_laos": [
+    13.90159,
+    100.0828,
+    22.52825,
+    107.6503
+  ],
+  "asia_lebanon": [
+    33.05299,
+    34.76799,
+    34.80253,
+    36.63666
+  ],
+  "asia_malaysia_singapore_brunei": [
+    0.830813,
+    99.25611,
+    7.736849,
+    119.6683
+  ],
+  "asia_maldives": [
+    -1.36,
+    71.7,
+    7.69,
+    74.5
+  ],
+  "asia_mongolia": [
+    41.50035,
+    87.70255,
+    52.19582,
+    120.0201
+  ],
+  "asia_myanmar": [
+    9.510211,
+    90.65133,
+    28.57476,
+    101.1971
+  ],
+  "asia_nepal": [
+    26.3445,
+    80.04913,
+    30.47822,
+    88.22213
+  ],
+  "asia_north_korea": [
+    37.61103,
+    123.697,
+    43.02043,
+    131.6447
+  ],
+  "asia_pakistan": [
+    23.3763,
+    60.82168,
+    37.10667,
+    77.22427
+  ],
+  "asia_philippines": [
+    4.382696,
+    112.1661,
+    21.53021,
+    127.0742
+  ],
+  "asia_sea": [
+    -11.60655,
+    90.65133,
+    28.57476,
+    141.0217
+  ],
+  "asia_south_korea": [
+    32.36076,
+    124.3188,
+    38.64966,
+    132.3386
+  ],
+  "asia_sri_lanka": [
+    5.621275,
+    79.16416,
+    10.07153,
+    82.64612
   ],
   "asia_syria": [
     32.3066,
@@ -2453,11 +845,107 @@
     41.05502,
     75.16571
   ],
-  "africa_tanzania": [
-    -11.77595,
-    29.24395,
-    -0.974988,
-    40.69487
+  "asia_thailand": [
+    5.597877,
+    97.13562,
+    20.46875,
+    105.6392
+  ],
+  "asia_turkmenistan": [
+    35.12355,
+    51.83271,
+    42.81253,
+    66.72272
+  ],
+  "asia_uzbekistan": [
+    37.16636,
+    55.97708,
+    45.61884,
+    73.17463
+  ],
+  "asia_vietnam": [
+    7.382239,
+    102.0959,
+    23.40214,
+    114.6423
+  ],
+  "asia_yemen": [
+    11.36768,
+    41.06894,
+    19.03189,
+    55.51167
+  ],
+  "australia_oceania_american_oceania": [
+    -17.644,
+    -179.9209,
+    22.02463,
+    169.8706
+  ],
+  "australia_oceania_australia_act": [
+    -35.92548,
+    148.7583,
+    -35.12093,
+    149.4018
+  ],
+  "australia_oceania_australia_ashmore_cartier": [
+    -12.8482,
+    122.5681,
+    -11.89266,
+    124.0416
+  ],
+  "australia_oceania_australia_christmas_island": [
+    -10.82656,
+    105.2993,
+    -10.171,
+    105.9946
+  ],
+  "australia_oceania_australia_cocos_islands": [
+    -12.5527,
+    96.45345,
+    -11.54681,
+    97.24842
+  ],
+  "australia_oceania_australia_coral_sea_islands": [
+    -30.57831,
+    146.8651,
+    -14.98146,
+    160.4218
+  ],
+  "australia_oceania_australia_heard_mcdonald": [
+    -53.54549,
+    71.99912,
+    -52.66308,
+    74.45294
+  ],
+  "australia_oceania_australia_new_south_wales": [
+    -37.75984,
+    140.9948,
+    -28.13898,
+    160.0747
+  ],
+  "australia_oceania_australia_norfolk_island": [
+    -29.46068,
+    167.6245,
+    -28.75781,
+    168.3456
+  ],
+  "australia_oceania_australia_northern_territory": [
+    -26.00085,
+    128.6705,
+    -9.971934,
+    140.4241
+  ],
+  "australia_oceania_australia_queensland": [
+    -29.1831,
+    137.9902,
+    -8.841629,
+    154.2005
+  ],
+  "australia_oceania_australia_south_australia": [
+    -39.83156,
+    128.9993,
+    -25.99303,
+    141.0073
   ],
   "australia_oceania_australia_tasmania": [
     -56.86236,
@@ -2465,41 +953,113 @@
     -39.19687,
     161.6707
   ],
-  "asia_thailand": [
-    5.597877,
-    97.13562,
-    20.46875,
-    105.6392
+  "australia_oceania_australia_victoria": [
+    -39.23224,
+    140.9574,
+    -33.97931,
+    150.4683
   ],
-  "europe_germany_thueringen": [
-    50.19971,
-    9.863176,
-    51.65237,
-    12.66106
+  "australia_oceania_australia_western_australia": [
+    -41.16427,
+    109.9281,
+    -12.83116,
+    130.32
   ],
-  "asia_china_tianjin": [
-    38.55327,
-    116.6944,
-    40.25307,
-    118.063
+  "australia_oceania_cook_islands": [
+    -25.28867,
+    -168.4661,
+    -5.800506,
+    -154.8056
   ],
-  "asia_china_tibet": [
-    27.19968,
-    78.29403,
-    36.53,
-    99.12552
+  "australia_oceania_fiji": [
+    -25.08127,
+    -180.0,
+    -9.783321,
+    180.0
   ],
-  "africa_togo": [
-    5.892541,
-    -0.148338,
-    11.14395,
-    1.810942
+  "australia_oceania_ile_de_clipperton": [
+    9.595339,
+    -110.1215,
+    11.15685,
+    -108.3746
   ],
-  "asia_japan_tohoku": [
-    36.52861,
-    138.9325,
-    41.64179,
-    142.8782
+  "australia_oceania_kiribati": [
+    -13.83833,
+    -180.0,
+    6.472283,
+    180.0
+  ],
+  "australia_oceania_marshall_islands": [
+    1.777314,
+    156.8453,
+    17.94606,
+    175.5118
+  ],
+  "australia_oceania_micronesia": [
+    -1.147444,
+    135.3124,
+    13.21917,
+    165.6345
+  ],
+  "australia_oceania_nauru": [
+    -3.771196,
+    163.7052,
+    2.693851,
+    168.5599
+  ],
+  "australia_oceania_new_caledonia": [
+    -25.0,
+    157.9,
+    -16.9,
+    174.1
+  ],
+  "australia_oceania_new_zealand": [
+    -56.75268,
+    -179.989,
+    -28.488,
+    179.9999
+  ],
+  "australia_oceania_niue": [
+    -22.47347,
+    -172.027,
+    -16.63667,
+    -166.2989
+  ],
+  "australia_oceania_palau": [
+    1.621407,
+    130.1034,
+    11.48818,
+    136.9541
+  ],
+  "australia_oceania_papua_new_guinea": [
+    -14.74845,
+    139.2014,
+    2.587814,
+    162.8034
+  ],
+  "australia_oceania_pitcairn_islands": [
+    -27.66403,
+    -133.0664,
+    -21.59613,
+    -118.3448
+  ],
+  "australia_oceania_polynesie_francaise": [
+    -31.54105,
+    -158.5547,
+    -4.915789,
+    -132.5391
+  ],
+  "australia_oceania_samoa": [
+    -15.87838,
+    -174.5114,
+    -10.96083,
+    -170.5427
+  ],
+  "australia_oceania_solomon_islands": [
+    -16.12694,
+    154.5856,
+    -4.139945,
+    173.5934
   ],
   "australia_oceania_tokelau": [
     -11.08137,
@@ -2513,11 +1073,461 @@
     -14.15464,
     -171.3053
   ],
-  "europe_norway_trondelag": [
-    62.25533,
-    5.790873,
-    65.94955,
-    14.33543
+  "australia_oceania_tuvalu": [
+    -13.24039,
+    -180.0,
+    -4.061646,
+    180.0
+  ],
+  "australia_oceania_vanuatu": [
+    -21.64288,
+    163.3086,
+    -12.29626,
+    173.6089
+  ],
+  "australia_oceania_wallis_et_futuna": [
+    -16.25685,
+    -179.978,
+    -9.05868,
+    -174.1553
+  ],
+  "central_america_bahamas": [
+    20.27251,
+    -81.51857,
+    27.97497,
+    -71.86673
+  ],
+  "central_america_belize": [
+    15.88308,
+    -89.22892,
+    18.4984,
+    -86.85983
+  ],
+  "central_america_costa_rica": [
+    4.937746,
+    -87.82473,
+    11.2237,
+    -82.34952
+  ],
+  "central_america_cuba": [
+    19.2533,
+    -85.4242,
+    23.60427,
+    -73.70831
+  ],
+  "central_america_el_salvador": [
+    12.03598,
+    -90.50091,
+    14.45762,
+    -87.58438
+  ],
+  "central_america_guatemala": [
+    12.74168,
+    -92.73303,
+    17.83533,
+    -87.95177
+  ],
+  "central_america_haiti_and_domrep": [
+    16.99901,
+    -74.82529,
+    21.45307,
+    -68.05482
+  ],
+  "central_america_honduras": [
+    12.96943,
+    -89.36005,
+    17.93171,
+    -81.66138
+  ],
+  "central_america_jamaica": [
+    16.35,
+    -78.85,
+    19.16,
+    -75.51
+  ],
+  "central_america_nicaragua": [
+    10.70177,
+    -87.9774,
+    15.1119,
+    -82.37865
+  ],
+  "central_america_panama": [
+    6.644027,
+    -83.46462,
+    11.20708,
+    -77.08126
+  ],
+  "europe_albania": [
+    39.62738,
+    18.89648,
+    42.66313,
+    21.06285
+  ],
+  "europe_alps": [
+    42.69859,
+    4.842221,
+    48.40094,
+    16.76239
+  ],
+  "europe_andorra": [
+    42.4276,
+    1.412368,
+    42.65717,
+    1.787481
+  ],
+  "europe_austria": [
+    46.36979,
+    9.52678,
+    49.02403,
+    17.16408
+  ],
+  "europe_azores": [
+    35.67791,
+    -31.57293,
+    40.0757,
+    -23.71814
+  ],
+  "europe_belarus": [
+    51.23441,
+    23.1748,
+    56.17385,
+    32.76947
+  ],
+  "europe_belgium": [
+    49.49489,
+    2.340725,
+    51.59839,
+    6.410265
+  ],
+  "europe_bosnia_herzegovina": [
+    42.55239,
+    15.7156,
+    45.27803,
+    19.62639
+  ],
+  "europe_britain_and_ireland": [
+    49.0,
+    -15.05625,
+    61.13564,
+    3.454774
+  ],
+  "europe_bulgaria": [
+    41.22681,
+    22.34875,
+    44.21777,
+    29.18819
+  ],
+  "europe_croatia": [
+    42.16483,
+    13.08916,
+    46.55756,
+    19.45997
+  ],
+  "europe_cyprus": [
+    34.23374,
+    31.95244,
+    36.00323,
+    34.96147
+  ],
+  "europe_czech_republic_jihocesky": [
+    48.54292,
+    13.53386,
+    49.62122,
+    15.60644
+  ],
+  "europe_czech_republic_jihomoravsky": [
+    48.61008,
+    15.54023,
+    49.63471,
+    17.64952
+  ],
+  "europe_czech_republic_karlovarsky": [
+    49.88988,
+    12.08477,
+    50.47322,
+    13.30247
+  ],
+  "europe_czech_republic_kralovehradecky": [
+    50.03735,
+    15.10268,
+    50.78739,
+    16.59925
+  ],
+  "europe_czech_republic_liberecky": [
+    50.47113,
+    14.34201,
+    51.03171,
+    15.63443
+  ],
+  "europe_czech_republic_moravskoslezky": [
+    49.37126,
+    17.14468,
+    50.3303,
+    18.86321
+  ],
+  "europe_czech_republic_olomoucky": [
+    49.26735,
+    16.70909,
+    50.45234,
+    17.92035
+  ],
+  "europe_czech_republic_pardubicky": [
+    49.57176,
+    15.3626,
+    50.21306,
+    16.86804
+  ],
+  "europe_czech_republic_plzensky": [
+    48.93387,
+    12.38887,
+    50.10566,
+    13.84247
+  ],
+  "europe_czech_republic_praha": [
+    49.94151,
+    14.22365,
+    50.17756,
+    14.70695
+  ],
+  "europe_czech_republic_stredocesky": [
+    49.50088,
+    13.39579,
+    50.61926,
+    15.53613
+  ],
+  "europe_czech_republic_ustecky": [
+    50.07552,
+    12.93716,
+    51.06426,
+    14.66589
+  ],
+  "europe_czech_republic_vysocina": [
+    48.9362,
+    14.88686,
+    49.8613,
+    16.41962
+  ],
+  "europe_czech_republic_zlinsky": [
+    48.8374,
+    17.10807,
+    49.54122,
+    18.45055
+  ],
+  "europe_dach": [
+    45.81617,
+    5.864417,
+    55.14777,
+    17.16273
+  ],
+  "europe_denmark": [
+    54.44065,
+    7.7011,
+    58.06239,
+    15.65449
+  ],
+  "europe_estonia": [
+    57.49764,
+    20.85166,
+    59.99705,
+    28.21426
+  ],
+  "europe_faroe_islands": [
+    60.86632,
+    -8.690197,
+    62.90523,
+    -5.515148
+  ],
+  "europe_finland": [
+    59.28783,
+    19.02427,
+    70.09959,
+    31.6159
+  ],
+  "europe_france_alsace": [
+    47.41798,
+    6.838921,
+    49.07898,
+    8.235465
+  ],
+  "europe_france_aquitaine": [
+    42.77334,
+    -1.842771,
+    45.71724,
+    1.450577
+  ],
+  "europe_france_auvergne": [
+    44.6146,
+    2.060519,
+    46.80668,
+    4.492907
+  ],
+  "europe_france_basse_normandie": [
+    48.17802,
+    -2.087526,
+    49.88523,
+    0.979067
+  ],
+  "europe_france_bourgogne": [
+    46.15484,
+    2.843279,
+    48.40136,
+    5.519965
+  ],
+  "europe_france_bretagne": [
+    47.07722,
+    -5.848854,
+    49.40025,
+    -1.014538
+  ],
+  "europe_france_centre": [
+    46.34591,
+    0.051538,
+    48.9423,
+    3.129925
+  ],
+  "europe_france_champagne_ardenne": [
+    47.57553,
+    3.382419,
+    50.17007,
+    5.892182
+  ],
+  "europe_france_corse": [
+    41.31103,
+    8.317882,
+    43.16589,
+    9.751243
+  ],
+  "europe_france_franche_comte": [
+    46.25975,
+    5.25076,
+    48.02537,
+    7.14439
+  ],
+  "europe_france_guadeloupe": [
+    15.49074,
+    -62.15241,
+    16.82426,
+    -60.60471
+  ],
+  "europe_france_guyane": [
+    2.093117,
+    -54.62299,
+    6.370288,
+    -50.8667
+  ],
+  "europe_france_haute_normandie": [
+    48.66574,
+    0.009482,
+    50.08769,
+    1.803956
+  ],
+  "europe_france_ile_de_france": [
+    48.11918,
+    1.445097,
+    49.24271,
+    3.560409
+  ],
+  "europe_france_languedoc_roussillon": [
+    42.32755,
+    1.686256,
+    44.97821,
+    4.847979
+  ],
+  "europe_france_limousin": [
+    44.91842,
+    0.627097,
+    46.45781,
+    2.61384
+  ],
+  "europe_france_lorraine": [
+    47.81188,
+    4.886022,
+    49.61946,
+    7.640105
+  ],
+  "europe_france_martinique": [
+    14.13392,
+    -61.63056,
+    15.15167,
+    -60.42755
+  ],
+  "europe_france_mayotte": [
+    -13.47243,
+    44.62646,
+    -12.14406,
+    45.6784
+  ],
+  "europe_france_midi_pyrenees": [
+    42.56793,
+    -0.327537,
+    45.04779,
+    3.453264
+  ],
+  "europe_france_nord_pas_de_calais": [
+    49.96764,
+    1.278311,
+    51.28121,
+    4.236622
+  ],
+  "europe_france_pays_de_la_loire": [
+    46.21875,
+    -2.674666,
+    48.57002,
+    0.918996
+  ],
+  "europe_france_picardie": [
+    48.83599,
+    1.360085,
+    50.37125,
+    4.256744
+  ],
+  "europe_france_poitou_charentes": [
+    45.0868,
+    -1.898565,
+    47.17837,
+    1.214991
+  ],
+  "europe_france_provence_alpes_cote_d_azur": [
+    42.31539,
+    4.144746,
+    45.12887,
+    7.748528
+  ],
+  "europe_france_reunion": [
+    -21.72922,
+    54.94688,
+    -20.58589,
+    56.11999
+  ],
+  "europe_france_rhone_alpes": [
+    44.11274,
+    3.686075,
+    46.52248,
+    7.19206
+  ],
+  "europe_georgia": [
+    41.05117,
+    39.88093,
+    43.5899,
+    46.73959
+  ],
+  "europe_germany_baden_wuerttemberg_freiburg_regbez": [
+    47.53076,
+    7.506494,
+    48.72373,
+    9.246965
+  ],
+  "europe_germany_baden_wuerttemberg_karlsruhe_regbez": [
+    48.29792,
+    7.949946,
+    49.736,
+    9.605534
+  ],
+  "europe_germany_baden_wuerttemberg_stuttgart_regbez": [
+    48.49386,
+    8.741474,
+    49.79456,
+    10.51495
   ],
   "europe_germany_baden_wuerttemberg_tuebingen_regbez": [
     47.53246,
@@ -2525,47 +1535,41 @@
     48.6348,
     10.27309
   ],
-  "africa_tunisia": [
-    30.20864,
-    7.513961,
-    37.77474,
-    12.068
+  "europe_germany_bayern_mittelfranken": [
+    48.85325,
+    10.06565,
+    49.79103,
+    11.60553
   ],
-  "europe_turkey": [
-    35.717,
-    25.52398,
-    43.07481,
-    44.85992
+  "europe_germany_bayern_niederbayern": [
+    48.20179,
+    11.59302,
+    49.17605,
+    13.84947
   ],
-  "asia_turkmenistan": [
-    35.12355,
-    51.83271,
-    42.81253,
-    66.72272
+  "europe_germany_bayern_oberbayern": [
+    47.3913,
+    10.71268,
+    49.09052,
+    13.10973
   ],
-  "australia_oceania_tuvalu": [
-    -13.24039,
-    -180.0,
-    -4.061646,
-    180.0
+  "europe_germany_bayern_oberfranken": [
+    49.5854,
+    10.43816,
+    50.52571,
+    12.27356
   ],
-  "europe_united_kingdom_england_tyne_and_wear": [
-    54.79775,
-    -1.853879,
-    55.10949,
-    -1.262592
+  "europe_germany_bayern_oberpfalz": [
+    48.76243,
+    11.18231,
+    50.08323,
+    13.17628
   ],
-  "africa_uganda": [
-    -1.487315,
-    29.57056,
-    4.250552,
-    35.01031
-  ],
-  "europe_ukraine": [
-    44.00862,
-    22.13264,
-    52.3865,
-    40.23811
+  "europe_germany_bayern_schwaben": [
+    47.26543,
+    9.512461,
+    49.0366,
+    11.31348
   ],
   "europe_germany_bayern_unterfranken": [
     49.47911,
@@ -2573,53 +1577,1175 @@
     50.56623,
     10.88719
   ],
-  "russia_ural_fed_district": [
-    51.8264,
-    57.04259,
-    75.011,
-    86.0952
+  "europe_germany_berlin": [
+    52.33446,
+    13.08283,
+    52.6783,
+    13.76225
   ],
-  "south_america_uruguay": [
-    -36.2487,
-    -58.52589,
-    -30.07355,
-    -52.7723
+  "europe_germany_brandenburg": [
+    51.35252,
+    11.22404,
+    53.5784,
+    14.77481
+  ],
+  "europe_germany_bremen": [
+    53.01034,
+    8.480959,
+    53.61063,
+    8.991268
+  ],
+  "europe_germany_hamburg": [
+    53.39183,
+    7.967833,
+    54.06261,
+    10.33196
+  ],
+  "europe_germany_hessen": [
+    49.39321,
+    7.768021,
+    51.65916,
+    10.24595
+  ],
+  "europe_germany_mecklenburg_vorpommern": [
+    53.10619,
+    10.58807,
+    54.9837,
+    14.42292
+  ],
+  "europe_germany_niedersachsen": [
+    51.29348,
+    6.295338,
+    54.23955,
+    11.60731
+  ],
+  "europe_germany_nordrhein_westfalen_arnsberg_regbez": [
+    50.67897,
+    7.099633,
+    51.74709,
+    8.972531
+  ],
+  "europe_germany_nordrhein_westfalen_detmold_regbez": [
+    51.4369,
+    8.074053,
+    52.53345,
+    9.468311
+  ],
+  "europe_germany_nordrhein_westfalen_duesseldorf_regbez": [
+    51.01422,
+    5.941466,
+    51.90781,
+    7.314306
+  ],
+  "europe_germany_nordrhein_westfalen_koeln_regbez": [
+    50.32088,
+    5.864417,
+    51.253,
+    7.794411
+  ],
+  "europe_germany_nordrhein_westfalen_muenster_regbez": [
+    51.47971,
+    6.38588,
+    52.47682,
+    8.321177
+  ],
+  "europe_germany_rheinland_pfalz": [
+    48.96377,
+    6.109129,
+    50.94404,
+    8.511228
+  ],
+  "europe_germany_saarland": [
+    49.10807,
+    6.354475,
+    49.64146,
+    7.406287
+  ],
+  "europe_germany_sachsen": [
+    50.16658,
+    11.86685,
+    51.68735,
+    15.05078
+  ],
+  "europe_germany_sachsen_anhalt": [
+    50.92887,
+    10.54725,
+    53.0566,
+    13.21268
+  ],
+  "europe_germany_schleswig_holstein": [
+    53.3569,
+    7.46458,
+    55.14634,
+    11.79931
+  ],
+  "europe_germany_thueringen": [
+    50.19971,
+    9.863176,
+    51.65237,
+    12.66106
+  ],
+  "europe_great_britain": [
+    49.523,
+    -14.9907,
+    61.13564,
+    2.513672
+  ],
+  "europe_greece": [
+    34.59111,
+    18.97064,
+    41.74954,
+    29.65683
+  ],
+  "europe_guernsey_jersey": [
+    49.00381,
+    -3.573306,
+    50.06948,
+    -1.791572
+  ],
+  "europe_hungary": [
+    45.73207,
+    16.10845,
+    48.58921,
+    22.90649
+  ],
+  "europe_iceland": [
+    62.84553,
+    -25.7,
+    67.50085,
+    -12.41708
+  ],
+  "europe_ireland_and_northern_ireland": [
+    49.60002,
+    -14.40224,
+    56.86553,
+    -5.059265
+  ],
+  "europe_isle_of_man": [
+    53.73236,
+    -5.434554,
+    54.6706,
+    -3.688718
+  ],
+  "europe_italy_centro": [
+    40.21443,
+    9.306459,
+    44.4797,
+    14.66855
+  ],
+  "europe_italy_isole": [
+    35.07638,
+    7.718453,
+    41.51893,
+    15.70887
+  ],
+  "europe_italy_nord_est": [
+    43.72977,
+    9.195461,
+    47.10005,
+    13.92878
+  ],
+  "europe_italy_nord_ovest": [
+    43.48099,
+    6.602696,
+    46.64119,
+    11.43336
+  ],
+  "europe_italy_sud": [
+    37.80152,
+    13.00131,
+    42.91363,
+    19.12499
+  ],
+  "europe_kosovo": [
+    41.85408,
+    20.01357,
+    43.27753,
+    21.79327
+  ],
+  "europe_latvia": [
+    55.66109,
+    19.73348,
+    58.0947,
+    28.25501
+  ],
+  "europe_liechtenstein": [
+    47.04774,
+    9.471078,
+    47.27128,
+    9.636217
+  ],
+  "europe_lithuania": [
+    53.89221,
+    20.61859,
+    56.45329,
+    26.83873
+  ],
+  "europe_luxembourg": [
+    49.44553,
+    5.733033,
+    50.18496,
+    6.532249
+  ],
+  "europe_macedonia": [
+    40.84759,
+    20.44671,
+    42.37969,
+    23.04012
+  ],
+  "europe_malta": [
+    35.51985,
+    14.0,
+    36.33296,
+    14.8561
+  ],
+  "europe_moldova": [
+    45.46164,
+    26.61232,
+    48.49397,
+    30.19249
+  ],
+  "europe_monaco": [
+    43.48382,
+    7.408583,
+    43.75293,
+    7.595671
+  ],
+  "europe_montenegro": [
+    41.61621,
+    18.17282,
+    43.56217,
+    20.35883
+  ],
+  "europe_netherlands_drenthe": [
+    52.61093,
+    6.118592,
+    53.20513,
+    7.095411
+  ],
+  "europe_netherlands_flevoland": [
+    52.24826,
+    5.059593,
+    52.84516,
+    6.018276
+  ],
+  "europe_netherlands_friesland": [
+    52.76362,
+    4.597294,
+    53.68089,
+    6.428358
+  ],
+  "europe_netherlands_gelderland": [
+    51.73231,
+    4.992647,
+    52.52322,
+    6.835752
+  ],
+  "europe_netherlands_groningen": [
+    52.83734,
+    6.166463,
+    53.65732,
+    7.230455
+  ],
+  "europe_netherlands_limburg": [
+    50.74753,
+    5.563304,
+    51.77992,
+    6.22939
+  ],
+  "europe_netherlands_noord_brabant": [
+    51.21808,
+    4.189152,
+    51.83181,
+    6.049354
+  ],
+  "europe_netherlands_noord_holland": [
+    52.16497,
+    3.896906,
+    53.28945,
+    5.378479
+  ],
+  "europe_netherlands_overijssel": [
+    52.11349,
+    5.776793,
+    52.85539,
+    7.075066
+  ],
+  "europe_netherlands_utrecht": [
+    51.85615,
+    4.790849,
+    52.30494,
+    5.62829
+  ],
+  "europe_netherlands_zeeland": [
+    51.19717,
+    3.233941,
+    51.87013,
+    4.278407
+  ],
+  "europe_netherlands_zuid_holland": [
+    51.64252,
+    3.345328,
+    52.47611,
+    5.032393
+  ],
+  "europe_norway_nord_norge": [
+    64.93917,
+    7.840204,
+    72.4056,
+    33.63965
+  ],
+  "europe_norway_ostlandet": [
+    58.5968,
+    7.095391,
+    62.69734,
+    12.88071
+  ],
+  "europe_norway_sorlandet": [
+    57.58445,
+    5.698662,
+    59.67468,
+    10.10434
+  ],
+  "europe_norway_svalbard_janmayen": [
+    70.26127,
+    -10.49539,
+    81.05183,
+    35.34074
+  ],
+  "europe_norway_trondelag": [
+    62.25533,
+    5.790873,
+    65.94955,
+    14.33543
+  ],
+  "europe_norway_vestlandet": [
+    57.63122,
+    2.32908,
+    65.12362,
+    9.374655
+  ],
+  "europe_poland_dolnoslaskie": [
+    50.08251,
+    14.80839,
+    51.81417,
+    17.80584
+  ],
+  "europe_poland_kujawsko_pomorskie": [
+    52.32112,
+    17.23935,
+    53.7917,
+    19.77239
+  ],
+  "europe_poland_lodzkie": [
+    50.83091,
+    18.06227,
+    52.40624,
+    20.6691
+  ],
+  "europe_poland_lubelskie": [
+    50.23654,
+    21.60285,
+    52.30035,
+    24.16102
+  ],
+  "europe_poland_lubuskie": [
+    51.34865,
+    14.49548,
+    53.12806,
+    16.42999
+  ],
+  "europe_poland_malopolskie": [
+    49.16487,
+    19.07492,
+    50.53221,
+    21.43328
+  ],
+  "europe_poland_mazowieckie": [
+    50.98451,
+    19.23355,
+    53.5116,
+    23.15637
+  ],
+  "europe_poland_opolskie": [
+    49.95766,
+    16.9015,
+    51.2014,
+    18.70219
+  ],
+  "europe_poland_podkarpackie": [
+    48.98642,
+    21.13433,
+    50.82591,
+    23.5536
+  ],
+  "europe_poland_podlaskie": [
+    52.27112,
+    21.58465,
+    54.4254,
+    23.96141
+  ],
+  "europe_poland_pomorskie": [
+    53.4806,
+    16.68699,
+    55.07949,
+    19.66069
+  ],
+  "europe_poland_slaskie": [
+    49.38,
+    18.02213,
+    51.1129,
+    19.98542
+  ],
+  "europe_poland_swietokrzyskie": [
+    50.17974,
+    19.69901,
+    51.34824,
+    21.8758
+  ],
+  "europe_poland_warminsko_mazurskie": [
+    53.12575,
+    19.11666,
+    54.51456,
+    22.82058
+  ],
+  "europe_poland_wielkopolskie": [
+    51.08403,
+    15.76036,
+    53.68105,
+    19.12931
+  ],
+  "europe_poland_zachodniopomorskie": [
+    52.61742,
+    13.99022,
+    55.00664,
+    16.98847
+  ],
+  "europe_portugal": [
+    29.7,
+    -31.6,
+    42.1639,
+    -6.179513
+  ],
+  "europe_romania": [
+    43.61247,
+    20.24181,
+    48.26948,
+    30.27896
+  ],
+  "europe_serbia": [
+    42.22979,
+    18.80894,
+    46.19207,
+    23.01035
+  ],
+  "europe_slovakia": [
+    47.72646,
+    16.83071,
+    49.6186,
+    22.57051
+  ],
+  "europe_slovenia": [
+    45.42081,
+    13.30509,
+    46.87956,
+    16.60034
+  ],
+  "europe_spain_andalucia": [
+    35.70638,
+    -7.52466,
+    38.73347,
+    -1.332095
+  ],
+  "europe_spain_aragon": [
+    39.83833,
+    -2.17907,
+    42.92677,
+    0.772562
+  ],
+  "europe_spain_asturias": [
+    42.87886,
+    -7.188576,
+    44.01101,
+    -4.39956
+  ],
+  "europe_spain_cantabria": [
+    42.75458,
+    -4.861622,
+    43.86548,
+    -3.144983
+  ],
+  "europe_spain_castilla_la_mancha": [
+    38.0201,
+    -5.41111,
+    41.33223,
+    -0.912552
+  ],
+  "europe_spain_castilla_y_leon": [
+    40.08044,
+    -7.080517,
+    43.24095,
+    -1.766053
+  ],
+  "europe_spain_cataluna": [
+    40.21245,
+    0.156383,
+    42.8632,
+    4.174794
+  ],
+  "europe_spain_ceuta": [
+    35.86702,
+    -5.391024,
+    35.95869,
+    -5.256615
+  ],
+  "europe_spain_extremadura": [
+    37.93851,
+    -7.54369,
+    40.48913,
+    -4.64241
+  ],
+  "europe_spain_galicia": [
+    41.80443,
+    -9.779014,
+    44.14855,
+    -6.727066
+  ],
+  "europe_spain_islas_baleares": [
+    38.05675,
+    0.615229,
+    40.7098,
+    4.938349
+  ],
+  "europe_spain_la_rioja": [
+    41.91403,
+    -3.140202,
+    42.64621,
+    -1.673012
+  ],
+  "europe_spain_madrid": [
+    39.88116,
+    -4.589539,
+    41.16864,
+    -3.050423
+  ],
+  "europe_spain_melilla": [
+    35.26393,
+    -2.972424,
+    35.32393,
+    -2.908201
+  ],
+  "europe_spain_murcia": [
+    37.11215,
+    -2.351246,
+    38.76024,
+    -0.247194
+  ],
+  "europe_spain_navarra": [
+    41.90611,
+    -2.502308,
+    43.31655,
+    -0.716515
+  ],
+  "europe_spain_pais_vasco": [
+    42.46919,
+    -3.454342,
+    43.74729,
+    -1.666284
+  ],
+  "europe_spain_valencia": [
+    37.84341,
+    -1.531649,
+    40.79328,
+    1.686396
+  ],
+  "europe_sweden_blekinge": [
+    55.725,
+    14.37,
+    56.525,
+    16.245
+  ],
+  "europe_sweden_dalarna": [
+    59.835,
+    12.12,
+    62.285,
+    16.725
+  ],
+  "europe_sweden_gavleborg": [
+    60.17,
+    14.425,
+    62.365,
+    18.145
+  ],
+  "europe_sweden_gotland": [
+    56.68,
+    17.565,
+    58.62,
+    19.755
+  ],
+  "europe_sweden_halland": [
+    56.305,
+    11.34,
+    57.615,
+    13.71
+  ],
+  "europe_sweden_jamtland": [
+    61.545,
+    11.955,
+    65.14,
+    17.02
+  ],
+  "europe_sweden_jonkoping": [
+    56.865,
+    13.055,
+    58.21,
+    15.685
+  ],
+  "europe_sweden_kalmar": [
+    55.895,
+    15.315,
+    58.16,
+    17.54
+  ],
+  "europe_sweden_kronoberg": [
+    56.34,
+    13.28,
+    57.26,
+    15.855
+  ],
+  "europe_sweden_norrbotten": [
+    64.88,
+    15.355,
+    69.08,
+    24.2
+  ],
+  "europe_sweden_orebro": [
+    58.625,
+    14.265,
+    60.13,
+    15.82
+  ],
+  "europe_sweden_ostergotland": [
+    57.68,
+    14.4,
+    59.04,
+    17.595
+  ],
+  "europe_sweden_skane": [
+    55.115,
+    12.07,
+    56.575,
+    14.74
+  ],
+  "europe_sweden_sodermanland": [
+    58.375,
+    15.595,
+    59.55,
+    18.125
+  ],
+  "europe_sweden_stockholm": [
+    58.465,
+    17.225,
+    60.32,
+    20.035
+  ],
+  "europe_sweden_uppsala": [
+    59.365,
+    16.67,
+    60.96,
+    19.23
+  ],
+  "europe_sweden_varmland": [
+    58.695,
+    11.67,
+    61.075,
+    14.495
+  ],
+  "europe_sweden_vasterbotten": [
+    63.08,
+    14.305,
+    66.365,
+    22.11
+  ],
+  "europe_sweden_vasternorrland": [
+    62.065,
+    14.76,
+    64.05,
+    19.625
+  ],
+  "europe_sweden_vastmanland": [
+    59.18,
+    15.4,
+    60.215,
+    16.985
+  ],
+  "europe_sweden_vastra_gotaland": [
+    57.125,
+    10.575,
+    59.285,
+    14.8
+  ],
+  "europe_switzerland": [
+    45.81642,
+    5.954418,
+    47.81126,
+    10.49584
+  ],
+  "europe_turkey": [
+    35.717,
+    25.52398,
+    43.07481,
+    44.85992
+  ],
+  "europe_ukraine": [
+    44.00862,
+    22.13264,
+    52.3865,
+    40.23811
+  ],
+  "europe_united_kingdom_bermuda": [
+    32.02158,
+    -65.2005,
+    32.62324,
+    -64.39406
+  ],
+  "europe_united_kingdom_england_bedfordshire": [
+    51.8036,
+    -0.704092,
+    52.32483,
+    -0.142022
+  ],
+  "europe_united_kingdom_england_berkshire": [
+    51.32802,
+    -1.589073,
+    51.57873,
+    -0.489118
+  ],
+  "europe_united_kingdom_england_bristol": [
+    51.39611,
+    -2.734665,
+    51.54562,
+    -2.509528
+  ],
+  "europe_united_kingdom_england_buckinghamshire": [
+    51.48571,
+    -1.140791,
+    52.19561,
+    -0.482713
+  ],
+  "europe_united_kingdom_england_cambridgeshire": [
+    52.00517,
+    -0.502126,
+    52.74155,
+    0.516191
+  ],
+  "europe_united_kingdom_england_cheshire": [
+    52.94553,
+    -3.129775,
+    53.48263,
+    -1.973135
+  ],
+  "europe_united_kingdom_england_cornwall": [
+    49.57808,
+    -6.820424,
+    50.93213,
+    -4.146631
+  ],
+  "europe_united_kingdom_england_cumbria": [
+    53.90063,
+    -3.907471,
+    55.18863,
+    -2.159588
+  ],
+  "europe_united_kingdom_england_derbyshire": [
+    52.6955,
+    -2.035756,
+    53.54172,
+    -1.164792
+  ],
+  "europe_united_kingdom_england_devon": [
+    50.11104,
+    -4.752335,
+    51.30895,
+    -2.881604
+  ],
+  "europe_united_kingdom_england_dorset": [
+    50.49829,
+    -2.962969,
+    51.0827,
+    -1.680036
+  ],
+  "europe_united_kingdom_england_durham": [
+    54.4502,
+    -2.356677,
+    54.91986,
+    -1.101584
+  ],
+  "europe_united_kingdom_england_east_sussex": [
+    50.69996,
+    -0.136786,
+    51.14781,
+    0.869466
+  ],
+  "europe_united_kingdom_england_east_yorkshire_with_hull": [
+    53.55447,
+    -1.105174,
+    54.21045,
+    0.48944
+  ],
+  "europe_united_kingdom_england_essex": [
+    51.45008,
+    -0.019651,
+    52.09464,
+    1.307251
+  ],
+  "europe_united_kingdom_england_gloucestershire": [
+    51.41465,
+    -2.711909,
+    52.11556,
+    -1.612605
+  ],
+  "europe_united_kingdom_england_greater_manchester": [
+    53.32613,
+    -2.732097,
+    53.68742,
+    -1.90804
+  ],
+  "europe_united_kingdom_england_hampshire": [
+    50.69041,
+    -1.959101,
+    51.38712,
+    -0.726306
+  ],
+  "europe_united_kingdom_england_herefordshire": [
+    51.82618,
+    -3.142889,
+    52.39531,
+    -2.338434
+  ],
+  "europe_united_kingdom_england_hertfordshire": [
+    51.59798,
+    -0.746833,
+    52.08224,
+    0.197098
+  ],
+  "europe_united_kingdom_england_isle_of_wight": [
+    50.50555,
+    -1.659074,
+    50.80102,
+    -1.03137
+  ],
+  "europe_united_kingdom_england_kent": [
+    50.81013,
+    0.030546,
+    51.49664,
+    1.521262
+  ],
+  "europe_united_kingdom_england_lancashire": [
+    53.47507,
+    -3.092156,
+    54.24645,
+    -2.0395
+  ],
+  "europe_united_kingdom_england_leicestershire": [
+    52.3936,
+    -1.596388,
+    52.9776,
+    -0.663929
+  ],
+  "europe_united_kingdom_england_lincolnshire": [
+    52.63954,
+    -0.950922,
+    53.73003,
+    0.494382
+  ],
+  "europe_united_kingdom_england_london_enfield": [
+    51.60542,
+    -0.185433,
+    51.69193,
+    -0.008839
+  ],
+  "europe_united_kingdom_england_merseyside": [
+    53.2854,
+    -3.342781,
+    53.70528,
+    -2.575686
+  ],
+  "europe_united_kingdom_england_norfolk": [
+    52.35478,
+    0.15447,
+    53.35573,
+    1.992789
+  ],
+  "europe_united_kingdom_england_north_yorkshire": [
+    53.61999,
+    -2.567177,
+    54.70222,
+    -0.040615
+  ],
+  "europe_united_kingdom_england_northamptonshire": [
+    51.9765,
+    -1.334028,
+    52.64459,
+    -0.34068
+  ],
+  "europe_united_kingdom_england_northumberland": [
+    54.78162,
+    -2.690724,
+    55.84866,
+    -1.223287
+  ],
+  "europe_united_kingdom_england_nottinghamshire": [
+    52.78153,
+    -1.344477,
+    53.50315,
+    -0.666651
+  ],
+  "europe_united_kingdom_england_oxfordshire": [
+    51.46057,
+    -1.719533,
+    52.16807,
+    -0.86985
+  ],
+  "europe_united_kingdom_england_rutland": [
+    52.52355,
+    -0.822934,
+    52.76109,
+    -0.427654
+  ],
+  "europe_united_kingdom_england_shropshire": [
+    52.30616,
+    -3.235577,
+    52.99693,
+    -2.23354
+  ],
+  "europe_united_kingdom_england_somerset": [
+    50.81995,
+    -3.84094,
+    51.50392,
+    -2.243303
+  ],
+  "europe_united_kingdom_england_south_yorkshire": [
+    53.29889,
+    -1.825872,
+    53.66326,
+    -0.852889
+  ],
+  "europe_united_kingdom_england_staffordshire": [
+    52.42202,
+    -2.47182,
+    53.22743,
+    -1.58449
+  ],
+  "europe_united_kingdom_england_suffolk": [
+    51.93285,
+    0.339563,
+    52.55013,
+    1.763681
+  ],
+  "europe_united_kingdom_england_surrey": [
+    51.0715,
+    -0.850593,
+    51.47288,
+    0.059897
+  ],
+  "europe_united_kingdom_england_tyne_and_wear": [
+    54.79775,
+    -1.853879,
+    55.10949,
+    -1.262592
+  ],
+  "europe_united_kingdom_england_warwickshire": [
+    51.95471,
+    -1.963,
+    52.68823,
+    -1.17115
+  ],
+  "europe_united_kingdom_england_west_midlands": [
+    52.3457,
+    -2.208211,
+    52.6643,
+    -1.422524
+  ],
+  "europe_united_kingdom_england_west_sussex": [
+    50.70685,
+    -0.956244,
+    51.169,
+    0.041342
+  ],
+  "europe_united_kingdom_england_west_yorkshire": [
+    53.51822,
+    -2.175545,
+    53.96491,
+    -1.196
+  ],
+  "europe_united_kingdom_england_wiltshire": [
+    50.9465,
+    -2.363253,
+    51.70637,
+    -1.488811
+  ],
+  "europe_united_kingdom_england_worcestershire": [
+    51.9654,
+    -2.66399,
+    52.4565,
+    -1.756496
+  ],
+  "europe_united_kingdom_falklands": [
+    -53.40604,
+    -62.20142,
+    -50.67405,
+    -56.44453
+  ],
+  "europe_united_kingdom_scotland": [
+    54.54001,
+    -14.86155,
+    61.13564,
+    0.216055
+  ],
+  "europe_united_kingdom_wales": [
+    51.03997,
+    -6.183241,
+    53.76632,
+    -2.648042
+  ],
+  "north_america_canada_alberta": [
+    48.99251,
+    -120.0043,
+    60.00254,
+    -110.0018
+  ],
+  "north_america_canada_british_columbia_interior_admreg": [
+    49.60359,
+    -128.8637,
+    53.55744,
+    -118.7691
+  ],
+  "north_america_canada_british_columbia_island_admreg": [
+    48.12648,
+    -129.3393,
+    52.05756,
+    -122.9789
+  ],
+  "north_america_canada_british_columbia_kootenay_admreg": [
+    48.99463,
+    -119.3857,
+    51.85325,
+    -114.049
+  ],
+  "north_america_canada_british_columbia_north_admreg": [
+    51.0635,
+    -141.7761,
+    60.00678,
+    -117.938
+  ],
+  "north_america_canada_british_columbia_okanagan_admreg": [
+    48.99456,
+    -121.1,
+    52.57309,
+    -116.8259
+  ],
+  "north_america_canada_british_columbia_southcoast_admreg": [
+    48.98059,
+    -124.2851,
+    51.22667,
+    -120.8077
+  ],
+  "north_america_canada_manitoba": [
+    48.99056,
+    -102.014,
+    60.00845,
+    -88.12183
+  ],
+  "north_america_canada_new_brunswick": [
+    44.19205,
+    -69.05975,
+    48.38075,
+    -62.88575
+  ],
+  "north_america_canada_newfoundland_and_labrador": [
+    44.45787,
+    -67.87079,
+    60.50864,
+    -44.17684
+  ],
+  "north_america_canada_northwest_territories": [
+    59.9896,
+    -136.6974,
+    81.65483,
+    -101.976
+  ],
+  "north_america_canada_nova_scotia": [
+    42.10691,
+    -67.24728,
+    47.89793,
+    -58.22593
+  ],
+  "north_america_canada_nunavut_kitikmeot": [
+    64.51803,
+    -120.737,
+    73.93962,
+    -88.98445
+  ],
+  "north_america_canada_nunavut_kivalliq": [
+    56.95134,
+    -105.0092,
+    67.00034,
+    -80.01994
+  ],
+  "north_america_canada_nunavut_qikiqtaaluk": [
+    51.1268,
+    -110.0345,
+    84.32633,
+    -53.98957
+  ],
+  "north_america_canada_ontario": [
+    41.66009,
+    -95.15965,
+    57.50826,
+    -74.30998
+  ],
+  "north_america_canada_prince_edward_island": [
+    45.82497,
+    -64.60236,
+    47.68573,
+    -61.24878
+  ],
+  "north_america_canada_quebec": [
+    44.98552,
+    -79.8404,
+    62.6262,
+    -57.08908
+  ],
+  "north_america_canada_saskatchewan": [
+    48.9876,
+    -110.0069,
+    60.00052,
+    -101.3614
+  ],
+  "north_america_canada_yukon": [
+    59.99739,
+    -141.2389,
+    70.16293,
+    -123.8021
+  ],
+  "north_america_greenland": [
+    58.67169,
+    -75.3894,
+    84.44358,
+    -9.454384
+  ],
+  "north_america_mexico": [
+    9.456709,
+    -132.4952,
+    32.72067,
+    -85.49087
   ],
   "north_america_us": [
     15.92097,
     -180.0,
     72.98845,
     180.0
-  ],
-  "north_america_us_midwest": [
-    35.98507,
-    -104.0588,
-    49.40714,
-    -80.50521
-  ],
-  "north_america_us_northeast": [
-    38.74287,
-    -80.52275,
-    47.46222,
-    -66.87164
-  ],
-  "north_america_us_pacific": [
-    15.92097,
-    -180.0,
-    72.98845,
-    180.0
-  ],
-  "north_america_us_south": [
-    24.20031,
-    -106.6494,
-    40.64636,
-    -71.50981
-  ],
-  "north_america_us_west": [
-    31.32659,
-    -133.0637,
-    49.45605,
-    -102.0355
   ],
   "north_america_us_alabama": [
     29.95494,
@@ -2644,6 +2770,18 @@
     -94.62217,
     36.51585,
     -89.63987
+  ],
+  "north_america_us_california_norcal": [
+    35.78528,
+    -125.8935,
+    42.01618,
+    -115.6468
+  ],
+  "north_america_us_california_socal": [
+    32.48438,
+    -121.4401,
+    35.81055,
+    -114.1291
   ],
   "north_america_us_colorado": [
     36.98943,
@@ -2753,6 +2891,12 @@
     48.35021,
     -82.06913
   ],
+  "north_america_us_midwest": [
+    35.98507,
+    -104.0588,
+    49.40714,
+    -80.50521
+  ],
   "north_america_us_minnesota": [
     43.49909,
     -97.24987,
@@ -2825,6 +2969,12 @@
     49.01671,
     -96.55292
   ],
+  "north_america_us_northeast": [
+    38.74287,
+    -80.52275,
+    47.46222,
+    -66.87164
+  ],
   "north_america_us_ohio": [
     38.40076,
     -84.8219,
@@ -2843,6 +2993,12 @@
     46.30349,
     -116.4545
   ],
+  "north_america_us_pacific": [
+    15.92097,
+    -180.0,
+    72.98845,
+    180.0
+  ],
   "north_america_us_pennsylvania": [
     39.6644,
     -80.52275,
@@ -2860,6 +3016,12 @@
     -71.91456,
     42.01938,
     -71.06369
+  ],
+  "north_america_us_south": [
+    24.20031,
+    -106.6494,
+    40.64636,
+    -71.50981
   ],
   "north_america_us_south_carolina": [
     32.02967,
@@ -2915,6 +3077,12 @@
     49.00708,
     -116.9115
   ],
+  "north_america_us_west": [
+    31.32659,
+    -133.0637,
+    49.45605,
+    -102.0355
+  ],
   "north_america_us_west_virginia": [
     37.19858,
     -82.64965,
@@ -2933,59 +3101,59 @@
     45.01216,
     -103.9413
   ],
-  "europe_czech_republic_ustecky": [
-    50.07552,
-    12.93716,
-    51.06426,
-    14.66589
+  "russia_central_fed_district": [
+    49.50446,
+    30.69976,
+    59.6533,
+    47.67023
   ],
-  "europe_netherlands_utrecht": [
-    51.85615,
-    4.790849,
-    52.30494,
-    5.62829
+  "russia_crimean_fed_district": [
+    44.13411,
+    32.15053,
+    46.28118,
+    36.68355
   ],
-  "asia_uzbekistan": [
-    37.16636,
-    55.97708,
-    45.61884,
-    73.17463
+  "russia_far_eastern_fed_district": [
+    37.34659,
+    -180.0,
+    82.00023,
+    180.0
   ],
-  "europe_spain_valencia": [
-    37.84341,
-    -1.531649,
-    40.79328,
-    1.686396
+  "russia_kaliningrad": [
+    54.31723,
+    19.40837,
+    55.3899,
+    22.88747
   ],
-  "australia_oceania_vanuatu": [
-    -21.64288,
-    163.3086,
-    -12.29626,
-    173.6089
+  "russia_north_caucasus_fed_district": [
+    41.1355,
+    40.67265,
+    46.23914,
+    48.86453
   ],
-  "south_america_venezuela": [
-    0.621727,
-    -73.38098,
-    15.96134,
-    -59.51474
+  "russia_northwestern_fed_district": [
+    54.31282,
+    19.40837,
+    82.54561,
+    72.62481
   ],
-  "europe_norway_vestlandet": [
-    57.63122,
-    2.32908,
-    65.12362,
-    9.374655
+  "russia_siberian_fed_district": [
+    49.02101,
+    70.27478,
+    81.88747,
+    147.7133
   ],
-  "australia_oceania_australia_victoria": [
-    -39.23224,
-    140.9574,
-    -33.97931,
-    150.4683
+  "russia_south_fed_district": [
+    43.18958,
+    36.52315,
+    51.2554,
+    49.93666
   ],
-  "asia_vietnam": [
-    7.382239,
-    102.0959,
-    23.40214,
-    114.6423
+  "russia_ural_fed_district": [
+    51.8264,
+    57.04259,
+    75.011,
+    86.0952
   ],
   "russia_volga_fed_district": [
     49.75097,
@@ -2993,148 +3161,100 @@
     61.71971,
     61.73371
   ],
-  "europe_czech_republic_vysocina": [
-    48.9362,
-    14.88686,
-    49.8613,
-    16.41962
+  "south_america_argentina": [
+    -55.68296,
+    -73.61453,
+    -21.72575,
+    -53.63534
   ],
-  "europe_united_kingdom_wales": [
-    51.03997,
-    -6.183241,
-    53.76632,
-    -2.648042
+  "south_america_bolivia": [
+    -22.92551,
+    -69.65675,
+    -9.63866,
+    -57.43481
   ],
-  "australia_oceania_wallis_et_futuna": [
-    -16.25685,
-    -179.978,
-    -9.05868,
-    -174.1553
+  "south_america_brazil_centro_oeste": [
+    -24.18381,
+    -61.66496,
+    -7.317334,
+    -45.87758
   ],
-  "europe_poland_warminsko_mazurskie": [
-    53.12575,
-    19.11666,
-    54.51456,
-    22.82058
+  "south_america_brazil_nordeste": [
+    -18.59514,
+    -48.77554,
+    2.673015,
+    -28.42028
   ],
-  "europe_united_kingdom_england_warwickshire": [
-    51.95471,
-    -1.963,
-    52.68823,
-    -1.17115
+  "south_america_brazil_norte": [
+    -13.73407,
+    -74.02313,
+    5.522895,
+    -42.87915
   ],
-  "europe_united_kingdom_england_west_midlands": [
-    52.3457,
-    -2.208211,
-    52.6643,
-    -1.422524
+  "south_america_brazil_sudeste": [
+    -25.4993,
+    -53.1189,
+    -14.22445,
+    -28.19195
   ],
-  "europe_united_kingdom_england_west_sussex": [
-    50.70685,
-    -0.956244,
-    51.169,
-    0.041342
+  "south_america_brazil_sul": [
+    -34.86424,
+    -57.67273,
+    -22.51383,
+    -44.2463
   ],
-  "europe_united_kingdom_england_west_yorkshire": [
-    53.51822,
-    -2.175545,
-    53.96491,
-    -1.196
+  "south_america_chile": [
+    -58.45195,
+    -113.2233,
+    -17.45743,
+    -65.5141
   ],
-  "australia_oceania_australia_western_australia": [
-    -41.16427,
-    109.9281,
-    -12.83116,
-    130.32
+  "south_america_colombia": [
+    -4.25732,
+    -83.23104,
+    16.41924,
+    -66.81472
   ],
-  "asia_india_western_zone": [
-    14.38929,
-    67.67457,
-    24.71756,
-    80.91362
+  "south_america_ecuador": [
+    -5.024173,
+    -93.56487,
+    2.843487,
+    -75.16149
   ],
-  "europe_poland_wielkopolskie": [
-    51.08403,
-    15.76036,
-    53.68105,
-    19.12931
+  "south_america_guyana": [
+    1.149369,
+    -61.42101,
+    9.182536,
+    -56.42321
   ],
-  "europe_united_kingdom_england_wiltshire": [
-    50.9465,
-    -2.363253,
-    51.70637,
-    -1.488811
+  "south_america_paraguay": [
+    -27.65675,
+    -62.69475,
+    -19.24012,
+    -54.20176
   ],
-  "europe_united_kingdom_england_worcestershire": [
-    51.9654,
-    -2.66399,
-    52.4565,
-    -1.756496
+  "south_america_peru": [
+    -20.30552,
+    -86.02509,
+    0.060049,
+    -68.55439
   ],
-  "asia_china_xinjiang": [
-    34.26775,
-    73.41788,
-    49.26201,
-    96.43
+  "south_america_suriname": [
+    1.816773,
+    -58.08461,
+    7.761698,
+    -53.32819
   ],
-  "asia_yemen": [
-    11.36768,
-    41.06894,
-    19.03189,
-    55.51167
+  "south_america_uruguay": [
+    -36.2487,
+    -58.52589,
+    -30.07355,
+    -52.7723
   ],
-  "north_america_canada_yukon": [
-    59.99739,
-    -141.2389,
-    70.16293,
-    -123.8021
-  ],
-  "asia_china_yunnan": [
-    21.04476,
-    97.42851,
-    29.23518,
-    106.215
-  ],
-  "europe_poland_zachodniopomorskie": [
-    52.61742,
-    13.99022,
-    55.00664,
-    16.98847
-  ],
-  "africa_zambia": [
-    -18.08777,
-    21.98982,
-    -8.239483,
-    33.71773
-  ],
-  "europe_netherlands_zeeland": [
-    51.19717,
-    3.233941,
-    51.87013,
-    4.278407
-  ],
-  "asia_china_zhejiang": [
-    26.69164,
-    118.0206,
-    31.19078,
-    123.8379
-  ],
-  "africa_zimbabwe": [
-    -22.44725,
-    25.2229,
-    -15.58707,
-    33.08541
-  ],
-  "europe_czech_republic_zlinsky": [
-    48.8374,
-    17.10807,
-    49.54122,
-    18.45055
-  ],
-  "europe_netherlands_zuid_holland": [
-    51.64252,
-    3.345328,
-    52.47611,
-    5.032393
+  "south_america_venezuela": [
+    0.621727,
+    -73.38098,
+    15.96134,
+    -59.51474
   ]
 }

@@ -376,7 +376,7 @@ region_source() {
 # url:/planet/custom -> bake id (single segment)
 region_publish_relpath() {
   local region_id="$1"
-  local src path
+  local src path rest
   if src="$(region_source "$region_id")"; then
     case "$src" in
       geofabrik:*)
@@ -385,6 +385,18 @@ region_publish_relpath() {
         path="${path%/}"
         if [[ -n "$path" ]]; then
           printf '%s\n' "$path"
+          return 0
+        fi
+        ;;
+      url:https://download.openstreetmap.fr/extracts/*)
+        # europe/sweden/stockholm-latest.osm.pbf -> europe/sweden/stockholm
+        rest="${src#url:https://download.openstreetmap.fr/extracts/}"
+        rest="${rest%-latest.osm.pbf}"
+        rest="${rest%.osm.pbf}"
+        rest="${rest#/}"
+        rest="${rest%/}"
+        if [[ -n "$rest" ]]; then
+          printf '%s\n' "$rest"
           return 0
         fi
         ;;
