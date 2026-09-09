@@ -190,6 +190,9 @@ Host: <host>
 
 Also listed under [client-fetch.md](client-fetch.md#datex-npra-optional).
 
+Open European DATEX feeds that need **no registration** (not polled by this plugin): [datex-open-feeds.md](datex-open-feeds.md).
+How to add another DATEX provider: [datex-adding-sources.md](datex-adding-sources.md).
+
 ---
 
 ## Caching and on-disk layout

@@ -88,7 +88,7 @@ also fetch **cached** NPRA DATEX II XML from the same DocumentRoot. This is
 **not** part of the pack bake pipeline and is **off by default** on the server.
 
 Full flow and operator setup: [datex-npra.md](datex-npra.md) (see especially
-**How clients fetch DATEX data**).
+**How clients fetch DATEX data**). Open feeds survey: [datex-open-feeds.md](datex-open-feeds.md). Adding providers: [datex-adding-sources.md](datex-adding-sources.md).
 
 | URL | Meaning |
 |---|---|

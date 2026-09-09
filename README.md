@@ -21,6 +21,9 @@ unconditional fallback and is untouched by this tree.
   navi-indexed-convert/     # CLI binary crate
   docs/client-fetch.md      # future client GET contract + exposure surface
   docs/pack-formats.md      # binary/JSON pack formats and how to read them
+  docs/datex-npra.md        # optional NPRA DATEX poller (off by default)
+  docs/datex-open-feeds.md  # open DATEX feeds (no registration)
+  docs/datex-adding-sources.md  # how to add a DATEX provider plugin
   scripts/                  # independently runnable pipeline steps
     lib/common.sh
     config.example.env
@@ -57,6 +60,8 @@ unconditional fallback and is untouched by this tree.
 | [`docs/pack-formats.md`](docs/pack-formats.md) | Binary and JSON pack formats, what they contain, and how to read them |
 | [`docs/client-fetch.md`](docs/client-fetch.md) | Future client HTTP GET contract and exposure surface |
 | [`docs/datex-npra.md`](docs/datex-npra.md) | Optional DATEX NPRA redistribution (**off by default**) |
+| [`docs/datex-open-feeds.md`](docs/datex-open-feeds.md) | Survey of open DATEX II feeds that need **no registration** |
+| [`docs/datex-adding-sources.md`](docs/datex-adding-sources.md) | How to add another DATEX provider plugin |
 | [`docs/incremental-geofabrik.md`](docs/incremental-geofabrik.md) | Geofabrik `.osc.gz` incremental extract updates (**tested on one region; not on weekly/planet schedules yet**) |
 
 Data root detail:
@@ -392,6 +397,8 @@ re-prompts and would overwrite the secrets file.
 **Client fetch (same host, no credentials):** see
 [`docs/datex-npra.md` — How clients fetch DATEX data](docs/datex-npra.md#how-clients-fetch-datex-data)
 and [`docs/client-fetch.md`](docs/client-fetch.md#datex-npra-optional).
+
+See also open anonymous feeds ([`docs/datex-open-feeds.md`](docs/datex-open-feeds.md)) and how to add another provider ([`docs/datex-adding-sources.md`](docs/datex-adding-sources.md)).
 
 ```bash
 curl -fsS "http://<host>/datex/source.json"

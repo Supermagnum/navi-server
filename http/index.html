@@ -105,7 +105,7 @@
     </p>
     <p class="note">
       Format details live in the repo:
-      <code>docs/pack-formats.md</code>
+      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/pack-formats.md"><code>docs/pack-formats.md</code></a>
       (graph / POI-barrier / wetland archives and magic bytes).
     </p>
 
@@ -141,7 +141,38 @@ GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-wetland*.
     <p>
       Clients use ordinary HTTP GET/HEAD only — no auth handshake and no
       upload API on this vhost. Full contract:
-      <code>docs/client-fetch.md</code> in the navi-server repository.
+      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/client-fetch.md"><code>docs/client-fetch.md</code></a>
+      in the navi-server repository.
+    </p>
+
+
+    <h2>Using the binary packs</h2>
+    <p>
+      These are Navi offline routing packs (rkyv archives + JSON manifests), not
+      map tiles. Other tools can fetch them over plain HTTP and load them with
+      the same APIs Navi uses.
+    </p>
+    <ol>
+      <li>
+        Discover regions via <a href="/current.json"><code>/current.json</code></a>,
+        then download files listed in each region’s
+        <code>manifest.json</code> (verify sha256). Contract:
+        <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/client-fetch.md">client-fetch.md</a>.
+      </li>
+      <li>
+        Interpret magic bytes / versions and deserialize graph, POI-barrier,
+        and wetland packs:
+        <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/pack-formats.md">pack-formats.md</a>
+        — especially
+        <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/pack-formats.md#how-to-read-them">How to read them</a>
+        (<code>load_graph_pack</code>, <code>load_poi_barrier_pack</code>,
+        <code>load_wetland_pack</code> in
+        <code>pack_convert_core::routing::indexed</code>).
+      </li>
+    </ol>
+    <p class="note">
+      There is no Python decoder for pack bodies; supported load path is Rust
+      (rkyv 0.8) as documented above.
     </p>
 
     <h2>Update cadence</h2>
@@ -158,7 +189,20 @@ GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-wetland*.
       This host may also cache NPRA DATEX II snapshots under
       <code>/datex/</code> for Navi clients. That feature is <strong>off by
       default</strong>, separate from routing packs, and holds credentials only
-      on the server. See <code>docs/datex-npra.md</code> in the repository.
+      on the server. See
+      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/datex-npra.md"><code>docs/datex-npra.md</code></a>
+      in the repository.
+    </p>
+    <p>
+      Other European DATEX II feeds that need <strong>no registration</strong>
+      (France TIPI open DIR events, Flanders, Finland Digitraffic, Luxembourg
+      CITA, Dutch NDW open data, and similar) are catalogued in
+      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/datex-open-feeds.md"><code>docs/datex-open-feeds.md</code></a>,
+      cross-checked against
+      <a href="https://github.com/graphhopper/open-traffic-collection">graphhopper/open-traffic-collection</a>
+      (portals that still need signup are marked there). They are not polled by
+      navi-server today. To wire another provider, see
+      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/datex-adding-sources.md"><code>docs/datex-adding-sources.md</code></a>.
     </p>
 
     <footer>
