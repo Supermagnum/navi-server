@@ -841,6 +841,84 @@ required in CI.
 
 ---
 
+## First bake vs weekly incremental
+
+**First full planet-leaf bake (measured on the large host only).**  
+The initial 522-leaf batched bake (`run-planet-leaves-batched.sh`) ran on
+**media** (Dell PowerEdge R720: 2× Xeon E5-2650, 32 logical threads, ~96 GiB
+RAM, ZFS) from **2026-09-05T00:26:37Z** to **2026-09-07T22:52:37Z**
+(≈ **70.4 h / ~2.9 days** wall; see `data/logs/planet-leaves/run.log`). That
+job included full extract fetch + convert (with Δh on that host) + validate +
+publish for the leaf catalog — **not** the Geofabrik `.osc.gz` incremental
+path.
+
+A first full bake has **not** been timed on the 8 vCore / 16 GiB / 512 GB
+minimum profile. *Inference (not measured):* the same leaf catalog on that
+smaller box would take longer than ~2.9 days (fewer cores / less RAM /
+sequential weekly-style convert), and is outside what the minimum profile is
+validated for.
+
+**Ongoing weekly operation (incremental path).** After packs exist, Monday
+weekly updates use Geofabrik `.osc.gz` diffs against held PBFs
+(`run-weekly.sh` → `--prefer-incremental`), with full fetch only as fallback
+(exit 10). Measured incremental timings:
+
+| Measurement | Result | Where |
+|-------------|--------|--------|
+| West Virginia, 5 daily diffs (seq 4898..4902) | apply wall ≈ **11 s**; ~536 KiB downloaded vs ~94 MiB full PBF | `docs/incremental-geofabrik.md` (2026-09-06) |
+| 5-region weekly (andorra, nauru, WV, albania, mali) on 8c/16 GiB KVM | clean path ≈ **281 s** wall (fetch+convert+validate; publish later retried) | `/media/navi/vps-sim/REPORT.md` |
+| 6-region weekly including Portugal first bake of that leaf | ≈ **11 min 53 s** wall on the same VM | vps-sim pass-2 |
+
+Continent-scale single leaves and a full first bake on 8c/16 GiB remain
+**untested** on the minimum profile.
+
+## Minimum supported hardware (tested)
+
+By design, the **minimum supported** weekly-incremental host is the
+**netcup VPS 2000 G12** class: **8 dedicated vCores, 16 GiB RAM, 512 GB
+NVMe**. Larger hardware is fine for full-planet bakes; going **below** this
+envelope is untested and unsupported.
+
+Validated for the **weekly incremental path only** in a matching libvirt/KVM
+guest (8 vCPU / 16 GiB / 512 GiB sparse qcow2 / **ext4, no ZFS** / Ubuntu
+24.04 cloud). Highlights from that run (`/media/navi/vps-sim/REPORT.md`):
+
+| Item | Measured |
+|------|----------|
+| `WorkerPoolPlan` at 8 cores | `routing_workers=6`, `tile_build_concurrency=6`, `reserved=2` |
+| Peak convert RSS (largest single region tested: Portugal) | **`peak_rss_mb=4952`** (~4.84 GiB); ≈ **11.2 GiB** free vs 16 GiB |
+| Forced 4-way concurrent convert (portugal+mali+albania+WV) | per-process peaks sum ≈ **8.83 GiB** if coincident; ≈ **7.2 GiB** margin; no OOM |
+| Published packs (full catalog on media) | **~331 GiB** (`du` of `data/published/packs`) |
+| Held PBFs under defaults `NAVI_HELD_PBF_MAX_MIB=512`, `NAVI_HELD_PBF_BUDGET_GIB=40` | ≈ **40 GiB** retained (~435 of 522 regions stay incremental) |
+| Scratch/staging allowance (planning) | ≈ **25 GiB** |
+| Envelope on ~495 GiB usable root | 331 + 40 + 25 ≈ **396 GiB** used → ≈ **99 GiB / ~20% free** |
+
+**Space-planning note vs Navi repo docs.**  
+`Supermagnum/Navi` `docs/indexed-map-format-plan.md` is a **pre-bake**
+extrapolation (~**54 GiB** packs without Δh, ~**58 GiB** with Δh) from Hedmark
+ratios × an ~88 GiB planet PBF; its wetland line is an explicit
+**placeholder**, and the optional town-to-town route cache is still
+**“Not yet”** implemented (`docs/precomputed-index-and-route-cache.md`) so it
+adds **0** to published size today. The **authoritative** figure for current
+disk planning is the measured full bake: **~331 GiB** published packs. The
+gap is consistent with baking **many overlapping Geofabrik leaves** (not one
+planet blob) and with denser leaves showing much higher pack/PBF ratios than
+Hedmark (e.g. Portugal validate total ratio ≈ **8.1** in the VPS-sim run).
+
+## Development / test environments
+
+| Role | Environment |
+|------|-------------|
+| Full initial bake + large-scale work | **media** — Dell PowerEdge R720, 2× Intel Xeon E5-2650 (16 physical / **32** logical threads), ~**96 GiB** RAM, **ZFS** (`Mypool/navi` in planet-leaves logs) |
+| Minimum-hardware weekly validation | libvirt/KVM VM: **8** vCPU, **16 GiB** RAM, **512 GiB** sparse qcow2, **ext4 (no ZFS)**, Ubuntu **24.04** cloud — recipe in `/media/navi/vps-sim/recipe/virt-install.md` |
+
+**Toolchain to build/run this tree** (see One-time setup / Develop·CI above):
+Rust **1.98** (`rust-toolchain.toml`) for `pack-convert-core` /
+`navi-indexed-convert`; **python3** (pipeline helpers, publish catalog);
+**curl**; **osmium-tool** (`osmium`) for incremental PBF header/diff apply;
+optional Apache (or `http/static-packs-server.py`) to serve
+`data/published/` only.
+
 ## Size bands vs space estimate
 
 Hedmark-anchored ratios (~0.43 graph, ~0.09 poi, wetland placeholder) are
@@ -849,6 +927,11 @@ configurable global bands in `data/config.env`, with optional per-region
 `key=value` overrides on `regions.conf` lines (see Validate above). For
 planet-leaf packing estimates, `run-planet-leaves-batched.sh` assumes ~7.57×
 PBF→pack growth when building the ~80 GiB scratch batch plan.
+
+For **published** full-catalog disk planning, use the measured **~331 GiB**
+packs figure (and the held-PBF budget defaults) in [Minimum supported
+hardware](#minimum-supported-hardware-tested) — not the older ~54–58 GiB
+Navi-repo extrapolation.
 
 ---
 
