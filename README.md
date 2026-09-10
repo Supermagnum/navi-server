@@ -9,6 +9,32 @@ publishes a blue-green tree. **No Navi app tree is required to build or run.**
 The app’s direct Geofabrik download + on-device convert path stays the
 unconditional fallback and is untouched by this tree.
 
+## Table of contents
+
+- [Layout](#layout)
+- [Documentation](#documentation)
+- [One-time setup](#one-time-setup)
+  - [Docker / Linux containers](#docker--linux-containers)
+  - [Dynamic DNS (optional)](#dynamic-dns-optional)
+  - [DATEX NPRA redistribution (optional — off by default)](#datex-npra-redistribution-optional--off-by-default)
+- [Independently testable steps](#independently-testable-steps)
+  - [0. Disk space](#0-disk-space)
+  - [1. Fetch](#1-fetch)
+  - [2. Convert](#2-convert)
+  - [3. Optional town-route bake](#3-optional-town-route-bake)
+  - [4. Validate](#4-validate)
+  - [5. Publish (blue-green)](#5-publish-blue-green)
+  - [HTTP static server (read-only)](#http-static-server-read-only)
+  - [6. Scrub (self-maintaining)](#6-scrub-self-maintaining)
+  - [Full smoke test (Hedmark)](#full-smoke-test-hedmark)
+- [Scheduling (optional — not fire-and-forget yet)](#scheduling-optional--not-fire-and-forget-yet)
+- [Develop / CI](#develop--ci)
+- [First bake vs weekly incremental](#first-bake-vs-weekly-incremental)
+- [Minimum supported hardware (tested)](#minimum-supported-hardware-tested)
+- [Development / test environments](#development--test-environments)
+- [Size bands vs space estimate](#size-bands-vs-space-estimate)
+- [Guardrails](#guardrails)
+
 ---
 
 ## Layout
