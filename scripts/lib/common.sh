@@ -58,6 +58,12 @@ load_config() {
   : "${NAVI_CONVERT_SCRATCH_KEEP_DAYS:=7}"
   : "${NAVI_EXTRACT_KEEP_DAYS:=21}"
   : "${NAVI_STAGING_KEEP_DAYS:=2}"
+  # Held-PBF retention for Geofabrik incremental (cleanup.sh). Sized for the
+  # minimum 8c/16GiB/512GB weekly host: packs (~331 GiB) + held (~40 GiB) +
+  # scratch (~25 GiB) leaves ~20% free. 0 = unlimited / no per-file cap
+  # (large bake hosts only).
+  : "${NAVI_HELD_PBF_BUDGET_GIB:=40}"
+  : "${NAVI_HELD_PBF_MAX_MIB:=512}"
   : "${NAVI_GEOFABRIK_BASE:=https://download.geofabrik.de}"
   # Size sanity bands vs source PBF (MiB/MiB). Wide on purpose — Hedmark ratios
   # are sizing targets, not hard requirements for every region.

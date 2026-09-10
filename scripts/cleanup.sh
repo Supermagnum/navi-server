@@ -1,15 +1,29 @@
 #!/usr/bin/env bash
-# Self-maintaining scrub: prune outdated generations, scratch, extracts, logs,
+# Self-maintaining scrub: prune outdated generations, scratch, logs,
 # locks, and partial files; then report disk space (filesystem or optional ZFS).
 #
+# Held .osm.pbf extracts are NOT age-deleted by default (needed for Geofabrik
+# incremental). Opt in to age-delete with:
+#   --prune-extracts
+#   or NAVI_SCRUB_PRUNE_EXTRACTS=1 in config.env / the environment
+#
+# Independent of age-delete, cleanup always enforces the held-PBF disk policy
+# (unless both knobs are 0 / unlimited):
+#   NAVI_HELD_PBF_MAX_MIB   — drop any held *.osm.pbf larger than this (0=off)
+#   NAVI_HELD_PBF_BUDGET_GIB — keep total held PBF bytes under this GiB by
+#     preferring smaller files (drop largest first when over; 0=unlimited)
+# Never deletes *.partial / *incremental.partial* (in-flight temps).
+#
 # Usage:
-#   ./cleanup.sh                 # full scrub (safe defaults from config.env)
+#   ./cleanup.sh                 # scrub gens/convert/logs; budget-cap extracts
 #   ./cleanup.sh --keep 2
-#   ./cleanup.sh --no-extracts   # keep PBF extracts (still prunes convert/logs)
+#   ./cleanup.sh --no-extracts   # skip age-delete (same as default); still budget
+#   ./cleanup.sh --prune-extracts  # age-delete extracts (opt-in); then budget
 #   ./cleanup.sh --report-only   # disk report only, no deletes
 #
 # Installed as a daily systemd timer by setup-server.sh --apply-service
-# (navi-pack-scrub.timer). Also runs at the end of each weekly bake.
+# (navi-pack-scrub.timer; ExecStart passes --no-extracts). Also runs at the
+# end of each weekly bake with --no-extracts.
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -17,20 +31,26 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 load_config
 
-PRUNE_EXTRACTS=1
+# Safe default: never age-delete held PBFs unless explicitly opted in.
+# CLI flags below override NAVI_SCRUB_PRUNE_EXTRACTS.
+PRUNE_EXTRACTS=0
+case "${NAVI_SCRUB_PRUNE_EXTRACTS:-0}" in
+  1|true|TRUE|yes|YES|on|ON) PRUNE_EXTRACTS=1 ;;
+esac
+
 KEEP="${NAVI_KEEP_GENERATIONS}"
 REPORT_ONLY=0
 SKIP_QUOTA_GATE=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --prune-extracts) PRUNE_EXTRACTS=1; shift ;; # legacy alias (default on)
+    --prune-extracts) PRUNE_EXTRACTS=1; shift ;;
     --no-extracts) PRUNE_EXTRACTS=0; shift ;;
     --keep) KEEP="$2"; shift 2 ;;
     --report-only) REPORT_ONLY=1; shift ;;
     --skip-quota-gate) SKIP_QUOTA_GATE=1; shift ;;
     -h|--help)
-      sed -n '2,16p' "$0"
+      sed -n '2,22p' "$0"
       exit 0
       ;;
     *) die "unknown arg: $1" ;;
@@ -138,9 +158,89 @@ if [[ -d "$NAVI_CONVERT_DIR" ]]; then
 fi
 
 if [[ "$PRUNE_EXTRACTS" -eq 1 && -d "$NAVI_EXTRACTS_DIR" ]]; then
-  log_info "pruning extracts older than ${EXTRACT_KEEP_DAYS}d under ${NAVI_EXTRACTS_DIR}"
+  log_info "pruning extracts older than ${EXTRACT_KEEP_DAYS}d under ${NAVI_EXTRACTS_DIR} (opt-in)"
   find "$NAVI_EXTRACTS_DIR" -type f \( -name '*.osm.pbf' -o -name '*.md5' -o -name '*.poly' -o -name '*.poly.partial' \) \
     -mtime "+${EXTRACT_KEEP_DAYS}" -print -delete
+else
+  log_info "extract age-prune skipped (default; pass --prune-extracts or NAVI_SCRUB_PRUNE_EXTRACTS=1 to age-delete held PBFs)"
+fi
+
+# --- Held-PBF retention policy (size cap + total budget) ---
+# Regions without a held PBF fall back to full Geofabrik fetch automatically.
+# Prefer keeping smaller extracts so more regions stay on the incremental path
+# within the 512 GB VPS envelope.
+HELD_BUDGET_GIB="${NAVI_HELD_PBF_BUDGET_GIB:-0}"
+HELD_MAX_MIB="${NAVI_HELD_PBF_MAX_MIB:-0}"
+
+remove_held_pbf_and_companions() {
+  local pbf="$1"
+  local reason="$2"
+  local base stem poly
+  [[ -f "$pbf" ]] || return 0
+  # Never touch in-flight temps.
+  case "$(basename "$pbf")" in
+    *partial*) return 0 ;;
+  esac
+  log_info "held-pbf drop reason=${reason} path=${pbf} bytes=$(stat -c '%s' "$pbf" 2>/dev/null || echo '?')"
+  rm -f "$pbf" "${pbf}.md5"
+  base="$(basename "$pbf")"
+  stem="${base%-latest.osm.pbf}"
+  if [[ "$stem" != "$base" ]]; then
+    poly="${NAVI_EXTRACTS_DIR}/${stem}.poly"
+    rm -f "$poly"
+  fi
+  return 0
+}
+
+if [[ -d "$NAVI_EXTRACTS_DIR" ]]; then
+  mapfile -t _held_pbfs < <(
+    find "$NAVI_EXTRACTS_DIR" -maxdepth 1 -type f -name '*-latest.osm.pbf' ! -name '*partial*' -printf '%s %p\n' 2>/dev/null \
+      | sort -nr
+  )
+
+  if [[ "${HELD_MAX_MIB}" =~ ^[0-9]+$ && "$HELD_MAX_MIB" -gt 0 ]]; then
+    _max_bytes=$((HELD_MAX_MIB * 1024 * 1024))
+    log_info "held-pbf max-size policy max_mib=${HELD_MAX_MIB}"
+    for _entry in "${_held_pbfs[@]+"${_held_pbfs[@]}"}"; do
+      [[ -n "${_entry:-}" ]] || continue
+      _sz="${_entry%% *}"
+      _path="${_entry#* }"
+      if [[ "$_sz" -gt "$_max_bytes" ]]; then
+        remove_held_pbf_and_companions "$_path" "over_max_mib=${HELD_MAX_MIB}"
+      fi
+    done
+    # Refresh list after max-size drops.
+    mapfile -t _held_pbfs < <(
+      find "$NAVI_EXTRACTS_DIR" -maxdepth 1 -type f -name '*-latest.osm.pbf' ! -name '*partial*' -printf '%s %p\n' 2>/dev/null \
+        | sort -nr
+    )
+  else
+    log_info "held-pbf max-size policy disabled (NAVI_HELD_PBF_MAX_MIB=0)"
+  fi
+
+  if [[ "${HELD_BUDGET_GIB}" =~ ^[0-9]+$ && "$HELD_BUDGET_GIB" -gt 0 ]]; then
+    _budget_bytes=$((HELD_BUDGET_GIB * 1024 * 1024 * 1024))
+    _total=0
+    for _entry in "${_held_pbfs[@]+"${_held_pbfs[@]}"}"; do
+      [[ -n "${_entry:-}" ]] || continue
+      _total=$((_total + ${_entry%% *}))
+    done
+    log_info "held-pbf budget policy budget_gib=${HELD_BUDGET_GIB} current_bytes=${_total} files=${#_held_pbfs[@]}"
+    # Already sorted largest-first: drop from the top until under budget.
+    for _entry in "${_held_pbfs[@]+"${_held_pbfs[@]}"}"; do
+      [[ -n "${_entry:-}" ]] || continue
+      if [[ "$_total" -le "$_budget_bytes" ]]; then
+        break
+      fi
+      _sz="${_entry%% *}"
+      _path="${_entry#* }"
+      remove_held_pbf_and_companions "$_path" "over_budget_gib=${HELD_BUDGET_GIB}"
+      _total=$((_total - _sz))
+    done
+    log_info "held-pbf budget after_bytes=${_total}"
+  else
+    log_info "held-pbf budget policy disabled (NAVI_HELD_PBF_BUDGET_GIB=0)"
+  fi
 fi
 
 # Bake / scrub logs (keep recent; drop stale partials always).

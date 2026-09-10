@@ -2,6 +2,12 @@
 # Publish step: assemble staging generation, validate, atomically swap live.
 # Keeps previous generation as rollback via NAVI_PREVIOUS_LINK.
 #
+# Before pruning older published gens under packs/<path>/ — and before the
+# internal live symlink swap — re-verifies each region's currently-live
+# published generation (checksums.sha256). After writing the new HTTP gen,
+# re-verifies that too. On CHECKSUM_REVERIFY=FAIL: abort, delete nothing,
+# leave live/previous/CURRENT_GENERATION untouched.
+#
 # Usage:
 #   ./publish-packs.sh                         # from convert scratch (--all regions)
 #   ./publish-packs.sh --region hedmark        # single region into a new generation
@@ -125,6 +131,55 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
   exit 0
 fi
 
+# Bake-id -> publish relpath map (needed for pre-swap live verify + HTTP sync).
+PUBLISH_MAP="$(mktemp)"
+trap 'rm -f "$PUBLISH_MAP"' EXIT
+while IFS=$'\t' read -r region_id _src; do
+  printf '%s\t%s\n' "$region_id" "$(region_publish_relpath "$region_id")"
+done < <(list_regions) >"$PUBLISH_MAP"
+
+# Gate BEFORE promoting staging or flipping live/previous: currently-live
+# published packs for every region in this generation must still match their
+# checksums.sha256. Failure leaves live symlink and published tree untouched.
+log_info "pre-swap checksum verify of currently-live published gens"
+python3 - "$STAGE" "$NAVI_PUBLISHED_DIR" "$PUBLISH_MAP" \
+    "${SCRIPT_DIR}/lib" "${SCRIPT_DIR}/verify-published-checksums.sh" <<'PY'
+import subprocess, sys
+from pathlib import Path
+
+sys.path.insert(0, sys.argv[4])
+from published_tree import complete_gens
+
+stage = Path(sys.argv[1])
+published = Path(sys.argv[2])
+verify_script = Path(sys.argv[5])
+path_map = {}
+for line in Path(sys.argv[3]).read_text(encoding="utf-8").splitlines():
+    if not line.strip():
+        continue
+    bake_id, rel = line.split("\t", 1)
+    path_map[bake_id] = rel
+
+import json
+gen_man = json.loads((stage / "generation-manifest.json").read_text(encoding="utf-8"))
+packs_root = published / "packs"
+for region in gen_man.get("regions", []):
+    bake_id = region["region_id"]
+    relpath = path_map.get(bake_id, bake_id)
+    prior = complete_gens(packs_root / relpath)
+    if not prior:
+        continue  # first-ever publish for this region
+    pack_dir = prior[0]
+    print(f"checksum re-verify stage=pre-swap-live path={pack_dir}", flush=True)
+    proc = subprocess.run([str(verify_script), "--pack-dir", str(pack_dir)], check=False)
+    if proc.returncode != 0:
+        raise SystemExit(
+            f"CHECKSUM_REVERIFY=FAIL stage=pre-swap-live path={pack_dir} "
+            f"— live symlink not swapped, nothing deleted"
+        )
+print("CHECKSUM_REVERIFY=PASS stage=pre-swap-live", flush=True)
+PY
+
 # Move staging -> generations (same filesystem → rename).
 if [[ -e "$FINAL" ]]; then
   die "generation already exists: $FINAL"
@@ -134,7 +189,10 @@ mv "$STAGE" "$FINAL"
 # Atomic blue-green swap via symlink dance.
 live_target=""
 if [[ -L "$NAVI_LIVE_LINK" ]]; then
-  live_target="$(readlink -f "$NAVI_LIVE_LINK")"
+  # GNU readlink -f exits non-zero when intermediate path components are
+  # missing (e.g. a host-absolute symlink copied into a VM). Do not abort
+  # the publish under set -e — treat as "no previous live".
+  live_target="$(readlink -f "$NAVI_LIVE_LINK" 2>/dev/null || true)"
 fi
 
 tmp_live="${NAVI_LIVE_LINK}.new.$$"
@@ -163,16 +221,9 @@ printf '%s\n' "$GEN_ID" >"${NAVI_PACK_ROOT}/CURRENT_GENERATION"
 keep_prior="${NAVI_PUBLISHED_KEEP_PER_REGION:-1}"
 log_info "syncing static published tree under ${NAVI_PUBLISHED_DIR} (keep_prior=${keep_prior})"
 
-# Bake-id -> publish relpath map for this run (Geofabrik path when available).
-PUBLISH_MAP="$(mktemp)"
-trap 'rm -f "$PUBLISH_MAP"' EXIT
-while IFS=$'\t' read -r region_id _src; do
-  printf '%s\t%s\n' "$region_id" "$(region_publish_relpath "$region_id")"
-done < <(list_regions) >"$PUBLISH_MAP"
-
 python3 - "$FINAL" "$GEN_ID" "$NAVI_PUBLISHED_DIR" "$keep_prior" "$PUBLISH_MAP" \
-    "${SCRIPT_DIR}/lib" <<'PY'
-import hashlib, json, shutil, sys
+    "${SCRIPT_DIR}/lib" "${SCRIPT_DIR}/verify-published-checksums.sh" <<'PY'
+import hashlib, json, shutil, subprocess, sys
 from pathlib import Path
 
 sys.path.insert(0, sys.argv[6])
@@ -182,6 +233,7 @@ final = Path(sys.argv[1])
 gen_id = sys.argv[2]
 published = Path(sys.argv[3])
 keep_prior = max(0, int(sys.argv[4]))
+verify_script = Path(sys.argv[7])
 path_map = {}
 for line in Path(sys.argv[5]).read_text(encoding="utf-8").splitlines():
     if not line.strip():
@@ -202,13 +254,32 @@ def sha256_file(path: Path) -> str:
             h.update(chunk)
     return h.hexdigest()
 
+def verify_pack_dir(pack_dir: Path, stage: str) -> None:
+    """Read-only checksum gate. On failure: exit; caller must not prune/delete."""
+    print(
+        f"checksum re-verify stage={stage} path={pack_dir}",
+        flush=True,
+    )
+    proc = subprocess.run(
+        [str(verify_script), "--pack-dir", str(pack_dir)],
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise SystemExit(
+            f"CHECKSUM_REVERIFY=FAIL stage={stage} path={pack_dir} "
+            f"— prune aborted, nothing deleted"
+        )
+
 for region in gen_man.get("regions", []):
     bake_id = region["region_id"]
     relpath = path_map.get(bake_id, bake_id)
     src = final / "regions" / bake_id
     if not src.is_dir():
         raise SystemExit(f"missing region dir in generation: {src}")
-    dst = packs_root / relpath / gen_id
+    region_root = packs_root / relpath
+    region_root.mkdir(parents=True, exist_ok=True)
+
+    dst = region_root / gen_id
     if dst.exists():
         shutil.rmtree(dst)
     dst.mkdir(parents=True)
@@ -252,7 +323,10 @@ for region in gen_man.get("regions", []):
     )
     marker.unlink(missing_ok=True)
 
-    for stale in complete_gens(packs_root / relpath)[1 + keep_prior :]:
+    # Confirm the generation we just published before pruning anything.
+    verify_pack_dir(dst, "post-write-new")
+
+    for stale in complete_gens(region_root)[1 + keep_prior :]:
         shutil.rmtree(stale, ignore_errors=True)
 
     print(f"published packs/{relpath}/{gen_id}/ bake_id={bake_id} files={len(file_digests)}")

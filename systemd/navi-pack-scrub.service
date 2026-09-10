@@ -1,5 +1,5 @@
 [Unit]
-Description=Navi pack data scrub (prune outdated generations/scratch/logs)
+Description=Navi pack data scrub (prune outdated generations/scratch/logs; keep held PBFs)
 Documentation=file:///media/navi/navi-server/README.md
 After=local-fs.target
 
@@ -11,7 +11,10 @@ WorkingDirectory=/media/navi/navi-server/scripts
 Environment=NAVI_PACK_CONFIG=/media/navi/navi-server/data/config.env
 Nice=15
 IOSchedulingClass=idle
-ExecStart=/media/navi/navi-server/scripts/cleanup.sh --skip-quota-gate
+# --no-extracts: skip age-delete of held .osm.pbf files. Size policy still
+# applies (NAVI_HELD_PBF_BUDGET_GIB / NAVI_HELD_PBF_MAX_MIB). Age-delete only
+# via cleanup.sh --prune-extracts or NAVI_SCRUB_PRUNE_EXTRACTS=1.
+ExecStart=/media/navi/navi-server/scripts/cleanup.sh --skip-quota-gate --no-extracts
 SuccessExitStatus=0
 ReadWritePaths=/media/navi/navi-server/data
 ReadOnlyPaths=/media/navi/navi-server/scripts

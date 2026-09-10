@@ -62,7 +62,7 @@ unconditional fallback and is untouched by this tree.
 | [`docs/datex-npra.md`](docs/datex-npra.md) | Optional DATEX NPRA redistribution (**off by default**) |
 | [`docs/datex-open-feeds.md`](docs/datex-open-feeds.md) | Survey of open DATEX II feeds that need **no registration** |
 | [`docs/datex-adding-sources.md`](docs/datex-adding-sources.md) | How to add another DATEX provider plugin |
-| [`docs/incremental-geofabrik.md`](docs/incremental-geofabrik.md) | Geofabrik `.osc.gz` incremental extract updates (**tested on one region; not on weekly/planet schedules yet**) |
+| [`docs/incremental-geofabrik.md`](docs/incremental-geofabrik.md) | Geofabrik `.osc.gz` incremental extract updates (**wired into `run-weekly.sh` for all conf regions**; planet-leaves unchanged) |
 
 Data root detail:
 
@@ -447,8 +447,9 @@ pipeline.
 ```bash
 ./fetch-extracts.sh hedmark
 ./fetch-extracts.sh --force hedmark   # ignore ETag / Last-Modified
-# Opt-in Geofabrik .osc.gz update of a held PBF (falls back to full fetch).
-# Not used by weekly/planet schedules yet — see docs/incremental-geofabrik.md.
+# Geofabrik .osc.gz update of a held PBF (falls back to full fetch on exit 10).
+# run-weekly.sh passes --prefer-incremental for all regions unless --force-fetch.
+# See docs/incremental-geofabrik.md and docs/vps-prelaunch-checklist.md.
 ./fetch-extracts.sh --prefer-incremental us_west_virginia
 ```
 
@@ -671,14 +672,20 @@ Pack binary/JSON formats: [`docs/pack-formats.md`](docs/pack-formats.md).
 ```bash
 ./cleanup.sh
 ./cleanup.sh --no-extracts
+./cleanup.sh --prune-extracts
 ./cleanup.sh --report-only
 ```
 
 Prunes old generations beyond `NAVI_KEEP_GENERATIONS` (min 2), aged convert
-scratch / extracts / staging, abandoned `*.partial` logs, and reports disk
-space. Retention knobs: `NAVI_LOG_KEEP_DAYS`, `NAVI_CONVERT_SCRATCH_KEEP_DAYS`,
-`NAVI_EXTRACT_KEEP_DAYS`, `NAVI_STAGING_KEEP_DAYS`. Installed as
-`navi-pack-scrub.timer` by setup; also runs at the end of each weekly bake.
+scratch / staging, abandoned `*.partial` logs, and reports disk space.
+**Extracts are not age-deleted by default** (held PBFs for Geofabrik
+incremental). Age-prune extracts only with `--prune-extracts` or
+`NAVI_SCRUB_PRUNE_EXTRACTS=1`. Independently, `NAVI_HELD_PBF_MAX_MIB` /
+`NAVI_HELD_PBF_BUDGET_GIB` (defaults 512 MiB / 40 GiB) cap held-PBF disk use
+for the 512 GB weekly host. Retention knobs: `NAVI_LOG_KEEP_DAYS`,
+`NAVI_CONVERT_SCRATCH_KEEP_DAYS`, `NAVI_EXTRACT_KEEP_DAYS` (when age-prune
+enabled), `NAVI_STAGING_KEEP_DAYS`. Installed as `navi-pack-scrub.timer` by
+setup (unit passes `--no-extracts`); also runs at the end of each weekly bake.
 
 ### Full smoke test (Hedmark)
 

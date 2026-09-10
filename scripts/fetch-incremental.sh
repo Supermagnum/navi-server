@@ -20,8 +20,8 @@
 #   ./fetch-incremental.sh us_west_virginia
 #   ./fetch-incremental.sh --held-pbf /path/in.osm.pbf --output /path/out.osm.pbf us_west_virginia
 #
-# NOT wired into run-weekly.sh / planet-leaves by default. Opt-in from
-# fetch-extracts.sh via --prefer-incremental (see README).
+# NOT wired into planet-leaves by default. Weekly bake enables this via
+# fetch-extracts.sh --prefer-incremental from run-weekly.sh.
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -78,30 +78,44 @@ fi
 
 log_info "incremental attempt region=${REGION_ID} held=${held} retention_days=${NAVI_GEOFABRIK_DIFF_RETENTION_DAYS}"
 
-tmp="${out}.incremental.partial"
+tmp="${out}.incremental.partial.osm.pbf"
+json_out="$(mktemp)"
 rm -f "$tmp"
 set +e
 python3 "${SCRIPT_DIR}/lib/geofabrik_replication.py" \
   --retention-days "$NAVI_GEOFABRIK_DIFF_RETENTION_DAYS" \
   --json \
   -o "$tmp" \
-  "$held"
+  "$held" >"$json_out"
 rc=$?
 set -e
 
 if [[ "$rc" -eq 10 ]]; then
-  rm -f "$tmp"
+  rm -f "$tmp" "$json_out"
   log_info "incremental unavailable, falling back to full region=${REGION_ID} (see geofabrik_replication reason above)"
   exit 10
 fi
 if [[ "$rc" -ne 0 ]]; then
-  rm -f "$tmp"
+  rm -f "$tmp" "$json_out"
   die "incremental apply failed region=${REGION_ID} rc=${rc}"
 fi
 
 if [[ ! -f "$tmp" ]]; then
+  rm -f "$json_out"
   die "incremental produced no output region=${REGION_ID}"
 fi
+
+# Re-verify osmosis_replication_sequence_number on the temp PBF matches the
+# tip reported by the apply step — refuse atomic replace on any mismatch.
+tip_seq="$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1],encoding="utf-8")); s=d.get("tip_sequence"); assert s is not None, "missing tip_sequence in apply JSON"; print(int(s))' "$json_out")"
+got_seq="$(osmium fileinfo --input-format=pbf -j "$tmp" | python3 -c 'import json,sys; o=json.load(sys.stdin).get("header",{}).get("option",{}); s=o.get("osmosis_replication_sequence_number"); assert s is not None, "missing osmosis_replication_sequence_number on temp PBF"; print(int(s))')"
+if [[ "$got_seq" != "$tip_seq" ]]; then
+  rm -f "$tmp" "$json_out"
+  log_fail "SEQUENCE_TIP_VERIFY=FAIL region=${REGION_ID} got_seq=${got_seq} expected_tip=${tip_seq} — held PBF not replaced"
+  die "SEQUENCE_TIP_MISMATCH region=${REGION_ID} got_seq=${got_seq} expected_tip=${tip_seq}"
+fi
+log_info "SEQUENCE_TIP_VERIFY=PASS region=${REGION_ID} seq=${got_seq} tip=${tip_seq}"
+rm -f "$json_out"
 
 # Atomic replace when updating in place or to --output.
 mkdir -p "$(dirname "$out")"

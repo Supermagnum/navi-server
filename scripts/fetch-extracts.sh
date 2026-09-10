@@ -11,9 +11,9 @@
 #   ./fetch-extracts.sh hedmark          # single region id
 #   ./fetch-extracts.sh --force hedmark  # ignore conditional headers
 #   ./fetch-extracts.sh --prefer-incremental us_west_virginia
-#       # Opt-in Geofabrik .osc.gz update of a held PBF (fetch-incremental.sh).
-#       # Falls back to full fetch when incremental is unavailable.
-#       # NOT enabled by weekly/planet schedules yet.
+#       # Geofabrik .osc.gz update of a held PBF (fetch-incremental.sh).
+#       # Falls back to full fetch when incremental is unavailable (exit 10).
+#       # Enabled by default from run-weekly.sh (skipped when --force is set).
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

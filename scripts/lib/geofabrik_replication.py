@@ -110,9 +110,14 @@ def http_get_size(url: str, timeout: float = 120.0) -> tuple[bytes, int]:
 
 
 def read_pbf_replication(pbf: Path) -> ReplicationState:
-    """Read osmosis_replication_* from a PBF via ``osmium fileinfo -j``."""
+    """Read osmosis_replication_* from a PBF via ``osmium fileinfo -j``.
+
+    Always pass ``--input-format=pbf`` so temp names that do not end in
+    ``.osm.pbf`` (or end in ``.partial``) still parse — osmium otherwise
+    fails format autodetection and the tip-verify gate false-fails.
+    """
     proc = subprocess.run(
-        ["osmium", "fileinfo", "-j", str(pbf)],
+        ["osmium", "fileinfo", "--input-format=pbf", "-j", str(pbf)],
         check=True,
         capture_output=True,
         text=True,
@@ -131,6 +136,28 @@ def read_pbf_replication(pbf: Path) -> ReplicationState:
         sequence=int(seq_s),
         timestamp=normalize_timestamp(ts),
         base_url=base.rstrip("/"),
+    )
+
+
+def sequence_matches_tip(actual_sequence: int, tip_sequence: int) -> bool:
+    """Pure check: post-diff PBF header must equal the expected tip sequence."""
+    return int(actual_sequence) == int(tip_sequence)
+
+
+def verify_pbf_reaches_tip(pbf: Path, tip: ReplicationState) -> None:
+    """Re-read PBF headers and refuse replace if sequence != tip.
+
+    Raises ValueError with a distinct SEQUENCE_TIP_MISMATCH marker so callers
+    and logs can key off a clear fail signal (no silent corruption).
+    """
+    got = read_pbf_replication(pbf)
+    if not sequence_matches_tip(got.sequence, tip.sequence):
+        raise ValueError(
+            f"SEQUENCE_TIP_MISMATCH pbf={pbf} got_seq={got.sequence} "
+            f"expected_tip={tip.sequence}"
+        )
+    _log(
+        f"SEQUENCE_TIP_VERIFY=PASS pbf={pbf} seq={got.sequence} tip={tip.sequence}"
     )
 
 
@@ -204,6 +231,13 @@ def apply_osc_range(
         if input_pbf.resolve() != output_pbf.resolve():
             output_pbf.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run(["cp", "-a", str(input_pbf), str(output_pbf)], check=True)
+            try:
+                verify_pbf_reaches_tip(output_pbf, tip)
+            except Exception:
+                output_pbf.unlink(missing_ok=True)
+                raise
+        else:
+            verify_pbf_reaches_tip(input_pbf, tip)
         return ApplyResult(
             status="already_current",
             reason="held sequence matches tip",
@@ -268,6 +302,13 @@ def apply_osc_range(
             f"--output-header=osmosis_replication_timestamp={tip.timestamp}",
         ]
         subprocess.run(header_cmd, check=True)
+        # Verify tip sequence on the temp file before atomic replace — never
+        # promote a PBF whose header did not actually reach the expected tip.
+        try:
+            verify_pbf_reaches_tip(final_tmp, tip)
+        except Exception:
+            final_tmp.unlink(missing_ok=True)
+            raise
         os.replace(final_tmp, output_pbf)
 
     return ApplyResult(
