@@ -269,6 +269,7 @@ fetch_region_poly() {
 }
 
 matched=0
+skipped=0
 # Build work list, then follow-the-sun order when processing the full set.
 WORK=()
 while IFS=$'\t' read -r region_id src; do
@@ -278,6 +279,10 @@ while IFS=$'\t' read -r region_id src; do
       [[ "$f" == "$region_id" ]] && keep=1
     done
     [[ "$keep" -eq 1 ]] || continue
+  fi
+  if region_skip_if_tagged "$region_id"; then
+    skipped=$((skipped + 1))
+    continue
   fi
   WORK+=("${region_id}"$'\t'"${src}")
 done < <(list_regions)
@@ -308,8 +313,12 @@ for row in "${WORK[@]+"${WORK[@]}"}"; do
   fetch_one "$region_id" "$src"
 done
 
-if [[ "$matched" -eq 0 ]]; then
+if [[ "$matched" -eq 0 && "$skipped" -eq 0 ]]; then
   die "no matching regions (filter=${FILTER_IDS[*]:-none}; conf=${NAVI_REGIONS_CONF})"
+fi
+if [[ "$matched" -eq 0 && "$skipped" -gt 0 ]]; then
+  log_info "fetch step complete (all matching regions skipped skip_reason; count=${skipped})"
+  exit 0
 fi
 
 log_info "fetch step complete"

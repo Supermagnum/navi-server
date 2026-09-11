@@ -361,10 +361,10 @@ do not hand-edit the auto-generated planet leaf list for overrides.
 **zero** `highway=*` ways (convert hard-fails empty graphs by design).
 Not a size-band override and not `terrain_class` — those apply when some
 routable data exists but fails a heuristic. Keep the tag on
-`data/regions.conf`; `run-planet-leaves-batched.sh` skips
-fetch/convert/validate/publish before work starts, logs the reason, and
-still counts the leaf toward batch progress. Confirm 0 highways with a PBF
-probe before tagging.
+`data/regions.conf`; `run-weekly.sh` (via fetch/convert/publish) and
+`run-planet-leaves-batched.sh` skip fetch/convert/validate/publish before
+work starts, log the reason, and (planet-leaves) still count the leaf toward
+batch progress. Confirm 0 highways with a PBF probe before tagging.
 
 Build convert (in-repo `pack-convert-core` / `navi-indexed-convert`):
 

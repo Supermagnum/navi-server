@@ -206,9 +206,9 @@ resolve_convert_bin() {
 # Optional trailing key=value pairs override size bands for validate only
 # (see scripts/regions.example.conf), including terrain_class=polar_sparse
 # and terrain_class=wetland_heavy / dense_network.
-# skip_reason=no_road_network excludes a leaf from planet-leaves fetch/convert/
-# validate/publish (zero highway=* ways; convert would hard-fail). Keep this
-# tag in data/regions.conf — regions.planet.conf is regenerated.
+# skip_reason=no_road_network excludes a leaf from weekly + planet-leaves
+# fetch/convert/validate/publish (zero highway=* ways; convert would hard-fail).
+# Keep this tag in data/regions.conf — regions.planet.conf is regenerated.
 # Blank lines and # comments ignored.
 # list_regions prints: region_id<TAB>source  (overrides / terrain_class omitted).
 list_regions() {
@@ -258,13 +258,30 @@ region_conf_kv() {
   return 1
 }
 
-# Orchestrator skip marker (planet-leaves). Prefer weekly regions.conf overrides.
+# Orchestrator skip marker (weekly + planet-leaves). Prefer weekly regions.conf.
 region_skip_reason() {
   local rid="$1"
   region_conf_kv "$rid" "skip_reason" \
     "${NAVI_PACK_ROOT}/regions.conf" \
     "${NAVI_REGIONS_CONF:-}" \
     "${NAVI_PACK_ROOT}/regions.planet.conf" || true
+}
+
+# Log + drop failed convert scratch for a tagged skip. Return 0 = skip this
+# region (caller should continue), 1 = process normally.
+region_skip_if_tagged() {
+  local rid="$1"
+  local skip_reason evidence=""
+  skip_reason="$(region_skip_reason "$rid")"
+  [[ -n "$skip_reason" ]] || return 1
+  if [[ "$skip_reason" == "no_road_network" ]]; then
+    evidence=" evidence=0_highway_ways_in_source_pbf"
+  fi
+  log_info "skip region=${rid} skip_reason=${skip_reason}${evidence} (no fetch/convert/validate/publish; not published)"
+  if [[ -n "${NAVI_CONVERT_DIR:-}" ]]; then
+    rm -rf "${NAVI_CONVERT_DIR}/${rid}" 2>/dev/null || true
+  fi
+  return 0
 }
 
 region_source_kind() {

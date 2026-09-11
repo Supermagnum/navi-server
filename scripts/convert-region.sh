@@ -124,6 +124,7 @@ PY
 }
 
 matched=0
+skipped=0
 WORK=()
 while IFS=$'\t' read -r region_id src; do
   if [[ "$DO_ALL" -eq 0 ]]; then
@@ -133,12 +134,16 @@ while IFS=$'\t' read -r region_id src; do
     done
     [[ "$keep" -eq 1 ]] || continue
   fi
+  if region_skip_if_tagged "$region_id"; then
+    skipped=$((skipped + 1))
+    continue
+  fi
   WORK+=("$region_id")
 done < <(list_regions)
 
 if [[ "$DO_ALL" -eq 1 ]]; then
   order_regions_array_follow_sun WORK
-  log_info "convert sun_order=${NAVI_BAKE_SUN_ORDER:-1} regions=${#WORK[@]}"
+  log_info "convert sun_order=${NAVI_BAKE_SUN_ORDER:-1} regions=${#WORK[@]} skipped=${skipped}"
 fi
 
 for region_id in "${WORK[@]+"${WORK[@]}"}"; do
@@ -146,8 +151,12 @@ for region_id in "${WORK[@]+"${WORK[@]}"}"; do
   convert_one "$region_id"
 done
 
-if [[ "$matched" -eq 0 ]]; then
+if [[ "$matched" -eq 0 && "$skipped" -eq 0 ]]; then
   die "no matching regions"
+fi
+if [[ "$matched" -eq 0 && "$skipped" -gt 0 ]]; then
+  log_info "convert step complete (all matching regions skipped skip_reason; count=${skipped})"
+  exit 0
 fi
 
 log_info "convert step complete"

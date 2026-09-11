@@ -62,6 +62,7 @@ assemble_one() {
 }
 
 matched=0
+skipped=0
 while IFS=$'\t' read -r region_id src; do
   if [[ ${#FILTER_IDS[@]} -gt 0 ]]; then
     keep=0
@@ -70,11 +71,20 @@ while IFS=$'\t' read -r region_id src; do
     done
     [[ "$keep" -eq 1 ]] || continue
   fi
+  if region_skip_if_tagged "$region_id"; then
+    skipped=$((skipped + 1))
+    continue
+  fi
   matched=1
   assemble_one "$region_id"
 done < <(list_regions)
 
-[[ "$matched" -eq 1 ]] || die "no matching regions to publish"
+if [[ "$matched" -eq 0 && "$skipped" -eq 0 ]]; then
+  die "no matching regions to publish"
+fi
+if [[ "$matched" -eq 0 && "$skipped" -gt 0 ]]; then
+  die "no regions to publish (all matching regions had skip_reason; count=${skipped})"
+fi
 
 # Optional town-routes already baked into convert? Prefer explicit bake into STAGE.
 if [[ "${NAVI_BAKE_TOWN_ROUTES}" == "1" ]]; then
