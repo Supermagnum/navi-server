@@ -177,11 +177,10 @@ GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-wetland*.
 
     <h2>Update cadence</h2>
     <p>
-      Packs are baked periodically, not live. A production weekly timer can
-      refresh configured regions (for example smoke / Hedmark-style pipelines)
-      when operators enable it. Wider planet leaf builds are occasional
-      full-tree runs, not a continuously refreshed feed. Treat freshness as
-      “last successful bake,” not real-time OSM.
+      Binary routing packs are refreshed every Monday at 00:00 UTC by the
+      weekly bake timer. Treat freshness as “last successful Monday bake,”
+      not real-time OSM. Wider planet leaf builds are occasional full-tree
+      runs, separate from that weekly cadence.
     </p>
 
     <h2>Optional DATEX (Norway)</h2>
