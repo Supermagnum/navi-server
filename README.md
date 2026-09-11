@@ -57,7 +57,7 @@ unconditional fallback and is untouched by this tree.
   data/                     # scratch, state, generations, logs, live/previous
     published/              # ONLY tree safe to expose over HTTP (static GET/HEAD)
   http/                     # Apache vhost config (GET/HEAD-only static packs)
-  systemd/                  # bake (opt-in), daily scrub, optional DDNS
+  systemd/                  # weekly bake + daily scrub timers, optional DDNS
 ```
 
 | Path | Role |
@@ -77,7 +77,7 @@ unconditional fallback and is untouched by this tree.
 | `data/` | Runtime data root (any filesystem with enough disk space; ZFS optional) |
 | `data/published/` | Static pack tree for HTTP |
 | `http/` | Apache vhost + static landing `index.html` (DocumentRoot = `data/published`) |
-| `systemd/` | `navit-server.service`, bake timer (opt-in), daily scrub, optional `navi-ddns.timer` |
+| `systemd/` | `navit-server.service`, weekly bake + daily scrub timers, optional `navi-ddns.timer` |
 
 ## Documentation
 
@@ -139,12 +139,12 @@ cargo build --release -p navi-indexed-convert
 ```
 
 `--apply-service` creates system user **`navit-server`**, owns `data/`, installs
-`navit-server.service` / bake units, and **enables** daily
-`navi-pack-scrub.timer` (automatic scrub of outdated files). The weekly bake
-timer is **not** enabled by this step. On a full interactive `sudo setup-server.sh`
-run you are asked whether to set up a DATEX provider; answer **no** to leave it
-off, or **yes** and supply username/password. You can also enable later with
-`--apply-datex` (same yes/no + credentials prompts).
+`navit-server.service` / bake + scrub units, and **enables** both scheduled
+jobs: daily `navi-pack-scrub.timer` and weekly `navi-pack-bake.timer` (Monday
+00:00 UTC). On a full interactive `sudo setup-server.sh` run you are asked
+whether to set up a DATEX provider; answer **no** to leave it off, or **yes**
+and supply username/password. You can also enable later with `--apply-datex`
+(same yes/no + credentials prompts).
 
 ### Docker / Linux containers
 
@@ -820,12 +820,12 @@ Concurrency for the parallel smoke is auto-detected from `nproc` +
 
 ```bash
 # Preferred: install user + units via setup
-# (enables daily scrub; does not enable weekly bake):
+# (enables daily scrub + weekly bake timers):
 sudo /media/navi/navi-server/scripts/setup-server.sh --apply-service
 
-# After smoke test OK:
-# sudo systemctl enable --now navi-pack-bake.timer
-# journalctl -u navit-server.service -n 100
+# Inspect schedule / last bake:
+# systemctl list-timers 'navi-pack-*'
+# journalctl -u navi-pack-bake.service -n 100
 ```
 
 Bake and scrub units run as **`navit-server`** (not a login account).

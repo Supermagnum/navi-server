@@ -257,8 +257,9 @@ There is **no HTTP code path** by which a remote request can:
 - execute a command
 - upload an extract or pack
 
-The weekly bake is started only by a human shell, or by a local systemd timer
-(not enabled by default) — never by an HTTP request.
+The weekly bake is started only by a human shell, or by the local systemd
+timer installed via `setup-server.sh --apply-service` (`navi-pack-bake.timer`,
+Monday 00:00 UTC) — never by an HTTP request.
 
 ### Publish writes only static output
 

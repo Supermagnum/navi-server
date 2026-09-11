@@ -1,5 +1,5 @@
 [Unit]
-Description=Weekly timer for Navi indexed pack bake (prototype — disabled until verified)
+Description=Weekly timer for Navi indexed pack bake (Mon 00:00 UTC)
 Documentation=file:///media/navi/navi-server/README.md
 
 [Timer]

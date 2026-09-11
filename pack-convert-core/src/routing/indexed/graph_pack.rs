@@ -7,12 +7,12 @@ use osm4routing::{Node, NodeId};
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 
 use crate::routing::elevation::ElevationService;
-use crate::routing::graph::{infer_surface_from_highway, GraphEdge, RouteGraph, RoutingProfile};
+use crate::routing::graph::{GraphEdge, RouteGraph, RoutingProfile, SurfaceQuality};
 
 /// Little-endian ASCII "NVRK".
 pub const MAGIC_GRAPH: u32 = 0x4E_56_52_4B;
-/// v6: v5 + vehicle physical limits (maxheight/weight/width/length/axle/bogie).
-pub const GRAPH_FORMAT_VERSION: u32 = 6;
+/// v8: v7 + per-edge `surface_quality` (OSM surface/tracktype class).
+pub const GRAPH_FORMAT_VERSION: u32 = 8;
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone)]
 pub struct FlatGraphPack {
@@ -36,6 +36,16 @@ pub struct FlatGraphPack {
     pub edge_end_lon: Vec<f64>,
     pub edge_highway: Vec<String>,
     pub edge_maxspeed_kmh: Vec<f64>, // NaN = none
+    /// NaN = none. OSM `maxspeed:practical`.
+    pub edge_maxspeed_practical_kmh: Vec<f64>,
+    /// NaN = none. OSM `maxspeed:advisory`.
+    pub edge_maxspeed_advisory_kmh: Vec<f64>,
+    /// Raw OSM `maxspeed:type` (empty = none).
+    pub edge_maxspeed_type: Vec<String>,
+    /// `1` when OSM `maxspeed:variable` is truthy.
+    pub edge_maxspeed_variable: Vec<u8>,
+    /// NaN = none. OSM `minspeed`.
+    pub edge_minspeed_kmh: Vec<f64>,
     pub edge_name: Vec<String>,
     pub edge_road_ref: Vec<String>,
     pub edge_is_motorroad: Vec<u8>,
@@ -73,6 +83,8 @@ pub struct FlatGraphPack {
     pub edge_maxspeed_conditional: Vec<String>,
     /// Profile-static access forbid flag per edge (`1` = forbidden).
     pub edge_access_forbidden: Vec<u8>,
+    /// [`SurfaceQuality`] as `u8` (`0` Good, `1` Marginal, `2` Poor).
+    pub edge_surface_quality: Vec<u8>,
     /// Parallel to `node_ids`: `1` when the node is a profile access-blocked barrier.
     pub node_access_blocked: Vec<u8>,
 }
@@ -133,6 +145,11 @@ impl FlatGraphPack {
         let mut edge_end_lon = Vec::with_capacity(n);
         let mut edge_highway = Vec::with_capacity(n);
         let mut edge_maxspeed_kmh = Vec::with_capacity(n);
+        let mut edge_maxspeed_practical_kmh = Vec::with_capacity(n);
+        let mut edge_maxspeed_advisory_kmh = Vec::with_capacity(n);
+        let mut edge_maxspeed_type = Vec::with_capacity(n);
+        let mut edge_maxspeed_variable = Vec::with_capacity(n);
+        let mut edge_minspeed_kmh = Vec::with_capacity(n);
         let mut edge_name = Vec::with_capacity(n);
         let mut edge_road_ref = Vec::with_capacity(n);
         let mut edge_is_motorroad = Vec::with_capacity(n);
@@ -156,6 +173,7 @@ impl FlatGraphPack {
         let mut edge_access_conditional = Vec::with_capacity(n);
         let mut edge_maxspeed_conditional = Vec::with_capacity(n);
         let mut edge_access_forbidden = Vec::with_capacity(n);
+        let mut edge_surface_quality = Vec::with_capacity(n);
         edge_shape_offsets.push(0);
 
         if elev.is_some() {
@@ -175,6 +193,11 @@ impl FlatGraphPack {
             edge_end_lon.push(e.end_lon);
             edge_highway.push(e.highway.clone().unwrap_or_default());
             edge_maxspeed_kmh.push(e.maxspeed_kmh.unwrap_or(f64::NAN));
+            edge_maxspeed_practical_kmh.push(pack_opt_metric(e.maxspeed_practical_kmh));
+            edge_maxspeed_advisory_kmh.push(pack_opt_metric(e.maxspeed_advisory_kmh));
+            edge_maxspeed_type.push(e.maxspeed_type.clone().unwrap_or_default());
+            edge_maxspeed_variable.push(u8::from(e.maxspeed_variable));
+            edge_minspeed_kmh.push(pack_opt_metric(e.minspeed_kmh));
             edge_name.push(e.name.clone().unwrap_or_default());
             edge_road_ref.push(e.road_ref.clone().unwrap_or_default());
             edge_is_motorroad.push(u8::from(e.is_motorroad));
@@ -196,6 +219,7 @@ impl FlatGraphPack {
             edge_access_conditional.push(e.access_conditional.clone().unwrap_or_default());
             edge_maxspeed_conditional.push(e.maxspeed_conditional.clone().unwrap_or_default());
             edge_access_forbidden.push(u8::from(e.access_forbidden));
+            edge_surface_quality.push(e.surface_quality.as_u8());
             for &(lon, lat) in &e.shape {
                 edge_shape_lons.push(lon);
                 edge_shape_lats.push(lat);
@@ -230,6 +254,11 @@ impl FlatGraphPack {
             edge_end_lon,
             edge_highway,
             edge_maxspeed_kmh,
+            edge_maxspeed_practical_kmh,
+            edge_maxspeed_advisory_kmh,
+            edge_maxspeed_type,
+            edge_maxspeed_variable,
+            edge_minspeed_kmh,
             edge_name,
             edge_road_ref,
             edge_is_motorroad,
@@ -253,6 +282,7 @@ impl FlatGraphPack {
             edge_access_conditional,
             edge_maxspeed_conditional,
             edge_access_forbidden,
+            edge_surface_quality,
             node_access_blocked,
         }
     }
@@ -341,6 +371,22 @@ impl FlatGraphPack {
                 } else {
                     None
                 },
+                maxspeed_practical_kmh: unpack_opt_metric(&self.edge_maxspeed_practical_kmh, i),
+                maxspeed_advisory_kmh: unpack_opt_metric(&self.edge_maxspeed_advisory_kmh, i),
+                maxspeed_type: {
+                    let s = self
+                        .edge_maxspeed_type
+                        .get(i)
+                        .map(String::as_str)
+                        .unwrap_or("");
+                    if s.is_empty() {
+                        None
+                    } else {
+                        Some(s.to_string())
+                    }
+                },
+                maxspeed_variable: self.edge_maxspeed_variable.get(i).copied().unwrap_or(0) != 0,
+                minspeed_kmh: unpack_opt_metric(&self.edge_minspeed_kmh, i),
                 name: if name.is_empty() {
                     None
                 } else {
@@ -409,11 +455,19 @@ impl FlatGraphPack {
                     }
                 },
                 access_forbidden: self.edge_access_forbidden.get(i).copied().unwrap_or(0) != 0,
-                surface_quality: infer_surface_from_highway(if hw.is_empty() {
-                    None
-                } else {
-                    Some(hw)
-                }),
+                surface_quality: SurfaceQuality::from_u8(
+                    self.edge_surface_quality
+                        .get(i)
+                        .copied()
+                        .unwrap_or_else(|| {
+                            // Pre-v8 packs should not reach here (format version gate).
+                            if hw == "track" {
+                                SurfaceQuality::Poor.as_u8()
+                            } else {
+                                SurfaceQuality::Good.as_u8()
+                            }
+                        }),
+                ),
             });
         }
         let mut blocked = std::collections::HashSet::new();
@@ -462,6 +516,8 @@ mod tests {
     use super::*;
     use crate::routing::graph::{GraphEdge, RouteGraph, RoutingProfile, SurfaceQuality};
     use geo_types::Coord;
+    use osm4routing::{Node, NodeId};
+    use std::collections::HashMap;
 
     #[test]
     fn pack_edge_delta_h_distinguishes_flat_from_missing() {
@@ -473,8 +529,6 @@ mod tests {
         assert!(!is_delta_h_missing(0.0));
         assert!(!is_delta_h_missing(-12.5));
     }
-    use osm4routing::{Node, NodeId};
-    use std::collections::HashMap;
 
     fn tiny_curved_graph() -> RouteGraph {
         let n1 = NodeId(1);
@@ -510,6 +564,11 @@ mod tests {
             shape: vec![(10.05, 60.04), (10.12, 60.07), (10.18, 60.09)],
             highway: Some("secondary".into()),
             maxspeed_kmh: Some(80.0),
+            maxspeed_practical_kmh: None,
+            maxspeed_advisory_kmh: None,
+            maxspeed_type: None,
+            maxspeed_variable: false,
+            minspeed_kmh: None,
             name: Some("Curvy".into()),
             road_ref: None,
             is_motorroad: false,
@@ -533,6 +592,24 @@ mod tests {
             surface_quality: SurfaceQuality::Good,
         }];
         RouteGraph::from_parts(nodes, edges, RoutingProfile::Car)
+    }
+
+    #[test]
+    fn pack_roundtrip_preserves_surface_quality() {
+        let mut graph = tiny_curved_graph();
+        graph.edges[0].surface_quality = SurfaceQuality::Marginal;
+        let pack = FlatGraphPack::from_route_graph(&graph, None);
+        assert_eq!(
+            pack.edge_surface_quality,
+            vec![SurfaceQuality::Marginal.as_u8()]
+        );
+        let bytes = rkyv::to_bytes::<rkyv::rancor::Error>(&pack).expect("serialize");
+        let archived =
+            rkyv::access::<ArchivedFlatGraphPack, rkyv::rancor::Error>(&bytes[..]).expect("access");
+        let restored: FlatGraphPack =
+            rkyv::deserialize::<FlatGraphPack, rkyv::rancor::Error>(archived).expect("deserialize");
+        let back = restored.to_route_graph(RoutingProfile::Car);
+        assert_eq!(back.edges[0].surface_quality, SurfaceQuality::Marginal);
     }
 
     #[test]
@@ -596,6 +673,11 @@ mod tests {
             shape: Vec::new(),
             highway: Some("primary".into()),
             maxspeed_kmh: None,
+            maxspeed_practical_kmh: None,
+            maxspeed_advisory_kmh: None,
+            maxspeed_type: None,
+            maxspeed_variable: false,
+            minspeed_kmh: None,
             name: None,
             road_ref: None,
             is_motorroad: false,

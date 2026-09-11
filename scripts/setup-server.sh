@@ -96,6 +96,7 @@ Would install static landing page:
 Full interactive sudo run would:
   1. Enable Apache site apache-navi-packs on :80
   2. Ensure service user ${SERVICE_USER} + bake/scrub systemd units
+     (enables navi-pack-scrub.timer daily + navi-pack-bake.timer weekly)
   3. Offer DATEX (interactive TTY only):
        Prompt: Do you want to set up a DATEX provider? [yes/no]
        If no:  leave NAVI_DATEX_NPRA_ENABLED=0 (no secrets, no timer)
@@ -125,14 +126,15 @@ require_root() {
 }
 
 # Create dedicated system user + install systemd units so bake jobs run as
-# navit-server (not a login account). Enables daily scrub timer (self-maintaining).
-# Does NOT enable the weekly bake timer.
+# navit-server (not a login account). Enables daily scrub timer and weekly
+# bake timer (Mon 00:00 UTC — see systemd/navi-pack-bake.timer).
 navit_server_apply() {
   require_root "--apply-service"
   command -v useradd >/dev/null 2>&1 || fail "useradd not found"
   command -v systemctl >/dev/null 2>&1 || fail "systemctl not found"
   [[ -f "$SERVICE_UNIT_SRC" ]] || fail "missing ${SERVICE_UNIT_SRC}"
   [[ -f "$BAKE_UNIT_SRC" ]] || fail "missing ${BAKE_UNIT_SRC}"
+  [[ -f "$BAKE_TIMER_SRC" ]] || fail "missing ${BAKE_TIMER_SRC}"
   [[ -f "$SCRUB_UNIT_SRC" ]] || fail "missing ${SCRUB_UNIT_SRC}"
   [[ -f "$SCRUB_TIMER_SRC" ]] || fail "missing ${SCRUB_TIMER_SRC}"
 
@@ -180,18 +182,17 @@ navit_server_apply() {
 
   install -m 0644 "$SERVICE_UNIT_SRC" "${SYSTEMD_DIR}/navit-server.service"
   install -m 0644 "$BAKE_UNIT_SRC" "${SYSTEMD_DIR}/navi-pack-bake.service"
-  if [[ -f "$BAKE_TIMER_SRC" ]]; then
-    install -m 0644 "$BAKE_TIMER_SRC" "${SYSTEMD_DIR}/navi-pack-bake.timer"
-  fi
+  install -m 0644 "$BAKE_TIMER_SRC" "${SYSTEMD_DIR}/navi-pack-bake.timer"
   install -m 0644 "$SCRUB_UNIT_SRC" "${SYSTEMD_DIR}/navi-pack-scrub.service"
   install -m 0644 "$SCRUB_TIMER_SRC" "${SYSTEMD_DIR}/navi-pack-scrub.timer"
   systemctl daemon-reload
-  # Daily scrub is part of self-maintaining setup; bake timer stays opt-in.
+  # Scheduled jobs: daily scrub + weekly Geofabrik pack bake.
   systemctl enable --now navi-pack-scrub.timer
+  systemctl enable --now navi-pack-bake.timer
   log "installed systemd units: navit-server.service navi-pack-bake.service navi-pack-scrub.service (+ timers)"
   log "enabled daily scrub: navi-pack-scrub.timer (systemctl list-timers navi-pack-scrub.timer)"
-  log "hand-run bake as service: sudo systemctl start navit-server.service"
-  log "weekly bake timer remains disabled until you: sudo systemctl enable --now navi-pack-bake.timer"
+  log "enabled weekly bake: navi-pack-bake.timer (Mon 00:00 UTC; systemctl list-timers navi-pack-bake.timer)"
+  log "hand-run bake as service: sudo systemctl start navi-pack-bake.service"
 }
 
 # Install + enable Dynamic DNS timer (requires data/ddns.env credentials).
@@ -412,8 +413,15 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
   else
     echo "MISSING scrub units (sudo $0 --apply-service)"
   fi
-  if [[ -f "${SYSTEMD_DIR}/navi-pack-bake.timer" ]]; then
-    echo "OK bake timer file installed (enabled=$(systemctl is-enabled navi-pack-bake.timer 2>/dev/null || echo no))"
+  if [[ -f "${SYSTEMD_DIR}/navi-pack-bake.service" && -f "${SYSTEMD_DIR}/navi-pack-bake.timer" ]]; then
+    echo "OK bake units installed"
+    if systemctl is-enabled navi-pack-bake.timer >/dev/null 2>&1; then
+      echo "OK navi-pack-bake.timer enabled ($(systemctl is-enabled navi-pack-bake.timer))"
+    else
+      echo "MISSING bake timer enable (sudo $0 --apply-service)"
+    fi
+  else
+    echo "MISSING bake units (sudo $0 --apply-service)"
   fi
   if [[ -f "${SYSTEMD_DIR}/navi-ddns.service" && -f "${SYSTEMD_DIR}/navi-ddns.timer" ]]; then
     echo "OK ddns units installed"

@@ -56,6 +56,12 @@ fn keep_way_tag(key: &str) -> bool {
             | "oneway"
             | "junction"
             | "maxspeed"
+            | "maxspeed:practical"
+            | "maxspeed:advisory"
+            | "maxspeed:type"
+            | "maxspeed:variable"
+            | "maxspeed:conditional"
+            | "minspeed"
             | "name"
             | "ref"
             | "int_ref"
@@ -79,13 +85,13 @@ fn keep_way_tag(key: &str) -> bool {
             | "ferry"
             | "bridge"
             | "surface"
+            | "tracktype"
             | "motor_vehicle"
             | "access"
             | "foot"
             | "bicycle"
             | "motor_vehicle:conditional"
             | "access:conditional"
-            | "maxspeed:conditional"
     )
 }
 
@@ -940,6 +946,16 @@ fn graph_from_raw_ways(
         if access::tags_forbid_mode(&way.tags, mode) {
             continue;
         }
+        // Mandated minimum speed: foot/bicycle cannot legally use the way.
+        if matches!(profile, RoutingProfile::Foot | RoutingProfile::Bicycle)
+            && way
+                .tags
+                .get("minspeed")
+                .and_then(|v| crate::routing::eta::parse_maxspeed_kmh(v))
+                .is_some()
+        {
+            continue;
+        }
         let mut source: Option<i64> = None;
         let mut prev: Option<(i64, f64, f64)> = None;
         let mut length_m = 0.0;
@@ -950,6 +966,23 @@ fn graph_from_raw_ways(
         let maxspeed_kmh = way
             .tags
             .get("maxspeed")
+            .and_then(|v| crate::routing::eta::parse_maxspeed_kmh(v));
+        let maxspeed_practical_kmh = way
+            .tags
+            .get("maxspeed:practical")
+            .and_then(|v| crate::routing::eta::parse_maxspeed_kmh(v));
+        let maxspeed_advisory_kmh = way
+            .tags
+            .get("maxspeed:advisory")
+            .and_then(|v| crate::routing::eta::parse_maxspeed_kmh(v));
+        let maxspeed_type = way.tags.get("maxspeed:type").cloned();
+        let maxspeed_variable = way
+            .tags
+            .get("maxspeed:variable")
+            .is_some_and(|v| super::builder::is_truthy_tag(v));
+        let minspeed_kmh = way
+            .tags
+            .get("minspeed")
             .and_then(|v| crate::routing::eta::parse_maxspeed_kmh(v));
         let name = way.tags.get("name").cloned();
         let road_ref = super::builder::combine_osm_road_refs(
@@ -1053,6 +1086,11 @@ fn graph_from_raw_ways(
                 shape_fwd,
                 highway.clone(),
                 maxspeed_kmh,
+                maxspeed_practical_kmh,
+                maxspeed_advisory_kmh,
+                maxspeed_type.clone(),
+                maxspeed_variable,
+                minspeed_kmh,
                 name.clone(),
                 road_ref.clone(),
                 is_motorroad,
@@ -1088,6 +1126,11 @@ fn graph_from_raw_ways(
                     shape_rev,
                     highway.clone(),
                     maxspeed_kmh,
+                    maxspeed_practical_kmh,
+                    maxspeed_advisory_kmh,
+                    maxspeed_type.clone(),
+                    maxspeed_variable,
+                    minspeed_kmh,
                     name.clone(),
                     road_ref.clone(),
                     is_motorroad,
@@ -1139,6 +1182,11 @@ fn bbox_edge(
     shape: Vec<(f64, f64)>,
     highway: Option<String>,
     maxspeed_kmh: Option<f64>,
+    maxspeed_practical_kmh: Option<f64>,
+    maxspeed_advisory_kmh: Option<f64>,
+    maxspeed_type: Option<String>,
+    maxspeed_variable: bool,
+    minspeed_kmh: Option<f64>,
     name: Option<String>,
     road_ref: Option<String>,
     is_motorroad: bool,
@@ -1175,6 +1223,11 @@ fn bbox_edge(
         shape,
         highway,
         maxspeed_kmh,
+        maxspeed_practical_kmh,
+        maxspeed_advisory_kmh,
+        maxspeed_type,
+        maxspeed_variable,
+        minspeed_kmh,
         name,
         road_ref,
         is_motorroad,

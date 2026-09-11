@@ -320,7 +320,14 @@ def rkyv_header_sane(path: Path) -> bool:
             return False
         magic = int.from_bytes(head[0:4], "little")
         # NVRK / NVPB / NVWL
-        return magic in (0x4E56524B, 0x4E565042, 0x4E56574C)
+        if magic not in (0x4E56524B, 0x4E565042, 0x4E56574C):
+            return False
+        # Graph packs (NVRK) must be FlatGraphPack format v8.
+        if magic == 0x4E56524B:
+            ver = int.from_bytes(head[4:8], "little")
+            if ver != 8:
+                return False
+        return True
     except OSError:
         return False
 

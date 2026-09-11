@@ -85,7 +85,7 @@ xxd -l 8 path/to/file.rkyv
 **Files:** `{stem}.navi-graph-{profile}.rkyv` or
 `{stem}.navi-graph-{profile}.t{row}_{col}.rkyv`
 
-**Constants:** `MAGIC_GRAPH`, `GRAPH_FORMAT_VERSION = 6`  
+**Constants:** `MAGIC_GRAPH`, `GRAPH_FORMAT_VERSION = 8`  
 **Source:** `pack-convert-core/src/routing/indexed/graph_pack.rs`
 
 ### Contents
@@ -99,11 +99,16 @@ Parallel column-store vectors (node count / edge count aligned):
 | `node_lats` / `node_lons` | `Vec<f64>` | Node coordinates (WGS84) |
 | `edge_src` / `edge_tgt` | `Vec<u32>` | Indices into `node_ids` |
 | `edge_length_m` | `Vec<f64>` | Edge length (metres) |
-| `edge_base_weight` | `Vec<f64>` | Profile routing weight |
+| `edge_base_weight` | `Vec<f64>` | Unpenalized base weight (`length_m`; soft costs applied at plan time) |
 | `edge_delta_h_m` | `Vec<f32>` | Elevation change end−start (m); **empty** if `has_delta_h` is false; **NaN** = missing DEM sample |
 | `edge_start_*` / `edge_end_*` | `Vec<f64>` | Edge endpoint lat/lon |
 | `edge_highway` | `Vec<String>` | OSM highway class |
-| `edge_maxspeed_kmh` | `Vec<f64>` | Maxspeed; **NaN** = unset |
+| `edge_maxspeed_kmh` | `Vec<f64>` | Posted maxspeed; **NaN** = unset |
+| `edge_maxspeed_practical_kmh` | `Vec<f64>` | OSM `maxspeed:practical`; **NaN** = unset |
+| `edge_maxspeed_advisory_kmh` | `Vec<f64>` | OSM `maxspeed:advisory`; **NaN** = unset |
+| `edge_maxspeed_type` | `Vec<String>` | Raw OSM `maxspeed:type` (empty = none) |
+| `edge_maxspeed_variable` | `Vec<u8>` | `1` when OSM `maxspeed:variable` is truthy |
+| `edge_minspeed_kmh` | `Vec<f64>` | OSM `minspeed`; **NaN** = unset |
 | `edge_name` / `edge_road_ref` | `Vec<String>` | Empty string = absent |
 | `edge_is_motorroad` / `expressway` / `oneway` / `toll` / `ferry` / `roundabout` / `boardwalk` | `Vec<u8>` | `0`/`1` flags |
 | `edge_lanes` | `Vec<u8>` | `0` = unset |
@@ -113,10 +118,11 @@ Parallel column-store vectors (node count / edge count aligned):
 | `edge_shape_lons` / `edge_shape_lats` | `Vec<f64>` | Intermediate shape points (endpoints excluded) |
 | `edge_*_conditional` | `Vec<String>` | Raw OSM conditional tags |
 | `edge_access_forbidden` | `Vec<u8>` | Profile-static forbid |
+| `edge_surface_quality` | `Vec<u8>` | `SurfaceQuality` as `u8` (`0` Good, `1` Marginal, `2` Poor) |
 | `node_access_blocked` | `Vec<u8>` | Barrier nodes |
 
 Shape CSR: edge `i` uses indices `[edge_shape_offsets[i], edge_shape_offsets[i+1])`
-into the lon/lat arrays. OSM way ids are **not** stored in v6.
+into the lon/lat arrays. OSM way ids are **not** stored in graph packs.
 
 ### Elevation Δh
 
@@ -389,6 +395,10 @@ sha256sum -c checksums.sha256
 - Bumping a version requires a new convert build and matching loaders; old packs
   must fail closed (`VersionMismatch`).
 - Graph history note: v5 lacked vehicle physical-limit vectors; **v6** added them.
+  **v7** added per-edge maxspeed practical/advisory/type/variable and minspeed.
+  **v8** (`GRAPH_FORMAT_VERSION = 8`) added `edge_surface_quality` (OSM
+  surface/tracktype class). Soft surface/maxspeed costs are **not** baked into
+  `edge_base_weight` (client applies them at plan time).
 - POI/barrier v2 added overnight building centroids.
 
 ---

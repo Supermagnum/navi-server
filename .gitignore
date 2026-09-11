@@ -42,6 +42,9 @@
 __pycache__/
 *.py[cod]
 
+# Rust build artifacts
+/target/
+
 # Runtime locks / DEM downloads (never commit)
 .tile_locks/
 /data/.publish.lock
