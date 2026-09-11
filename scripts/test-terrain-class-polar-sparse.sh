@@ -21,7 +21,7 @@ from pathlib import Path
 
 tmp = Path(sys.argv[1])
 polar = float(os.environ.get("NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE", "0.001"))
-dense_hi = float(os.environ.get("NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK", "25.0"))
+dense_hi = float(os.environ.get("NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK", "28.0"))
 wet_hi = float(os.environ.get("NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY", "1.0"))
 global_min = float(os.environ.get("NAVI_SIZE_GRAPH_MIN_RATIO", "0.10"))
 global_max = float(os.environ.get("NAVI_SIZE_GRAPH_MAX_RATIO", "20.0"))

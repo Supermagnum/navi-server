@@ -14,7 +14,7 @@
 # terrain_class=wetland_heavy relaxes ONLY wetland_max to
 # NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY (default 1.0).
 # terrain_class=dense_network relaxes ONLY graph_max to
-# NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK (default 25.0).
+# NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK (default 28.0).
 # Multiple classes allowed: terrain_class=wetland_heavy,dense_network
 # (comma or +). Explicit *_ratio keys still win when both set.
 #
@@ -139,12 +139,12 @@ _OVERRIDE_KEYS = {
 # delta extracts where wetland pack/PBF is predictably high (ceiling still
 # catches runaway duplication, e.g. ratio 3+). dense_network: fine-grained
 # residential/service tagging → high graph pack/PBF (ceiling still catches
-# runaway duplication well above 25).
+# runaway duplication well above 28).
 _TERRAIN_CLASS_GRAPH_MIN = {
     "polar_sparse": ratio_env("NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE", "0.001"),
 }
 _TERRAIN_CLASS_GRAPH_MAX = {
-    "dense_network": ratio_env("NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK", "25.0"),
+    "dense_network": ratio_env("NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK", "28.0"),
 }
 _TERRAIN_CLASS_WETLAND_MAX = {
     "wetland_heavy": ratio_env("NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY", "1.0"),

@@ -349,7 +349,7 @@ narrow or widen one band for one region (e.g. `wetland_max_ratio=1.0`).
 mangrove / coastal-marsh / major-delta extracts (anchors: Hedmark 0.786,
 Guinea-Bissau 0.643, Florida 0.576). `terrain_class=dense_network` sets
 only `graph_max` to `NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK` (default
-`25.0`) for fine-grained residential/service road tagging (anchors:
+`28.0`) for fine-grained residential/service road tagging (anchors:
 Vietnam ~23.1, Thailand ~20.3; not Asia-locked — Mexico ~16.3). Multiple
 classes may be comma-separated. Untagged regions keep global floors/
 ceilings. “Wet climate” alone is not enough — Brazil Norte (Amazon) measured

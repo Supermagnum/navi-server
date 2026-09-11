@@ -598,7 +598,7 @@ An explicit `graph_min_ratio=` on the same line still wins over the class floor.
 
 **`terrain_class=dense_network`.** Same shape for the graph *max* band:
 relaxes **only** `graph_max` to `NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK`
-(default `25.0`). Global `20.0` stays for untagged regions. Mechanism:
+(default `28.0`). Global `20.0` stays for untagged regions. Mechanism:
 fine-grained residential/service OSM tagging → high graph pack/PBF without
 duplication (measured anchors that justified the class: Vietnam ~23.1,
 Thailand ~20.3; peers that approached the old ceiling: Shandong ~19.8,
@@ -606,7 +606,7 @@ Henan ~18.1, Hebei ~17.1, Mexico ~16.3, Malaysia/SG/BN ~15.2). Not
 Asia-locked — Mexico is in-band evidence. Counterexamples (Philippines
 ~5.5, Java ~7.6) show dense countries are not automatically this class.
 Multiple classes on one line are allowed (`terrain_class=wetland_heavy,dense_network`).
-Validate logs `band=[…,25.0] (terrain_class=dense_network)`.
+Validate logs `band=[…,28.0] (terrain_class=dense_network)`.
 
 **`terrain_class=wetland_heavy`.** Same shape for the wetland *max* band:
 relaxes **only** `wetland_max` to `NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY`

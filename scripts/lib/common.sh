@@ -72,7 +72,7 @@ load_config() {
   # Floor for terrain_class=polar_sparse only (does not widen the global min).
   : "${NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE:=0.001}"
   # Ceiling for terrain_class=dense_network only (does not widen the global max).
-  : "${NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK:=25.0}"
+  : "${NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK:=28.0}"
   : "${NAVI_SIZE_POI_MIN_RATIO:=0.01}"
   : "${NAVI_SIZE_POI_MAX_RATIO:=1.50}"
   : "${NAVI_SIZE_WETLAND_MIN_RATIO:=0.0}"
