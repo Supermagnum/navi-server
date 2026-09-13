@@ -211,10 +211,13 @@ Internal state/cache (not served): `data/datex_npra/` and `data/secrets/`
 Client-facing (DocumentRoot): `data/published/datex/npra/`  
 Registry: `data/published/datex/providers.json`
 
-Apache (`http/apache-navi-packs.conf`): DocumentRoot stays `data/published`;
+Apache (`http/apache-navi-packs.conf` on :80, plus host
+`navi-packs-common.conf` on :443): DocumentRoot stays `data/published`;
 `Options -Indexes` on the tree; dedicated `<Directory …/published/datex>` also
 disables indexes and denies `*.partial` / `*.env` / script-like suffixes.
-RewriteRules map legacy flat NPRA filenames to `/datex/npra/`.
+Shared `http/apache-navi-datex-rewrites.conf` maps legacy flat NPRA filenames
+to `/datex/npra/` on both vhosts (`datex-migrate-layout.sh` and
+`setup-server.sh --apply-apache` install that snippet).
 `data/secrets` and `data/datex_npra` are denied via `DirectoryMatch`.
 
 No live proxy: client requests never influence upstream query parameters.
@@ -235,6 +238,7 @@ Inbound surface remains GET/HEAD-only via the existing Apache vhost.
 ```bash
 cd /media/navi/navi-server
 python3 -m unittest plugins.datex_common.tests.test_datex_common -v
+python3 -m unittest plugins.datex_common.tests.test_apache_rewrite_snippet -v
 python3 -m unittest plugins.datex_npra.tests.test_datex_npra -v
 ```
 
@@ -248,4 +252,7 @@ curl -fsSI "http://127.0.0.1/datex/GetSituation.xml" | grep -i '^Location:'
 # expect: Location: .../datex/npra/GetSituation.xml
 curl -fsSI "http://127.0.0.1/datex/providers.json" | head -n1
 # expect: HTTP/1.1 200 (or 404 if registry not written yet) — not a redirect to npra
+# HTTPS pack host must 301 the same legacy paths (shared rewrite snippet):
+curl -fsSI "https://<host>/datex/source.json" | grep -i '^Location:'
+curl -fsSI "https://<host>/datex/GetSituation.xml" | grep -i '^Location:'
 ```

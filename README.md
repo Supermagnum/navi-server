@@ -208,6 +208,7 @@ COPY http ./http
 COPY systemd ./systemd
 COPY docs ./docs
 RUN mkdir -p data/published/packs \
+    && cp http/apache-navi-datex-rewrites.conf /etc/apache2/conf-available/ \
     && cp http/apache-navi-packs.conf /etc/apache2/sites-available/ \
     && a2dissite 000-default \
     && a2ensite apache-navi-packs \
@@ -770,6 +771,8 @@ Packs are served from `data/published/` only — never from `scripts/`,
 - Fallback :8097 Python server only if Apache is down
 
 ```bash
+sudo cp /media/navi/navi-server/http/apache-navi-datex-rewrites.conf \
+        /etc/apache2/conf-available/apache-navi-datex-rewrites.conf
 sudo cp /media/navi/navi-server/http/apache-navi-packs.conf \
         /etc/apache2/sites-available/apache-navi-packs.conf
 sudo a2dissite 000-default.conf

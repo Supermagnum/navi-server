@@ -24,6 +24,9 @@ DATA="${NAVI_SERVER_ROOT}/data"
 CONVERT_BIN="${NAVI_SERVER_ROOT}/target/release/navi-indexed-convert"
 APACHE_SRC="${NAVI_SERVER_ROOT}/http/apache-navi-packs.conf"
 APACHE_DST="/etc/apache2/sites-available/apache-navi-packs.conf"
+DATEX_REWRITE_SRC="${NAVI_SERVER_ROOT}/http/apache-navi-datex-rewrites.conf"
+DATEX_REWRITE_DST="/etc/apache2/conf-available/apache-navi-datex-rewrites.conf"
+NAVI_PACKS_COMMON_CONF="/etc/apache2/conf-available/navi-packs-common.conf"
 SERVICE_USER="${NAVI_SERVICE_USER:-navit-server}"
 SERVICE_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navit-server.service"
 BAKE_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navi-pack-bake.service"
@@ -411,6 +414,13 @@ path.chmod(0o600)
   systemctl start navi-datex-npra.service \
     || warn "initial DATEX poll failed — check journalctl -u navi-datex-npra.service (operator only)"
   datex_migrate_publish_layout
+  if command -v apache2ctl >/dev/null 2>&1 && [[ -f "$DATEX_REWRITE_SRC" ]]; then
+    cp "$DATEX_REWRITE_SRC" "$DATEX_REWRITE_DST"
+    ensure_datex_rewrite_include
+    [[ -f "$APACHE_SRC" ]] && cp "$APACHE_SRC" "$APACHE_DST"
+    apache2ctl configtest && systemctl reload apache2 \
+      || warn "Apache DATEX rewrite install failed — run --apply-apache"
+  fi
   log "enabled DATEX NPRA poll: navi-datex-npra.timer"
   log "set NAVI_DATEX_NPRA_USER_AGENT contact in ${DATA}/config.env if still a placeholder"
   log "client cache path (after successful poll): ${DATA}/published/datex/npra/"
@@ -492,6 +502,16 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
   if command -v apache2ctl >/dev/null 2>&1; then
     apache2ctl -S 2>&1 | grep -E 'navi-packs|\*:80' || true
   fi
+  if [[ -f "$DATEX_REWRITE_DST" ]]; then
+    echo "OK DATEX rewrite snippet ${DATEX_REWRITE_DST}"
+  else
+    echo "MISSING DATEX rewrite snippet (sudo $0 --apply-apache)"
+  fi
+  if [[ -f "$NAVI_PACKS_COMMON_CONF" ]] && grep -q 'apache-navi-datex-rewrites.conf' "$NAVI_PACKS_COMMON_CONF"; then
+    echo "OK HTTPS common conf includes DATEX rewrites"
+  elif [[ -f "$NAVI_PACKS_COMMON_CONF" ]]; then
+    echo "MISSING DATEX Include in ${NAVI_PACKS_COMMON_CONF} (sudo $0 --apply-apache)"
+  fi
   code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/current.json || true)"
   echo "GET /current.json -> ${code}"
   root_code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/ || true)"
@@ -543,11 +563,46 @@ if systemctl --user is-active navi-packs-static.service >/dev/null 2>&1; then
   log "stopped user unit navi-packs-static (port 8097)"
 fi
 
+
+ensure_datex_rewrite_include() {
+  local conf="${NAVI_PACKS_COMMON_CONF}"
+  local inc="Include ${DATEX_REWRITE_DST}"
+  if [[ ! -f "$conf" ]]; then
+    log "WARN: ${conf} missing — :443 DATEX redirects not installed"
+    return 0
+  fi
+  python3 - "$conf" "$inc" <<'PY2'
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+inc = sys.argv[2].rstrip() + "\n"
+text = path.read_text(encoding="utf-8")
+if inc.strip() in text:
+    raise SystemExit(0)
+engine = "RewriteEngine On\n"
+inserted = False
+for needle in ("RewriteRule ^ - [R=403,L]\n", "RewriteRule ^ - [R=405,L]\n"):
+    if needle in text:
+        text = text.replace(needle, needle + inc, 1)
+        inserted = True
+        break
+if not inserted:
+    if engine in text:
+        text = text.replace(engine, engine + inc, 1)
+    else:
+        text = engine + inc + text
+path.write_text(text, encoding="utf-8")
+PY2
+}
+
 # --- Apache (sudo) ---
 apache_apply() {
   [[ -f "$APACHE_SRC" ]] || fail "missing ${APACHE_SRC}"
+  [[ -f "$DATEX_REWRITE_SRC" ]] || fail "missing ${DATEX_REWRITE_SRC}"
   command -v apache2ctl >/dev/null 2>&1 || fail "apache2 not installed"
   datex_migrate_publish_layout
+  cp "$DATEX_REWRITE_SRC" "$DATEX_REWRITE_DST"
+  ensure_datex_rewrite_include
   cp "$APACHE_SRC" "$APACHE_DST"
   a2dissite 000-default.conf >/dev/null 2>&1 || true
   a2ensite apache-navi-packs >/dev/null
