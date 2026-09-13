@@ -90,17 +90,22 @@ also fetch **cached** NPRA DATEX II XML from the same DocumentRoot. This is
 Full flow and operator setup: [datex-npra.md](datex-npra.md) (see especially
 **How clients fetch DATEX data**). Open feeds survey: [datex-open-feeds.md](datex-open-feeds.md). Adding providers: [datex-adding-sources.md](datex-adding-sources.md).
 
+Canonical paths are under `/datex/npra/`. Legacy flat `/datex/<file>` URLs
+**301 redirect** to `/datex/npra/<file>`. Provider registry: `/datex/providers.json`.
+
 | URL | Meaning |
 |---|---|
-| `GET /datex/source.json` | NPRA attribution / NLOD note |
-| `GET /datex/GetSituation.xml` | Cached situation snapshot |
-| `GET /datex/GetTravelTimeData.xml` | Cached travel-time snapshot |
-| `GET /datex/GetMeasuredWeatherData.xml` | Cached measured-weather snapshot |
-| `GET /datex/GetCCTVSiteTable.xml` | Cached CCTV site table |
+| `GET /datex/npra/source.json` | NPRA attribution / NLOD note |
+| `GET /datex/npra/GetSituation.xml` | Cached situation snapshot |
+| `GET /datex/npra/GetTravelTimeData.xml` | Cached travel-time snapshot |
+| `GET /datex/npra/GetMeasuredWeatherData.xml` | Cached measured-weather snapshot |
+| `GET /datex/npra/GetCCTVSiteTable.xml` | Cached CCTV site table |
+| `GET /datex/providers.json` | Known providers on this host (no secrets) |
+| `GET /datex/GetSituation.xml` (etc.) | Compat redirect → `/datex/npra/...` |
 
 ```bash
-curl -fsS "http://<host>/datex/source.json"
-curl -fsS -o situations.xml "http://<host>/datex/GetSituation.xml"
+curl -fsS "http://<host>/datex/npra/source.json"
+curl -fsS -o situations.xml "http://<host>/datex/npra/GetSituation.xml"
 ```
 
 Clients must **not** hold NPRA credentials or call vegvesen.no directly for
@@ -227,8 +232,8 @@ if/when 443 is configured.
 
 Guarantees on that listener:
 
-- **GET / HEAD only** — other methods → 405 (Python server) or deny (Apache
-  `LimitExcept`)
+- **GET / HEAD only** — other methods → 403 on Apache (rewrite + `LimitExcept`);
+  the :8097 Python fallback still returns 405
 - **No PHP / CGI / SSI / request-driven execution**
 - **Document root confinement** — URL paths cannot escape `data/published/`
 - **No request body used as input** to any program — there is no dynamic handler
@@ -282,6 +287,8 @@ bodies; it only writes files the static server can later GET.
 ### Apache on port 80 (default)
 
 ```bash
+sudo cp /media/navi/navi-server/http/apache-navi-datex-rewrites.conf \
+        /etc/apache2/conf-available/apache-navi-datex-rewrites.conf
 sudo cp /media/navi/navi-server/http/apache-navi-packs.conf \
         /etc/apache2/sites-available/apache-navi-packs.conf
 sudo a2dissite 000-default.conf

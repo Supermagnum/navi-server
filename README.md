@@ -17,6 +17,7 @@ unconditional fallback and is untouched by this tree.
   - [Docker / Linux containers](#docker--linux-containers)
   - [Dynamic DNS (optional)](#dynamic-dns-optional)
   - [DATEX NPRA redistribution (optional — off by default)](#datex-npra-redistribution-optional--off-by-default)
+  - [Adding other DATEX countries (Germany, Denmark, …)](#adding-other-datex-countries-germany-denmark-)
 - [Independently testable steps](#independently-testable-steps)
   - [0. Disk space](#0-disk-space)
   - [1. Fetch](#1-fetch)
@@ -207,6 +208,7 @@ COPY http ./http
 COPY systemd ./systemd
 COPY docs ./docs
 RUN mkdir -p data/published/packs \
+    && cp http/apache-navi-datex-rewrites.conf /etc/apache2/conf-available/ \
     && cp http/apache-navi-packs.conf /etc/apache2/sites-available/ \
     && a2dissite 000-default \
     && a2ensite apache-navi-packs \
@@ -346,8 +348,10 @@ same read-only HTTP GET surface used for packs.
   --------------------             -----------------------             ------------
   GET …/pullsnapshotdata  <----    poller (Basic Auth, outbound)
         XML snapshots      ---->   data/datex_npra/ (private state)
-                                   data/published/datex/*.xml   ---->  GET /datex/*.xml
-                                   data/published/datex/source.json -> GET /datex/source.json
+                                   data/published/datex/npra/*.xml   ---->  GET /datex/npra/*.xml
+                                   data/published/datex/npra/source.json -> GET /datex/npra/source.json
+                                   data/published/datex/providers.json -> GET /datex/providers.json
+                                   (legacy GET /datex/*.xml 301 -> /datex/npra/*.xml)
 ```
 
 1. **Outbound poll (server only).** When enabled, `navi-datex-npra.timer` runs
@@ -356,12 +360,14 @@ same read-only HTTP GET surface used for packs.
    `GetCCTVSiteTable`) with HTTP Basic Auth. Conditional GET
    (`If-Modified-Since`) and backoff/jitter avoid hammering the node.
 2. **Cache, do not proxy.** Successful bodies are written atomically under
-   `data/published/datex/` as unmodified XML. Client requests never become
+   `data/published/datex/npra/` as unmodified XML. Client requests never become
    upstream query parameters — there is no live reverse-proxy to NPRA.
 3. **Inbound serve (read-only).** Apache DocumentRoot already includes
    `data/published/`, so clients fetch plain files:
-   - `GET /datex/source.json` — NPRA attribution / NLOD note (no secrets)
-   - `GET /datex/GetSituation.xml` (and the other endpoint names)
+   - `GET /datex/npra/source.json` — NPRA attribution / NLOD note (no secrets)
+   - `GET /datex/npra/GetSituation.xml` (and the other endpoint names)
+   - `GET /datex/providers.json` — provider registry (no secrets)
+   - Legacy `GET /datex/GetSituation.xml` etc. permanently redirect to `/datex/npra/...`
 4. **Off by default.** Fresh setup leaves DATEX disabled until you answer
    **yes** to the DATEX provider prompt (full interactive setup or
    `--apply-datex`) and supply username/password, **or** until you enable it
@@ -377,8 +383,9 @@ sudo /media/navi/navi-server/scripts/setup-server.sh --apply-datex
 systemctl list-timers navi-datex-npra.timer
 journalctl -u navi-datex-npra.service -n 50
 # After a successful poll:
-curl -sI http://127.0.0.1/datex/source.json
-curl -sI http://127.0.0.1/datex/GetSituation.xml
+curl -sI http://127.0.0.1/datex/npra/source.json
+curl -sI http://127.0.0.1/datex/npra/GetSituation.xml
+curl -sI http://127.0.0.1/datex/GetSituation.xml   # expect 301 -> /datex/npra/...
 
 sudo /media/navi/navi-server/scripts/uninstall-datex-npra.sh [--purge]
 ```
@@ -424,11 +431,93 @@ re-prompts and would overwrite the secrets file.
 [`docs/datex-npra.md` — How clients fetch DATEX data](docs/datex-npra.md#how-clients-fetch-datex-data)
 and [`docs/client-fetch.md`](docs/client-fetch.md#datex-npra-optional).
 
-See also open anonymous feeds ([`docs/datex-open-feeds.md`](docs/datex-open-feeds.md)) and how to add another provider ([`docs/datex-adding-sources.md`](docs/datex-adding-sources.md)).
+```bash
+curl -fsS "http://<host>/datex/npra/source.json"
+curl -fsS -o situations.xml "http://<host>/datex/npra/GetSituation.xml"
+```
+
+### Adding other DATEX countries (Germany, Denmark, …)
+
+Only **Norway NPRA** ships as an implemented poller today. Other National Access
+Points (Germany Mobilithek, Denmark, NDW, Digitraffic, TIPI, …) need a separate
+plugin under `plugins/datex_<id>/`, publish under `data/published/datex/<id>/`,
+and serve clients at `/datex/<id>/`. Every extra provider stays **off by default**.
+
+Do **not** reuse `NAVI_DATEX_NPRA_*` (or NPRA secrets) for another NAP — each
+provider gets its own enable flag, endpoints, and optional secrets file.
+
+Open anonymous feeds and the full add-a-source procedure:
+
+- [`docs/datex-open-feeds.md`](docs/datex-open-feeds.md) — surveyed open / registration feeds
+- [`docs/datex-adding-sources.md`](docs/datex-adding-sources.md) — plugin layout and wire-up
+
+| Country / NAP | Access (typical) | Starting URL | Suggested `provider_id` |
+|---|---|---|---|
+| Norway (NPRA) | Basic auth after register | [vegvesen.no DATEX](https://www.vegvesen.no/en/fag/technology/open-data/a-selection-of-open-data/what-is-datex/) | `npra` (implemented) |
+| Germany (Mobilithek) | Portal account / licence | [mobilithek.info](https://mobilithek.info/) | `de` |
+| Denmark | Portal account / licence | NAP / operator portal (re-check current DATEX entry) | `dk` |
+| Netherlands (NDW) | Anonymous open data | [opendata.ndw.nu](https://opendata.ndw.nu/) | `ndw` |
+| Finland (Digitraffic) | Anonymous (gzip) | [digitraffic.fi road traffic](https://www.digitraffic.fi/en/road-traffic/) | `fi` |
+| France (TIPI open DIR) | Anonymous open tree | [TIPI Evenementiel-DIR](https://tipi.bison-fute.gouv.fr/bison-fute-ouvert/publicationsDIR/Evenementiel-DIR/) | `tipi` |
+| Belgium (Flanders) | Anonymous DATEX XML | `https://www.verkeerscentrum.be/uitwisseling/datex2v3full` | `flanders` |
+| Luxembourg (CITA) | Anonymous (CC0) | `https://cita.lu/info_trafic/datex/situationrecord36` | `cita` |
+| Sweden / UK / Austria… | Registration when online | See [`docs/datex-open-feeds.md`](docs/datex-open-feeds.md) | e.g. `se`, `uk`, `at` |
+
+**Scaffold stubs** (disabled; no live endpoints until you implement the poller):
 
 ```bash
-curl -fsS "http://<host>/datex/source.json"
-curl -fsS -o situations.xml "http://<host>/datex/GetSituation.xml"
+./scripts/new-datex-provider.sh de
+./scripts/new-datex-provider.sh dk
+```
+
+**`data/config.env` examples** (leave disabled until the plugin is ready):
+
+```bash
+# Germany (Mobilithek) — off by default
+NAVI_DATEX_DE_ENABLED=0
+NAVI_DATEX_DE_SECRETS_FILE=/media/navi/navi-server/data/secrets/datex_de.env
+
+# Denmark — off by default
+NAVI_DATEX_DK_ENABLED=0
+NAVI_DATEX_DK_SECRETS_FILE=/media/navi/navi-server/data/secrets/datex_dk.env
+```
+
+**Secrets file example** (credentialed Germany; mode `0600`; never commit):
+
+```bash
+sudo mkdir -p /media/navi/navi-server/data/secrets
+sudo tee /media/navi/navi-server/data/secrets/datex_de.env >/dev/null <<'EOF'
+# DATEX DE (Mobilithek) credentials — mode 0600. Do not commit.
+NAV_DATEX_USERNAME=your_mobilithek_username
+NAV_DATEX_PASSWORD=your_mobilithek_password
+EOF
+sudo chmod 600 /media/navi/navi-server/data/secrets/datex_de.env
+sudo chown navit-server:navit-server   /media/navi/navi-server/data/secrets   /media/navi/navi-server/data/secrets/datex_de.env
+sudo chmod 700 /media/navi/navi-server/data/secrets
+```
+
+**Wire-up checklist** (after implementing `plugins/datex_<id>/`):
+
+- [ ] Register the id in `plugins/datex_common/providers_index.py` (`KNOWN_PROVIDERS`)
+- [ ] Publish unmodified XML + `source.json` under `data/published/datex/<id>/`
+- [ ] Add `systemd/navi-datex-<id>.{service,timer}` and install only when enabling
+- [ ] Document endpoints / licence in `docs/datex-<id>.md` and client URLs
+- [ ] Keep `NAVI_DATEX_<ID>_ENABLED=0` until credentials and a successful poll are verified
+- [ ] Clients use `/datex/<id>/…` and `/datex/providers.json` (no upstream NAP credentials)
+
+**Open feed example (NDW — no secrets file):** implement `plugins/datex_ndw/`, set
+`NAVI_DATEX_NDW_ENABLED=0` until ready, omit `NAVI_DATEX_NDW_SECRETS_FILE`, and
+pull named files from the [NDW open data index](https://opendata.ndw.nu/) (use
+current index filenames, not obsolete short names). Still use a dedicated
+provider id (`ndw`) and `/datex/ndw/` — never overload NPRA config.
+
+**Client fetch** (same host, no credentials; empty until each provider has data):
+
+```bash
+curl -fsS "http://<host>/datex/providers.json"
+curl -fsS "http://<host>/datex/de/source.json"
+curl -fsS "http://<host>/datex/dk/source.json"
+curl -fsS "http://<host>/datex/ndw/source.json"
 ```
 
 ```bash
@@ -682,6 +771,8 @@ Packs are served from `data/published/` only — never from `scripts/`,
 - Fallback :8097 Python server only if Apache is down
 
 ```bash
+sudo cp /media/navi/navi-server/http/apache-navi-datex-rewrites.conf \
+        /etc/apache2/conf-available/apache-navi-datex-rewrites.conf
 sudo cp /media/navi/navi-server/http/apache-navi-packs.conf \
         /etc/apache2/sites-available/apache-navi-packs.conf
 sudo a2dissite 000-default.conf

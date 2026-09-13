@@ -67,6 +67,16 @@ class EnabledGateTests(unittest.TestCase):
             self.assertEqual(calls, [])
             self.assertFalse((root / "published" / "datex").exists())
 
+    def test_publish_dir_is_namespaced_npra(self):
+        cfg = load_config(
+            {"NAVI_DATEX_NPRA_ENABLED": "1"},
+            pack_root=Path("/tmp/fake-pack-root"),
+        )
+        self.assertEqual(
+            cfg.publish_dir,
+            Path("/tmp/fake-pack-root/published/datex/npra"),
+        )
+
 
 class AuthMessageTests(unittest.TestCase):
     def test_missing_401_403_messages(self):
@@ -232,10 +242,19 @@ class EnabledPollWritesAttribution(unittest.TestCase):
             rc = poll_once(environ=env, opener=opener, jitter=False)
             self.assertEqual(rc, 0)
             source = json.loads(
-                (root / "published" / "datex" / "source.json").read_text(encoding="utf-8")
+                (root / "published" / "datex" / "npra" / "source.json").read_text(
+                    encoding="utf-8"
+                )
             )
             blob = json.dumps(source)
             self.assertIn("NPRA", source["source"])
+            self.assertEqual(source.get("provider_id"), "npra")
+            self.assertTrue((root / "published" / "datex" / "npra" / "GetSituation.xml").is_file())
+            providers = json.loads(
+                (root / "published" / "datex" / "providers.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(providers["providers"][0]["id"], "npra")
+            self.assertTrue(providers["providers"][0]["has_data"])
             self.assertNotIn("password", blob.lower())
             self.assertNotIn("NAV_DATEX", blob)
             self.assertNotEqual(source.get("username", None), "u")

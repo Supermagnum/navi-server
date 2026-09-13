@@ -7,6 +7,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List
 
+from plugins.datex_common.enable import is_truthy, provider_enabled
+from plugins.datex_common.publish import provider_publish_dir
+from plugins.datex_common.providers_index import PROVIDER_ID_NPRA
+
 # Default snapshot endpoints documented by NPRA DATEX II v3.1 HTTP GET API.
 DEFAULT_ENDPOINTS: List[str] = [
     "GetSituation",
@@ -35,11 +39,7 @@ DEFAULT_ENDPOINT_INTERVALS: Dict[str, int] = {
     "GetCCTVSiteTable": 43200,
 }
 
-
-def _truthy(raw: str | None, default: bool = False) -> bool:
-    if raw is None or raw == "":
-        return default
-    return raw.strip().lower() in ("1", "true", "yes", "on")
+PROVIDER_ID = PROVIDER_ID_NPRA
 
 
 def is_enabled(environ: dict[str, str] | None = None) -> bool:
@@ -48,7 +48,7 @@ def is_enabled(environ: dict[str, str] | None = None) -> bool:
     This is the hard gate: callers must check this before credentials or HTTP.
     """
     env = environ if environ is not None else os.environ
-    return _truthy(env.get("NAVI_DATEX_NPRA_ENABLED"), default=False)
+    return provider_enabled(PROVIDER_ID, env, env_key="NAVI_DATEX_NPRA_ENABLED")
 
 
 def _clamp_interval(raw: int) -> int:
@@ -90,8 +90,9 @@ class Config:
     pack_root: Path = Path("/media/navi/navi-server/data")
     secrets_file: Path = Path("/media/navi/navi-server/data/secrets/datex_npra.env")
     cache_dir: Path = Path("/media/navi/navi-server/data/datex_npra/cache")
-    publish_dir: Path = Path("/media/navi/navi-server/data/published/datex")
+    publish_dir: Path = Path("/media/navi/navi-server/data/published/datex/npra")
     state_dir: Path = Path("/media/navi/navi-server/data/datex_npra/state")
+    provider_id: str = PROVIDER_ID
 
     def interval_for(self, endpoint: str) -> int:
         """Per-endpoint poll interval; falls back to global poll_interval_secs."""
@@ -141,13 +142,14 @@ def load_config(
         endpoints=endpoints,
         poll_interval_secs=poll,
         endpoint_poll_interval_secs=endpoint_intervals,
-        use_if_modified_since=_truthy(
+        use_if_modified_since=is_truthy(
             env.get("NAVI_DATEX_NPRA_USE_IF_MODIFIED_SINCE"), default=True
         ),
         user_agent=env.get("NAVI_DATEX_NPRA_USER_AGENT", DEFAULT_USER_AGENT),
         pack_root=root,
         secrets_file=secrets,
         cache_dir=root / "datex_npra" / "cache",
-        publish_dir=root / "published" / "datex",
+        publish_dir=provider_publish_dir(root, PROVIDER_ID),
         state_dir=root / "datex_npra" / "state",
+        provider_id=PROVIDER_ID,
     )

@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from plugins.datex_common.providers_index import rebuild_providers_index
+
 from .auth import AuthError, load_credentials
 from .client import UrlOpener, fetch_endpoint, write_source_metadata
 from .config import Config, is_enabled, load_config
@@ -108,6 +110,7 @@ def poll_once(
 
     if ok_endpoints:
         write_source_metadata(cfg, ok_endpoints)
+        rebuild_providers_index(cfg.pack_root, environ=env)
     return 0
 
 

@@ -6,10 +6,10 @@ Interactive prompts are intentionally unsupported (server daemon / setup owns th
 
 from __future__ import annotations
 
-import os
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Optional, Tuple
+from typing import Mapping
+
+from plugins.datex_common.secrets import AuthError, Credentials, load_basic_credentials
 
 # Operator-facing messages (journal / poller stderr). Not returned on the public
 # static GET surface. Exact live NPRA 401/403 *body* shapes are UNVERIFIED.
@@ -29,10 +29,6 @@ MSG_HTTP_403 = (
 )
 
 
-class AuthError(RuntimeError):
-    """Fail-closed credential / auth error for operators (not clients)."""
-
-
 def auth_failure_message(kind: str) -> str:
     """Return the canonical operator message for missing / 401 / 403."""
     key = kind.strip().lower()
@@ -45,53 +41,25 @@ def auth_failure_message(kind: str) -> str:
     raise ValueError(f"unknown auth failure kind: {kind}")
 
 
-@dataclass(frozen=True)
-class Credentials:
-    username: str
-    password: str
-
-
-def _parse_secrets_file(path: Path) -> Tuple[Optional[str], Optional[str]]:
-    user = None
-    password = None
-    text = path.read_text(encoding="utf-8")
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if "=" not in line:
-            continue
-        key, _, val = line.partition("=")
-        key = key.strip()
-        val = val.strip().strip("'").strip('"')
-        if key in ("NAV_DATEX_USERNAME", "USERNAME", "username"):
-            user = val
-        elif key in ("NAV_DATEX_PASSWORD", "PASSWORD", "password"):
-            password = val
-    return user, password
-
-
 def load_credentials(
     *,
     environ: Mapping[str, str] | None = None,
     secrets_file: Path | None = None,
 ) -> Credentials:
     """Load credentials: env first, then secrets file. Never prompts."""
-    env = environ if environ is not None else os.environ
-    user = (env.get("NAV_DATEX_USERNAME") or "").strip()
-    password = env.get("NAV_DATEX_PASSWORD")
-    if password is not None:
-        password = password.strip("\n\r")
+    return load_basic_credentials(
+        environ=environ,
+        secrets_file=secrets_file,
+        missing_message=auth_failure_message("missing"),
+    )
 
-    if user and password is not None and password != "":
-        return Credentials(username=user, password=password)
 
-    if secrets_file is not None and secrets_file.is_file():
-        file_user, file_pass = _parse_secrets_file(secrets_file)
-        user = user or (file_user or "")
-        if password is None or password == "":
-            password = file_pass
-        if user and password is not None and password != "":
-            return Credentials(username=user, password=password)
-
-    raise AuthError(auth_failure_message("missing"))
+__all__ = [
+    "AuthError",
+    "Credentials",
+    "MSG_HTTP_401",
+    "MSG_HTTP_403",
+    "MSG_MISSING_CREDENTIALS",
+    "auth_failure_message",
+    "load_credentials",
+]

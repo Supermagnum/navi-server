@@ -2,6 +2,9 @@
 # Remove DATEX NPRA redistribution units, cron leftovers, and optionally
 # secrets/cache/published snapshots installed by setup-server.sh --apply-datex.
 #
+# Removes only published/datex/npra/ (plus legacy flat NPRA filenames). Does not
+# wipe the whole published/datex/ tree when other providers may exist.
+#
 # Usage:
 #   sudo /media/navi/navi-server/scripts/uninstall-datex-npra.sh
 #   sudo /media/navi/navi-server/scripts/uninstall-datex-npra.sh --purge
@@ -14,6 +17,7 @@ DATA="${NAVI_SERVER_ROOT}/data"
 SYSTEMD_DIR="/etc/systemd/system"
 UNITS=(navi-datex-npra.timer navi-datex-npra.service)
 SECRETS="${DATA}/secrets/datex_npra.env"
+NPRA_PUBLISHED="${DATA}/published/datex/npra"
 
 PURGE=0
 CHECK_ONLY=0
@@ -22,7 +26,7 @@ while [[ $# -gt 0 ]]; do
     --purge) PURGE=1; shift ;;
     --check) CHECK_ONLY=1; shift ;;
     -h|--help)
-      sed -n '2,12p' "$0"
+      sed -n '2,14p' "$0"
       exit 0
       ;;
     *) echo "unknown arg: $1" >&2; exit 1 ;;
@@ -42,6 +46,7 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
     fi
   done
   [[ -f "$SECRETS" ]] && echo "PRESENT secrets" || echo "ABSENT secrets"
+  [[ -d "$NPRA_PUBLISHED" ]] && echo "PRESENT published/datex/npra" || echo "ABSENT published/datex/npra"
   [[ -d "${DATA}/published/datex" ]] && echo "PRESENT published/datex" || echo "ABSENT published/datex"
   [[ -d "${DATA}/datex_npra" ]] && echo "PRESENT data/datex_npra" || echo "ABSENT data/datex_npra"
   exit 0
@@ -100,16 +105,41 @@ if [[ -f "${DATA}/config.env" ]] && grep -q '^NAVI_DATEX_NPRA_ENABLED=' "${DATA}
   log "set NAVI_DATEX_NPRA_ENABLED=0 in config.env"
 fi
 
-# Always remove client-facing DATEX tree so the public route disappears.
-if [[ -d "${DATA}/published/datex" ]]; then
-  rm -rf "${DATA}/published/datex"
-  log "removed ${DATA}/published/datex"
+# Remove NPRA published tree only; leave other providers under published/datex/.
+if [[ -d "$NPRA_PUBLISHED" ]]; then
+  rm -rf "$NPRA_PUBLISHED"
+  log "removed ${NPRA_PUBLISHED}"
+fi
+# Legacy flat NPRA filenames (pre-namespaced layout).
+flat="${DATA}/published/datex"
+if [[ -d "$flat" ]]; then
+  for f in GetSituation.xml GetTravelTimeData.xml GetMeasuredWeatherData.xml \
+           GetCCTVSiteTable.xml source.json; do
+    if [[ -f "${flat}/${f}" ]]; then
+      rm -f "${flat}/${f}"
+      log "removed legacy flat ${flat}/${f}"
+    fi
+  done
+  if [[ -d "${NAVI_SERVER_ROOT}/plugins/datex_common" ]]; then
+    PYTHONPATH="${NAVI_SERVER_ROOT}${PYTHONPATH:+:${PYTHONPATH}}" \
+      NAVI_PACK_ROOT="${DATA}" \
+      python3 -c '
+import os
+from pathlib import Path
+from plugins.datex_common.providers_index import rebuild_providers_index
+rebuild_providers_index(Path(os.environ["NAVI_PACK_ROOT"]))
+' >/dev/null && log "refreshed ${flat}/providers.json" || true
+  fi
 fi
 
 if [[ "$PURGE" -eq 1 ]]; then
   rm -f "$SECRETS"
-  rm -rf "${DATA}/datex_npra" "${DATA}/secrets"
-  log "purged secrets and data/datex_npra"
+  rm -rf "${DATA}/datex_npra"
+  # Only remove secrets dir if empty / only held NPRA secrets.
+  if [[ -d "${DATA}/secrets" ]] && [[ -z "$(ls -A "${DATA}/secrets" 2>/dev/null || true)" ]]; then
+    rmdir "${DATA}/secrets" 2>/dev/null || true
+  fi
+  log "purged NPRA secrets and data/datex_npra"
 else
   log "kept secrets/cache (pass --purge to delete credentials and state)"
 fi
