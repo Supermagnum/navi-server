@@ -17,6 +17,7 @@ unconditional fallback and is untouched by this tree.
   - [Docker / Linux containers](#docker--linux-containers)
   - [Dynamic DNS (optional)](#dynamic-dns-optional)
   - [DATEX NPRA redistribution (optional — off by default)](#datex-npra-redistribution-optional--off-by-default)
+  - [Adding other DATEX countries (Germany, Denmark, …)](#adding-other-datex-countries-germany-denmark-)
 - [Independently testable steps](#independently-testable-steps)
   - [0. Disk space](#0-disk-space)
   - [1. Fetch](#1-fetch)
@@ -429,11 +430,93 @@ re-prompts and would overwrite the secrets file.
 [`docs/datex-npra.md` — How clients fetch DATEX data](docs/datex-npra.md#how-clients-fetch-datex-data)
 and [`docs/client-fetch.md`](docs/client-fetch.md#datex-npra-optional).
 
-See also open anonymous feeds ([`docs/datex-open-feeds.md`](docs/datex-open-feeds.md)) and how to add another provider ([`docs/datex-adding-sources.md`](docs/datex-adding-sources.md)).
-
 ```bash
 curl -fsS "http://<host>/datex/npra/source.json"
 curl -fsS -o situations.xml "http://<host>/datex/npra/GetSituation.xml"
+```
+
+### Adding other DATEX countries (Germany, Denmark, …)
+
+Only **Norway NPRA** ships as an implemented poller today. Other National Access
+Points (Germany Mobilithek, Denmark, NDW, Digitraffic, TIPI, …) need a separate
+plugin under `plugins/datex_<id>/`, publish under `data/published/datex/<id>/`,
+and serve clients at `/datex/<id>/`. Every extra provider stays **off by default**.
+
+Do **not** reuse `NAVI_DATEX_NPRA_*` (or NPRA secrets) for another NAP — each
+provider gets its own enable flag, endpoints, and optional secrets file.
+
+Open anonymous feeds and the full add-a-source procedure:
+
+- [`docs/datex-open-feeds.md`](docs/datex-open-feeds.md) — surveyed open / registration feeds
+- [`docs/datex-adding-sources.md`](docs/datex-adding-sources.md) — plugin layout and wire-up
+
+| Country / NAP | Access (typical) | Starting URL | Suggested `provider_id` |
+|---|---|---|---|
+| Norway (NPRA) | Basic auth after register | [vegvesen.no DATEX](https://www.vegvesen.no/en/fag/technology/open-data/a-selection-of-open-data/what-is-datex/) | `npra` (implemented) |
+| Germany (Mobilithek) | Portal account / licence | [mobilithek.info](https://mobilithek.info/) | `de` |
+| Denmark | Portal account / licence | NAP / operator portal (re-check current DATEX entry) | `dk` |
+| Netherlands (NDW) | Anonymous open data | [opendata.ndw.nu](https://opendata.ndw.nu/) | `ndw` |
+| Finland (Digitraffic) | Anonymous (gzip) | [digitraffic.fi road traffic](https://www.digitraffic.fi/en/road-traffic/) | `fi` |
+| France (TIPI open DIR) | Anonymous open tree | [TIPI Evenementiel-DIR](https://tipi.bison-fute.gouv.fr/bison-fute-ouvert/publicationsDIR/Evenementiel-DIR/) | `tipi` |
+| Belgium (Flanders) | Anonymous DATEX XML | `https://www.verkeerscentrum.be/uitwisseling/datex2v3full` | `flanders` |
+| Luxembourg (CITA) | Anonymous (CC0) | `https://cita.lu/info_trafic/datex/situationrecord36` | `cita` |
+| Sweden / UK / Austria… | Registration when online | See [`docs/datex-open-feeds.md`](docs/datex-open-feeds.md) | e.g. `se`, `uk`, `at` |
+
+**Scaffold stubs** (disabled; no live endpoints until you implement the poller):
+
+```bash
+./scripts/new-datex-provider.sh de
+./scripts/new-datex-provider.sh dk
+```
+
+**`data/config.env` examples** (leave disabled until the plugin is ready):
+
+```bash
+# Germany (Mobilithek) — off by default
+NAVI_DATEX_DE_ENABLED=0
+NAVI_DATEX_DE_SECRETS_FILE=/media/navi/navi-server/data/secrets/datex_de.env
+
+# Denmark — off by default
+NAVI_DATEX_DK_ENABLED=0
+NAVI_DATEX_DK_SECRETS_FILE=/media/navi/navi-server/data/secrets/datex_dk.env
+```
+
+**Secrets file example** (credentialed Germany; mode `0600`; never commit):
+
+```bash
+sudo mkdir -p /media/navi/navi-server/data/secrets
+sudo tee /media/navi/navi-server/data/secrets/datex_de.env >/dev/null <<'EOF'
+# DATEX DE (Mobilithek) credentials — mode 0600. Do not commit.
+NAV_DATEX_USERNAME=your_mobilithek_username
+NAV_DATEX_PASSWORD=your_mobilithek_password
+EOF
+sudo chmod 600 /media/navi/navi-server/data/secrets/datex_de.env
+sudo chown navit-server:navit-server   /media/navi/navi-server/data/secrets   /media/navi/navi-server/data/secrets/datex_de.env
+sudo chmod 700 /media/navi/navi-server/data/secrets
+```
+
+**Wire-up checklist** (after implementing `plugins/datex_<id>/`):
+
+- [ ] Register the id in `plugins/datex_common/providers_index.py` (`KNOWN_PROVIDERS`)
+- [ ] Publish unmodified XML + `source.json` under `data/published/datex/<id>/`
+- [ ] Add `systemd/navi-datex-<id>.{service,timer}` and install only when enabling
+- [ ] Document endpoints / licence in `docs/datex-<id>.md` and client URLs
+- [ ] Keep `NAVI_DATEX_<ID>_ENABLED=0` until credentials and a successful poll are verified
+- [ ] Clients use `/datex/<id>/…` and `/datex/providers.json` (no upstream NAP credentials)
+
+**Open feed example (NDW — no secrets file):** implement `plugins/datex_ndw/`, set
+`NAVI_DATEX_NDW_ENABLED=0` until ready, omit `NAVI_DATEX_NDW_SECRETS_FILE`, and
+pull named files from the [NDW open data index](https://opendata.ndw.nu/) (use
+current index filenames, not obsolete short names). Still use a dedicated
+provider id (`ndw`) and `/datex/ndw/` — never overload NPRA config.
+
+**Client fetch** (same host, no credentials; empty until each provider has data):
+
+```bash
+curl -fsS "http://<host>/datex/providers.json"
+curl -fsS "http://<host>/datex/de/source.json"
+curl -fsS "http://<host>/datex/dk/source.json"
+curl -fsS "http://<host>/datex/ndw/source.json"
 ```
 
 ```bash
