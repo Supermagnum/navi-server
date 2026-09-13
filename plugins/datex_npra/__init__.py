@@ -2,7 +2,8 @@
 
 Off by default. Enable only via NAVI_DATEX_NPRA_ENABLED=1 after credentials
 exist. Clients never see NPRA credentials; they only GET cached files under
-data/published/datex/.
+data/published/datex/npra/ (canonical). Legacy flat /datex/<file> URLs redirect
+to /datex/npra/<file>.
 
 UNVERIFIED against live NPRA (requires real credentials before production):
   - exact 401/403 response body shape
@@ -18,6 +19,7 @@ __all__ = [
     "Config",
     "DEFAULT_ENDPOINTS",
     "FetchResult",
+    "PROVIDER_ID",
     "auth_failure_message",
     "is_enabled",
     "load_config",

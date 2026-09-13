@@ -346,8 +346,10 @@ same read-only HTTP GET surface used for packs.
   --------------------             -----------------------             ------------
   GET …/pullsnapshotdata  <----    poller (Basic Auth, outbound)
         XML snapshots      ---->   data/datex_npra/ (private state)
-                                   data/published/datex/*.xml   ---->  GET /datex/*.xml
-                                   data/published/datex/source.json -> GET /datex/source.json
+                                   data/published/datex/npra/*.xml   ---->  GET /datex/npra/*.xml
+                                   data/published/datex/npra/source.json -> GET /datex/npra/source.json
+                                   data/published/datex/providers.json -> GET /datex/providers.json
+                                   (legacy GET /datex/*.xml 301 -> /datex/npra/*.xml)
 ```
 
 1. **Outbound poll (server only).** When enabled, `navi-datex-npra.timer` runs
@@ -356,12 +358,14 @@ same read-only HTTP GET surface used for packs.
    `GetCCTVSiteTable`) with HTTP Basic Auth. Conditional GET
    (`If-Modified-Since`) and backoff/jitter avoid hammering the node.
 2. **Cache, do not proxy.** Successful bodies are written atomically under
-   `data/published/datex/` as unmodified XML. Client requests never become
+   `data/published/datex/npra/` as unmodified XML. Client requests never become
    upstream query parameters — there is no live reverse-proxy to NPRA.
 3. **Inbound serve (read-only).** Apache DocumentRoot already includes
    `data/published/`, so clients fetch plain files:
-   - `GET /datex/source.json` — NPRA attribution / NLOD note (no secrets)
-   - `GET /datex/GetSituation.xml` (and the other endpoint names)
+   - `GET /datex/npra/source.json` — NPRA attribution / NLOD note (no secrets)
+   - `GET /datex/npra/GetSituation.xml` (and the other endpoint names)
+   - `GET /datex/providers.json` — provider registry (no secrets)
+   - Legacy `GET /datex/GetSituation.xml` etc. permanently redirect to `/datex/npra/...`
 4. **Off by default.** Fresh setup leaves DATEX disabled until you answer
    **yes** to the DATEX provider prompt (full interactive setup or
    `--apply-datex`) and supply username/password, **or** until you enable it
@@ -377,8 +381,9 @@ sudo /media/navi/navi-server/scripts/setup-server.sh --apply-datex
 systemctl list-timers navi-datex-npra.timer
 journalctl -u navi-datex-npra.service -n 50
 # After a successful poll:
-curl -sI http://127.0.0.1/datex/source.json
-curl -sI http://127.0.0.1/datex/GetSituation.xml
+curl -sI http://127.0.0.1/datex/npra/source.json
+curl -sI http://127.0.0.1/datex/npra/GetSituation.xml
+curl -sI http://127.0.0.1/datex/GetSituation.xml   # expect 301 -> /datex/npra/...
 
 sudo /media/navi/navi-server/scripts/uninstall-datex-npra.sh [--purge]
 ```
@@ -427,8 +432,8 @@ and [`docs/client-fetch.md`](docs/client-fetch.md#datex-npra-optional).
 See also open anonymous feeds ([`docs/datex-open-feeds.md`](docs/datex-open-feeds.md)) and how to add another provider ([`docs/datex-adding-sources.md`](docs/datex-adding-sources.md)).
 
 ```bash
-curl -fsS "http://<host>/datex/source.json"
-curl -fsS -o situations.xml "http://<host>/datex/GetSituation.xml"
+curl -fsS "http://<host>/datex/npra/source.json"
+curl -fsS -o situations.xml "http://<host>/datex/npra/GetSituation.xml"
 ```
 
 ```bash

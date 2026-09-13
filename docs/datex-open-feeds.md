@@ -5,6 +5,12 @@
 anonymous HTTP GET during the survey. Licences and URLs can change — re-check
 before production use.
 
+Open feeds remain **not implemented**. The multi-provider framework
+(`plugins/datex_common/`, namespaced `/datex/<provider_id>/`) is ready when an
+operator adds a plugin later — see [datex-adding-sources.md](datex-adding-sources.md).
+Do not enable or ship France TIPI / Flanders / Digitraffic / CITA / NDW pollers
+from this document alone.
+
 Primary external catalogue used for discovery (many more countries, mixed
 formats, mixed access rules):
 

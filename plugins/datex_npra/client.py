@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Callable, Dict, Optional
 from urllib.parse import quote
 
+from plugins.datex_common.publish import atomic_write_bytes, write_source_json
+
 from .auth import AuthError, Credentials, auth_failure_message
 from .config import Config
 
@@ -100,17 +102,9 @@ def _save_state(cfg: Config, endpoint: str, state: dict) -> None:
     partial.replace(path)
 
 
-def _atomic_write(path: Path, data: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    partial = path.with_suffix(path.suffix + ".partial")
-    partial.write_bytes(data)
-    partial.replace(path)
-
-
 def write_source_metadata(cfg: Config, endpoints_ok: list[str]) -> None:
     """NPRA attribution wrapper — does not modify DATEX XML payloads."""
     meta = {
-        "schema": 1,
         "source": "Statens vegvesen (Norwegian Public Roads Administration / NPRA)",
         "license": "NLOD 2.0",
         "attribution": (
@@ -118,14 +112,14 @@ def write_source_metadata(cfg: Config, endpoints_ok: list[str]) -> None:
             "NPRA must be acknowledged as the source."
         ),
         "upstream_base_url": cfg.base_url,
-        "endpoints": endpoints_ok,
+        "provider_id": cfg.provider_id,
+        "canonical_base": f"/datex/{cfg.provider_id}/",
         "note": (
             "XML files in this directory are unmodified upstream snapshots. "
             "Credentials are not stored here."
         ),
     }
-    path = cfg.publish_dir / "source.json"
-    _atomic_write(path, (json.dumps(meta, indent=2, sort_keys=True) + "\n").encode("utf-8"))
+    write_source_json(cfg.publish_dir, meta, endpoints_ok=endpoints_ok)
 
 
 def default_opener(request: urllib.request.Request, timeout: float) -> object:
@@ -272,8 +266,8 @@ def fetch_endpoint(
             error=f"unexpected HTTP {status} for {safe_url}",
         )
 
-    _atomic_write(cache_path, body)
-    _atomic_write(publish_path, body)
+    atomic_write_bytes(cache_path, body)
+    atomic_write_bytes(publish_path, body)
     state["last_status"] = 200
     state["last_bytes"] = len(body)
     state["fail_count"] = 0

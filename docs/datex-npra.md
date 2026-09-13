@@ -41,7 +41,7 @@ public NPRA DATEX documentation.
 | `plugins/datex_npra.poll` | Same enable check first; no credential load, no HTTP |
 | `setup-server.sh` (normal, interactive) | Asks “Do you want to set up a DATEX provider?”; **no** leaves DATEX off; **yes** asks username + password and enables |
 | `setup-server.sh` (non-interactive) | Does **not** install DATEX units or ask for secrets |
-| Apache | `/datex/` 404s until the poller writes files; listing disabled |
+| Apache | `/datex/npra/` 404s until the poller writes files; listing disabled; legacy flat `/datex/<file>` 301 → `/datex/npra/<file>` |
 | `run-weekly.sh` | Untouched |
 
 Enable with an interactive TTY (full setup offers the same prompts):
@@ -136,47 +136,57 @@ params that trigger server logic, and **no NPRA credentials**. If DATEX is
 disabled (the default) or the poller has not yet written a successful cache,
 these URLs return **404**.
 
-Base URL is the pack server DocumentRoot (port 80 locally; TLS optional later):
+Base URL is the pack server DocumentRoot (port 80 locally; TLS optional later).
+**Canonical** paths are namespaced under `/datex/npra/`. Legacy flat paths under
+`/datex/` still work via **permanent redirect** to `/datex/npra/`.
 
 ```text
-http://<host>/datex/
+http://<host>/datex/npra/
+http://<host>/datex/providers.json
 ```
 
 | Step | Client action |
 |---|---|
-| 1 | `GET /datex/source.json` — confirm NPRA attribution / NLOD note; abort if 404 |
-| 2 | `GET /datex/<Endpoint>.xml` for each needed snapshot (see table below) |
+| 1 | Prefer `GET /datex/npra/source.json` — confirm NPRA attribution / NLOD note; abort if 404 |
+| 2 | `GET /datex/npra/<Endpoint>.xml` for each needed snapshot (see table below) |
 | 3 | Treat bodies as **unmodified DATEX II XML** from NPRA; do not strip attribution |
 | 4 | Prefer `If-Modified-Since` / `ETag` on later polls if the server sends them (optional) |
+| optional | `GET /datex/providers.json` — registry of providers on this host (no secrets) |
 
 ### URLs
 
 | Method | Path | Content-Type (typical) | Notes |
 |---|---|---|---|
-| `GET` / `HEAD` | `/datex/source.json` | `application/json` | Attribution metadata written by the poller |
-| `GET` / `HEAD` | `/datex/GetSituation.xml` | `application/xml` | Traffic situations / roadworks / closures |
-| `GET` / `HEAD` | `/datex/GetTravelTimeData.xml` | `application/xml` | Travel-time measurements |
-| `GET` / `HEAD` | `/datex/GetMeasuredWeatherData.xml` | `application/xml` | Measured weather |
-| `GET` / `HEAD` | `/datex/GetCCTVSiteTable.xml` | `application/xml` | CCTV site table |
+| `GET` / `HEAD` | `/datex/npra/source.json` | `application/json` | Attribution metadata written by the poller |
+| `GET` / `HEAD` | `/datex/npra/GetSituation.xml` | `application/xml` | Traffic situations / roadworks / closures |
+| `GET` / `HEAD` | `/datex/npra/GetTravelTimeData.xml` | `application/xml` | Travel-time measurements |
+| `GET` / `HEAD` | `/datex/npra/GetMeasuredWeatherData.xml` | `application/xml` | Measured weather |
+| `GET` / `HEAD` | `/datex/npra/GetCCTVSiteTable.xml` | `application/xml` | CCTV site table |
+| `GET` / `HEAD` | `/datex/providers.json` | `application/json` | Provider registry (enabled / has_data hints) |
+| `GET` / `HEAD` | `/datex/source.json`, `/datex/GetSituation.xml`, … | — | **301** → corresponding `/datex/npra/...` path |
 
 ### Examples
 
 ```bash
 # Attribution first (always acknowledge NPRA when redistributing further)
-curl -fsS "http://<host>/datex/source.json"
+curl -fsS "http://<host>/datex/npra/source.json"
 
 # Situation snapshot
-curl -fsS -o situations.xml "http://<host>/datex/GetSituation.xml"
+curl -fsS -o situations.xml "http://<host>/datex/npra/GetSituation.xml"
 
 # Existence / freshness check without downloading the body
+curl -fsSI "http://<host>/datex/npra/GetSituation.xml"
+
+# Compat: legacy flat URL should redirect
 curl -fsSI "http://<host>/datex/GetSituation.xml"
+# expect: HTTP/1.1 301 ... Location: /datex/npra/GetSituation.xml
 ```
 
 ```http
-GET /datex/source.json HTTP/1.1
+GET /datex/npra/source.json HTTP/1.1
 Host: <host>
 
-GET /datex/GetSituation.xml HTTP/1.1
+GET /datex/npra/GetSituation.xml HTTP/1.1
 Host: <host>
 ```
 
@@ -198,11 +208,13 @@ How to add another DATEX provider: [datex-adding-sources.md](datex-adding-source
 ## Caching and on-disk layout
 
 Internal state/cache (not served): `data/datex_npra/` and `data/secrets/`  
-Client-facing (DocumentRoot): `data/published/datex/`
+Client-facing (DocumentRoot): `data/published/datex/npra/`  
+Registry: `data/published/datex/providers.json`
 
 Apache (`http/apache-navi-packs.conf`): DocumentRoot stays `data/published`;
 `Options -Indexes` on the tree; dedicated `<Directory …/published/datex>` also
 disables indexes and denies `*.partial` / `*.env` / script-like suffixes.
+RewriteRules map legacy flat NPRA filenames to `/datex/npra/`.
 `data/secrets` and `data/datex_npra` are denied via `DirectoryMatch`.
 
 No live proxy: client requests never influence upstream query parameters.
@@ -222,8 +234,18 @@ Inbound surface remains GET/HEAD-only via the existing Apache vhost.
 
 ```bash
 cd /media/navi/navi-server
+python3 -m unittest plugins.datex_common.tests.test_datex_common -v
 python3 -m unittest plugins.datex_npra.tests.test_datex_npra -v
 ```
 
 Includes a short-circuit test that proves **zero** network opener calls when
 disabled. No test performs a live authenticated pull.
+
+### Redirect smoke check (after Apache reload)
+
+```bash
+curl -fsSI "http://127.0.0.1/datex/GetSituation.xml" | grep -i '^Location:'
+# expect: Location: .../datex/npra/GetSituation.xml
+curl -fsSI "http://127.0.0.1/datex/providers.json" | head -n1
+# expect: HTTP/1.1 200 (or 404 if registry not written yet) — not a redirect to npra
+```

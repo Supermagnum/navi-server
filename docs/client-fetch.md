@@ -90,17 +90,22 @@ also fetch **cached** NPRA DATEX II XML from the same DocumentRoot. This is
 Full flow and operator setup: [datex-npra.md](datex-npra.md) (see especially
 **How clients fetch DATEX data**). Open feeds survey: [datex-open-feeds.md](datex-open-feeds.md). Adding providers: [datex-adding-sources.md](datex-adding-sources.md).
 
+Canonical paths are under `/datex/npra/`. Legacy flat `/datex/<file>` URLs
+**301 redirect** to `/datex/npra/<file>`. Provider registry: `/datex/providers.json`.
+
 | URL | Meaning |
 |---|---|
-| `GET /datex/source.json` | NPRA attribution / NLOD note |
-| `GET /datex/GetSituation.xml` | Cached situation snapshot |
-| `GET /datex/GetTravelTimeData.xml` | Cached travel-time snapshot |
-| `GET /datex/GetMeasuredWeatherData.xml` | Cached measured-weather snapshot |
-| `GET /datex/GetCCTVSiteTable.xml` | Cached CCTV site table |
+| `GET /datex/npra/source.json` | NPRA attribution / NLOD note |
+| `GET /datex/npra/GetSituation.xml` | Cached situation snapshot |
+| `GET /datex/npra/GetTravelTimeData.xml` | Cached travel-time snapshot |
+| `GET /datex/npra/GetMeasuredWeatherData.xml` | Cached measured-weather snapshot |
+| `GET /datex/npra/GetCCTVSiteTable.xml` | Cached CCTV site table |
+| `GET /datex/providers.json` | Known providers on this host (no secrets) |
+| `GET /datex/GetSituation.xml` (etc.) | Compat redirect → `/datex/npra/...` |
 
 ```bash
-curl -fsS "http://<host>/datex/source.json"
-curl -fsS -o situations.xml "http://<host>/datex/GetSituation.xml"
+curl -fsS "http://<host>/datex/npra/source.json"
+curl -fsS -o situations.xml "http://<host>/datex/npra/GetSituation.xml"
 ```
 
 Clients must **not** hold NPRA credentials or call vegvesen.no directly for

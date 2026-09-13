@@ -249,6 +249,42 @@ ddns_apply() {
   log "uninstall with: sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-ddns.sh [--purge]"
 }
 
+# Migrate legacy flat published/datex/*.xml|source.json into datex/npra/,
+# ensure npra/ exists, and refresh providers.json (no secrets).
+datex_migrate_publish_layout() {
+  local flat="${DATA}/published/datex"
+  local npra="${flat}/npra"
+  local f
+  mkdir -p "$npra"
+  for f in GetSituation.xml GetTravelTimeData.xml GetMeasuredWeatherData.xml \
+           GetCCTVSiteTable.xml source.json; do
+    if [[ -f "${flat}/${f}" && ! -e "${npra}/${f}" ]]; then
+      mv "${flat}/${f}" "${npra}/${f}"
+      log "migrated published/datex/${f} -> datex/npra/${f}"
+    elif [[ -f "${flat}/${f}" && -e "${npra}/${f}" ]]; then
+      rm -f "${flat}/${f}"
+      log "removed leftover flat published/datex/${f} (npra copy present)"
+    fi
+  done
+  if [[ -d "${NAVI_SERVER_ROOT}/plugins/datex_common" ]]; then
+    PYTHONPATH="${NAVI_SERVER_ROOT}${PYTHONPATH:+:${PYTHONPATH}}" \
+      NAVI_PACK_ROOT="${DATA}" \
+      python3 -c '
+import os
+from pathlib import Path
+from plugins.datex_common.providers_index import rebuild_providers_index
+root = Path(os.environ["NAVI_PACK_ROOT"])
+out = rebuild_providers_index(root)
+print(out)
+' >/dev/null && log "refreshed ${flat}/providers.json" \
+      || warn "could not refresh providers.json (plugins/datex_common missing or failed)"
+  fi
+  if id -u "$SERVICE_USER" >/dev/null 2>&1; then
+    chown -R "${SERVICE_USER}:${SERVICE_USER}" "$flat" 2>/dev/null || true
+  fi
+  chmod -R a+rX "$flat" 2>/dev/null || true
+}
+
 # Interactive DATEX NPRA enable: yes/no, then username + password.
 # Writes secrets (0600), flips NAVI_DATEX_NPRA_ENABLED=1, installs poll timer.
 # Other settings use defaults from config.example.env (edit config.env later).
@@ -272,6 +308,7 @@ datex_apply() {
   echo
   echo "=== DATEX provider (optional) ==="
   echo "Credentials stay on this host; Navi clients only GET cached XML."
+  echo "Canonical client path: /datex/npra/ (legacy flat /datex/* redirects)."
   echo "NPRA access: https://www.vegvesen.no/en/fag/technology/open-data/..."
   echo
 
@@ -295,6 +332,7 @@ datex_apply() {
 
   if [[ "$want_datex" -eq 0 ]]; then
     log "DATEX provider skipped (left disabled)"
+    datex_migrate_publish_layout
     return 0
   fi
 
@@ -317,7 +355,9 @@ datex_apply() {
   [[ -n "$password" ]] || fail "password required"
   password2=""
 
-  mkdir -p "${DATA}/secrets" "${DATA}/datex_npra/state" "${DATA}/datex_npra/cache"
+  mkdir -p "${DATA}/secrets" "${DATA}/datex_npra/state" "${DATA}/datex_npra/cache" \
+    "${DATA}/published/datex/npra"
+  datex_migrate_publish_layout
   # Password via stdin only — never argv, never setup log(), never env.
   # Username is argv (not secret); password is piped so it is not in python argv.
   printf '%s' "$password" | python3 -c '
@@ -370,9 +410,10 @@ path.chmod(0o600)
   systemctl enable --now navi-datex-npra.timer
   systemctl start navi-datex-npra.service \
     || warn "initial DATEX poll failed — check journalctl -u navi-datex-npra.service (operator only)"
+  datex_migrate_publish_layout
   log "enabled DATEX NPRA poll: navi-datex-npra.timer"
   log "set NAVI_DATEX_NPRA_USER_AGENT contact in ${DATA}/config.env if still a placeholder"
-  log "client cache path (after successful poll): ${DATA}/published/datex/"
+  log "client cache path (after successful poll): ${DATA}/published/datex/npra/"
   log "uninstall: sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-datex-npra.sh [--purge]"
 }
 
@@ -506,6 +547,7 @@ fi
 apache_apply() {
   [[ -f "$APACHE_SRC" ]] || fail "missing ${APACHE_SRC}"
   command -v apache2ctl >/dev/null 2>&1 || fail "apache2 not installed"
+  datex_migrate_publish_layout
   cp "$APACHE_SRC" "$APACHE_DST"
   a2dissite 000-default.conf >/dev/null 2>&1 || true
   a2ensite apache-navi-packs >/dev/null
