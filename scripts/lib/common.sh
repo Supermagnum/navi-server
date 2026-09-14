@@ -67,21 +67,21 @@ load_config() {
   : "${NAVI_GEOFABRIK_BASE:=https://download.geofabrik.de}"
   # Size sanity bands vs source PBF (MiB/MiB). Wide on purpose — Hedmark ratios
   # are sizing targets, not hard requirements for every region.
-  : "${NAVI_SIZE_GRAPH_MIN_RATIO:=0.10}"
-  : "${NAVI_SIZE_GRAPH_MAX_RATIO:=20.0}"
+  : "${NAVI_SIZE_GRAPH_MIN_RATIO:=0.05}"
+  : "${NAVI_SIZE_GRAPH_MAX_RATIO:=28.0}"
   # Floor for terrain_class=polar_sparse only (does not widen the global min).
   : "${NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE:=0.001}"
   # Ceiling for terrain_class=dense_network only (does not widen the global max).
-  : "${NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK:=28.0}"
-  : "${NAVI_SIZE_POI_MIN_RATIO:=0.01}"
-  : "${NAVI_SIZE_POI_MAX_RATIO:=1.50}"
+  : "${NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK:=35.0}"
+  : "${NAVI_SIZE_POI_MIN_RATIO:=0.005}"
+  : "${NAVI_SIZE_POI_MAX_RATIO:=2.0}"
   : "${NAVI_SIZE_WETLAND_MIN_RATIO:=0.0}"
-  : "${NAVI_SIZE_WETLAND_MAX_RATIO:=0.50}"
+  : "${NAVI_SIZE_WETLAND_MAX_RATIO:=0.75}"
   # Ceiling for terrain_class=wetland_heavy only (does not widen the global max).
-  : "${NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY:=1.0}"
-  : "${NAVI_SIZE_TOTAL_MIN_RATIO:=0.05}"
-  : "${NAVI_SIZE_TOTAL_MAX_RATIO:=25.0}"
-  : "${NAVI_SIZE_VS_PREV_MAX_FACTOR:=3.0}"
+  : "${NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY:=1.5}"
+  : "${NAVI_SIZE_TOTAL_MIN_RATIO:=0.03}"
+  : "${NAVI_SIZE_TOTAL_MAX_RATIO:=35.0}"
+  : "${NAVI_SIZE_VS_PREV_MAX_FACTOR:=4.0}"
   : "${NAVI_HTTP_TIMEOUT_SECS:=120}"
   mkdir -p \
     "$NAVI_EXTRACTS_DIR" \
