@@ -108,14 +108,14 @@ def ratio_env(name, default):
 
 # Global defaults (config.env / common.sh). Unlisted regions keep these.
 default_bands = {
-    "graph": (ratio_env("NAVI_SIZE_GRAPH_MIN_RATIO", "0.15"),
-              ratio_env("NAVI_SIZE_GRAPH_MAX_RATIO", "1.20")),
-    "poi": (ratio_env("NAVI_SIZE_POI_MIN_RATIO", "0.02"),
-            ratio_env("NAVI_SIZE_POI_MAX_RATIO", "0.40")),
-    "wetland": (ratio_env("NAVI_SIZE_WETLAND_MIN_RATIO", "0.005"),
-                ratio_env("NAVI_SIZE_WETLAND_MAX_RATIO", "0.50")),
-    "total": (ratio_env("NAVI_SIZE_TOTAL_MIN_RATIO", "0.10"),
-              ratio_env("NAVI_SIZE_TOTAL_MAX_RATIO", "2.00")),
+    "graph": (ratio_env("NAVI_SIZE_GRAPH_MIN_RATIO", "0.05"),
+              ratio_env("NAVI_SIZE_GRAPH_MAX_RATIO", "28.0")),
+    "poi": (ratio_env("NAVI_SIZE_POI_MIN_RATIO", "0.005"),
+            ratio_env("NAVI_SIZE_POI_MAX_RATIO", "2.0")),
+    "wetland": (ratio_env("NAVI_SIZE_WETLAND_MIN_RATIO", "0.0"),
+                ratio_env("NAVI_SIZE_WETLAND_MAX_RATIO", "0.75")),
+    "total": (ratio_env("NAVI_SIZE_TOTAL_MIN_RATIO", "0.03"),
+              ratio_env("NAVI_SIZE_TOTAL_MAX_RATIO", "35.0")),
 }
 vs_prev_max = float(os.environ.get("NAVI_SIZE_VS_PREV_MAX_FACTOR", "3.0"))
 
@@ -144,10 +144,10 @@ _TERRAIN_CLASS_GRAPH_MIN = {
     "polar_sparse": ratio_env("NAVI_SIZE_GRAPH_MIN_RATIO_POLAR_SPARSE", "0.001"),
 }
 _TERRAIN_CLASS_GRAPH_MAX = {
-    "dense_network": ratio_env("NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK", "28.0"),
+    "dense_network": ratio_env("NAVI_SIZE_GRAPH_MAX_RATIO_DENSE_NETWORK", "35.0"),
 }
 _TERRAIN_CLASS_WETLAND_MAX = {
-    "wetland_heavy": ratio_env("NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY", "1.0"),
+    "wetland_heavy": ratio_env("NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY", "1.5"),
 }
 
 def _parse_terrain_classes(raw: str):
@@ -322,10 +322,10 @@ def rkyv_header_sane(path: Path) -> bool:
         # NVRK / NVPB / NVWL
         if magic not in (0x4E56524B, 0x4E565042, 0x4E56574C):
             return False
-        # Graph packs (NVRK) must be FlatGraphPack format v8.
+        # Graph packs (NVRK) must be FlatGraphPack format v9.
         if magic == 0x4E56524B:
             ver = int.from_bytes(head[4:8], "little")
-            if ver != 8:
+            if ver != 9:
                 return False
         return True
     except OSError:
