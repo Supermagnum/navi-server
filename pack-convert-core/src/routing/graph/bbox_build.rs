@@ -25,7 +25,10 @@ use osmpbf::Element;
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
-use super::builder::{GraphEdge, RouteGraph, RoutingProfile};
+use super::builder::{
+    ferry_base_weight_m, osm_is_tunnel, raw_way_skipped_for_profile, tags_indicate_ferry,
+    GraphEdge, RouteGraph, RoutingProfile,
+};
 use super::surface_quality::classify_surface_tags;
 use crate::routing::access;
 use crate::routing::wetland::tags_map_indicate_boardwalk;
@@ -83,6 +86,9 @@ fn keep_way_tag(key: &str) -> bool {
             | "toll:foot"
             | "route"
             | "ferry"
+            | "duration"
+            | "motorcar"
+            | "tunnel"
             | "bridge"
             | "surface"
             | "tracktype"
@@ -286,10 +292,10 @@ fn spill_tiled_highway_ways(
                             .map(|(k, v)| (k.to_string(), v.to_string()))
                             .collect(),
                     );
-                    let Some(highway) = tags.get("highway") else {
-                        return;
-                    };
-                    if !highway_ok_for_any(highway, profiles) {
+                    let highway_ok = tags
+                        .get("highway")
+                        .is_some_and(|highway| highway_ok_for_any(highway, profiles));
+                    if !highway_ok && !tags_indicate_ferry(&tags) {
                         return;
                     }
                     let refs: Vec<i64> = way.refs().collect();
@@ -480,10 +486,14 @@ impl RouteGraph {
                         .map(|(k, v)| (k.to_string(), v.to_string()))
                         .collect(),
                 );
-                let Some(highway) = tags.get("highway") else {
-                    return;
-                };
-                if !highway_ok_for_profile(highway, profile) {
+                let highway_ok = tags
+                    .get("highway")
+                    .is_some_and(|highway| highway_ok_for_profile(highway, profile));
+                if tags_indicate_ferry(&tags) {
+                    if raw_way_skipped_for_profile(&tags, profile) {
+                        return;
+                    }
+                } else if !highway_ok {
                     return;
                 }
                 let refs: Vec<i64> = way.refs().collect();
@@ -715,15 +725,15 @@ impl RouteGraph {
                 let file = std::fs::File::open(ways_spill.path())?;
                 let mut reader = BufReader::new(file);
                 while let Some(way) = read_spilled_way(&mut reader)? {
-                    let Some(highway) = way
-                        .tags
-                        .iter()
-                        .find(|(k, _)| k == "highway")
-                        .map(|(_, v)| v.as_str())
-                    else {
-                        continue;
-                    };
-                    if !highway_ok_for_profile(highway, profile) {
+                    let tags: HashMap<String, String> = way.tags.iter().cloned().collect();
+                    let highway_ok = tags
+                        .get("highway")
+                        .is_some_and(|highway| highway_ok_for_profile(highway, profile));
+                    if tags_indicate_ferry(&tags) {
+                        if raw_way_skipped_for_profile(&tags, profile) {
+                            continue;
+                        }
+                    } else if !highway_ok {
                         continue;
                     }
                     let mut mask = vec![0u64; mask_words];
@@ -913,7 +923,7 @@ fn graph_from_raw_ways(
     let mode = profile.access_mode();
     let mut uses: HashMap<i64, i32> = HashMap::new();
     for way in ways {
-        if access::tags_forbid_mode(&way.tags, mode) {
+        if raw_way_skipped_for_profile(&way.tags, profile) {
             continue;
         }
         let n = way.nodes.len();
@@ -943,7 +953,7 @@ fn graph_from_raw_ways(
 
     let mut edges: Vec<GraphEdge> = Vec::new();
     for way in ways {
-        if access::tags_forbid_mode(&way.tags, mode) {
+        if raw_way_skipped_for_profile(&way.tags, profile) {
             continue;
         }
         // Mandated minimum speed: foot/bicycle cannot legally use the way.
@@ -1014,8 +1024,8 @@ fn graph_from_raw_ways(
         let is_toll = crate::routing::toll::toll_applies_for_profile(profile, |k| {
             way.tags.get(k).map(String::as_str)
         });
-        let is_ferry =
-            way.tags.get("route").is_some_and(|v| v == "ferry") || way.tags.contains_key("ferry");
+        let is_ferry = tags_indicate_ferry(&way.tags);
+        let is_tunnel = osm_is_tunnel(&way.tags);
         let is_boardwalk_crossing = tags_map_indicate_boardwalk(&way.tags);
         let is_roundabout = way.tags.get("junction").is_some_and(|v| v == "roundabout");
         let motor_vehicle_conditional = way.tags.get("motor_vehicle:conditional").cloned();
@@ -1069,6 +1079,15 @@ fn graph_from_raw_ways(
                 shape.clear();
                 continue;
             };
+            let base_weight = if is_ferry {
+                ferry_base_weight_m(
+                    length_m,
+                    way.tags.get("duration").map(String::as_str),
+                    profile,
+                )
+            } else {
+                length_m
+            };
             let id_fwd = format!("{}-{}", way.id, seg);
             seg += 1;
             let shape_fwd = shape.clone();
@@ -1083,6 +1102,7 @@ fn graph_from_raw_ways(
                 tn.coord.y,
                 tn.coord.x,
                 length_m,
+                base_weight,
                 shape_fwd,
                 highway.clone(),
                 maxspeed_kmh,
@@ -1105,6 +1125,7 @@ fn graph_from_raw_ways(
                 maxlength_m,
                 is_toll,
                 is_ferry,
+                is_tunnel,
                 is_boardwalk_crossing,
                 is_roundabout,
                 motor_vehicle_conditional.clone(),
@@ -1123,6 +1144,7 @@ fn graph_from_raw_ways(
                     sn.coord.y,
                     sn.coord.x,
                     length_m,
+                    base_weight,
                     shape_rev,
                     highway.clone(),
                     maxspeed_kmh,
@@ -1145,6 +1167,7 @@ fn graph_from_raw_ways(
                     maxlength_m,
                     is_toll,
                     is_ferry,
+                    is_tunnel,
                     is_boardwalk_crossing,
                     is_roundabout,
                     motor_vehicle_conditional.clone(),
@@ -1179,6 +1202,7 @@ fn bbox_edge(
     end_lat: f64,
     end_lon: f64,
     length_m: f64,
+    base_weight: f64,
     shape: Vec<(f64, f64)>,
     highway: Option<String>,
     maxspeed_kmh: Option<f64>,
@@ -1201,6 +1225,7 @@ fn bbox_edge(
     maxlength_m: Option<f64>,
     is_toll: bool,
     is_ferry: bool,
+    is_tunnel: bool,
     is_boardwalk_crossing: bool,
     is_roundabout: bool,
     motor_vehicle_conditional: Option<String>,
@@ -1214,7 +1239,7 @@ fn bbox_edge(
         source,
         target,
         length_m,
-        base_weight: length_m,
+        base_weight,
         eco_weight: None,
         start_lat,
         start_lon,
@@ -1242,6 +1267,7 @@ fn bbox_edge(
         maxlength_m,
         is_toll,
         is_ferry,
+        is_tunnel,
         is_boardwalk_crossing,
         is_roundabout,
         motor_vehicle_conditional,
@@ -1281,5 +1307,17 @@ mod bbox_tests {
         assert!(g.nodes.len() > 1000, "nodes={}", g.nodes.len());
         assert!(g.edges.len() > 1000, "edges={}", g.edges.len());
         eprintln!("bbox graph nodes={} edges={}", g.nodes.len(), g.edges.len());
+    }
+
+    #[test]
+    fn ferry_oneway_yes_is_forward_only_and_minus_one_is_not() {
+        let mut tags = std::collections::HashMap::new();
+        tags.insert("route".into(), "ferry".into());
+        tags.insert("oneway".into(), "-1".into());
+        assert!(!oneway_forward_only(&tags));
+        tags.insert("oneway".into(), "yes".into());
+        assert!(oneway_forward_only(&tags));
+        tags.insert("oneway".into(), "true".into());
+        assert!(oneway_forward_only(&tags));
     }
 }

@@ -132,6 +132,8 @@ pub struct GraphEdge {
     pub maxlength_m: Option<f64>,
     pub is_toll: bool,
     pub is_ferry: bool,
+    /// OSM `tunnel=*` with any value other than "no".
+    pub is_tunnel: bool,
     /// OSM `bridge=boardwalk` or `surface=wood` — carve-out for hard wetlands.
     pub is_boardwalk_crossing: bool,
     /// OSM `junction=roundabout` — ring edges for guidance (not routing weight).
@@ -232,6 +234,9 @@ impl RouteGraph {
             .read_tag("toll:foot")
             .read_tag("route")
             .read_tag("ferry")
+            .read_tag("duration")
+            .read_tag("motorcar")
+            .read_tag("tunnel")
             .read_tag("bridge")
             .read_tag("surface")
             .read_tag("tracktype")
@@ -1064,6 +1069,7 @@ struct EdgeMeta {
     maxlength_m: Option<f64>,
     is_toll: bool,
     is_ferry: bool,
+    is_tunnel: bool,
     is_boardwalk_crossing: bool,
     is_roundabout: bool,
     motor_vehicle_conditional: Option<String>,
@@ -1075,6 +1081,7 @@ struct EdgeMeta {
     is_oneway: bool,
     lanes: Option<u8>,
     surface_quality: SurfaceQuality,
+    duration: Option<String>,
 }
 
 fn edge_meta(edge: &Edge, profile: RoutingProfile) -> EdgeMeta {
@@ -1127,17 +1134,9 @@ fn edge_meta(edge: &Edge, profile: RoutingProfile) -> EdgeMeta {
     let is_toll = crate::routing::toll::toll_applies_for_profile(profile, |k| {
         edge.tags.get(k).map(String::as_str)
     });
-    let is_ferry = edge
-        .tags
-        .get("route")
-        .map(|s| s.eq_ignore_ascii_case("ferry"))
-        .unwrap_or(false)
-        || edge
-            .tags
-            .get("ferry")
-            .map(|s| is_truthy_tag(s))
-            .unwrap_or(false)
-        || highway.as_deref() == Some("ferry");
+    let is_ferry = tags_indicate_ferry(&edge.tags);
+    let is_tunnel = osm_is_tunnel(&edge.tags);
+    let duration = edge.tags.get("duration").cloned();
     let is_boardwalk_crossing = tags_indicate_boardwalk(
         edge.tags.get("bridge").map(String::as_str),
         edge.tags.get("surface").map(String::as_str),
@@ -1180,6 +1179,7 @@ fn edge_meta(edge: &Edge, profile: RoutingProfile) -> EdgeMeta {
         maxlength_m,
         is_toll,
         is_ferry,
+        is_tunnel,
         is_boardwalk_crossing,
         is_roundabout,
         motor_vehicle_conditional,
@@ -1191,6 +1191,7 @@ fn edge_meta(edge: &Edge, profile: RoutingProfile) -> EdgeMeta {
         is_oneway,
         lanes,
         surface_quality,
+        duration,
     }
 }
 
@@ -1214,6 +1215,105 @@ pub(crate) fn is_truthy_tag(raw: &str) -> bool {
     )
 }
 
+/// Drive-equivalent speed used to turn a ferry crossing into A* metres.
+/// `base_weight` is a length, so a slow ferry must not cost only its chord.
+pub const FERRY_DRIVE_EQUIV_KMH: f64 = 80.0;
+/// Assumed ferry speed when OSM `duration` is missing.
+pub const FERRY_FALLBACK_SPEED_KMH: f64 = 10.0;
+/// Extra car/truck cost for boarding, in minutes, converted at [`FERRY_DRIVE_EQUIV_KMH`].
+pub const FERRY_CAR_BOARDING_PENALTY_MIN: f64 = 10.0;
+
+fn ferry_drive_equiv_m_per_s() -> f64 {
+    FERRY_DRIVE_EQUIV_KMH * 1000.0 / 3600.0
+}
+
+/// Parse OSM `duration` as `H:MM`, `HH:MM`, or `HH:MM:SS`. Minutes must be `< 60`.
+pub(crate) fn parse_osm_duration_secs(raw: &str) -> Option<f64> {
+    let parts: Vec<&str> = raw.trim().split(':').collect();
+    let nums: Vec<f64> = parts
+        .iter()
+        .map(|p| p.trim().parse::<f64>().ok())
+        .collect::<Option<_>>()?;
+    if nums.iter().any(|n| !n.is_finite() || *n < 0.0) {
+        return None;
+    }
+    match *nums.as_slice() {
+        [h, m] if m < 60.0 => Some((h * 60.0 + m) * 60.0),
+        [h, m, s] if m < 60.0 && s < 60.0 => Some(h * 3600.0 + m * 60.0 + s),
+        _ => None,
+    }
+}
+
+/// A* weight in metres for a ferry edge. `length_m` stays the geometric length.
+pub fn ferry_base_weight_m(
+    length_m: f64,
+    duration_raw: Option<&str>,
+    profile: RoutingProfile,
+) -> f64 {
+    let travel = match duration_raw.and_then(parse_osm_duration_secs) {
+        Some(secs) => secs * ferry_drive_equiv_m_per_s(),
+        None => length_m * (FERRY_DRIVE_EQUIV_KMH / FERRY_FALLBACK_SPEED_KMH),
+    };
+    let boarding = match profile {
+        RoutingProfile::Car | RoutingProfile::Truck => {
+            FERRY_CAR_BOARDING_PENALTY_MIN * 60.0 * ferry_drive_equiv_m_per_s()
+        }
+        RoutingProfile::Foot | RoutingProfile::Bicycle => 0.0,
+    };
+    travel + boarding
+}
+
+/// `route=ferry`, `highway=ferry`, or a `ferry` tag whose value is not `no`.
+pub(crate) fn tags_indicate_ferry<S: std::hash::BuildHasher>(
+    tags: &HashMap<String, String, S>,
+) -> bool {
+    if tags
+        .get("route")
+        .is_some_and(|v| v.eq_ignore_ascii_case("ferry"))
+    {
+        return true;
+    }
+    if tags.get("highway").is_some_and(|v| v == "ferry") {
+        return true;
+    }
+    tags.get("ferry").is_some_and(|v| v != "no")
+}
+
+/// Car/truck: `motor_vehicle` or `motorcar` in the access yes-set.
+/// Foot/bicycle: [`access::tags_forbid_mode`] (bare `access=no` bans when the mode tag is unset).
+pub(crate) fn ferry_allowed_for_profile<S: std::hash::BuildHasher>(
+    tags: &HashMap<String, String, S>,
+    profile: RoutingProfile,
+) -> bool {
+    match profile {
+        RoutingProfile::Car | RoutingProfile::Truck => {
+            tags.get("motor_vehicle")
+                .is_some_and(|v| access::is_access_yes(v))
+                || tags
+                    .get("motorcar")
+                    .is_some_and(|v| access::is_access_yes(v))
+        }
+        RoutingProfile::Foot | RoutingProfile::Bicycle => {
+            !access::tags_forbid_mode(tags, profile.access_mode())
+        }
+    }
+}
+
+/// OSM `tunnel=*` with any value other than exactly `no`.
+pub(crate) fn osm_is_tunnel<S: std::hash::BuildHasher>(tags: &HashMap<String, String, S>) -> bool {
+    tags.get("tunnel").is_some_and(|v| v != "no")
+}
+
+pub(crate) fn raw_way_skipped_for_profile<S: std::hash::BuildHasher>(
+    tags: &HashMap<String, String, S>,
+    profile: RoutingProfile,
+) -> bool {
+    if tags_indicate_ferry(tags) {
+        return !ferry_allowed_for_profile(tags, profile);
+    }
+    access::tags_forbid_mode(tags, profile.access_mode())
+}
+
 fn push_directed_edge(
     graph: &mut RouteGraph,
     id: String,
@@ -1228,12 +1328,17 @@ fn push_directed_edge(
     meta: &EdgeMeta,
 ) {
     let idx = graph.edges.len();
+    let base_weight = if meta.is_ferry {
+        ferry_base_weight_m(length_m, meta.duration.as_deref(), graph.profile)
+    } else {
+        length_m
+    };
     graph.edges.push(GraphEdge {
         id,
         source,
         target,
         length_m,
-        base_weight: length_m,
+        base_weight,
         eco_weight: None,
         start_lat,
         start_lon,
@@ -1261,6 +1366,7 @@ fn push_directed_edge(
         maxlength_m: meta.maxlength_m,
         is_toll: meta.is_toll,
         is_ferry: meta.is_ferry,
+        is_tunnel: meta.is_tunnel,
         is_boardwalk_crossing: meta.is_boardwalk_crossing,
         is_roundabout: meta.is_roundabout,
         motor_vehicle_conditional: meta.motor_vehicle_conditional.clone(),
@@ -1658,6 +1764,7 @@ mod tests {
             maxlength_m: None,
             is_toll: false,
             is_ferry: false,
+            is_tunnel: false,
             is_boardwalk_crossing: false,
             is_roundabout: false,
             motor_vehicle_conditional: None,
@@ -1746,6 +1853,7 @@ mod tests {
             maxlength_m: None,
             is_toll: false,
             is_ferry: false,
+            is_tunnel: false,
             is_boardwalk_crossing: false,
             is_roundabout: false,
             motor_vehicle_conditional: None,
@@ -2289,6 +2397,7 @@ mod tests {
             maxlength_m: None,
             is_toll: false,
             is_ferry: false,
+            is_tunnel: false,
             is_boardwalk_crossing: false,
             is_roundabout: false,
             motor_vehicle_conditional: None,
@@ -2358,6 +2467,7 @@ mod tests {
             maxlength_m: None,
             is_toll: true,
             is_ferry: false,
+            is_tunnel: false,
             is_boardwalk_crossing: false,
             is_roundabout: false,
             motor_vehicle_conditional: None,
@@ -2426,6 +2536,7 @@ mod tests {
             maxlength_m: None,
             is_toll: false,
             is_ferry: false,
+            is_tunnel: false,
             is_boardwalk_crossing: false,
             is_roundabout: false,
             motor_vehicle_conditional: None,
@@ -2493,6 +2604,7 @@ mod tests {
             maxlength_m: None,
             is_toll: false,
             is_ferry: false,
+            is_tunnel: false,
             is_boardwalk_crossing: false,
             is_roundabout: false,
             motor_vehicle_conditional: Some("no @ Nov-Jun".into()),
@@ -2591,6 +2703,7 @@ mod tests {
             maxlength_m: None,
             is_toll: false,
             is_ferry: false,
+            is_tunnel: false,
             is_boardwalk_crossing: false,
             is_roundabout: false,
             motor_vehicle_conditional: None,
@@ -2677,5 +2790,96 @@ mod tests {
             combine_osm_road_refs(Some("Rv15".into()), Some("E16".into())).as_deref(),
             Some("Rv15;E16")
         );
+    }
+}
+
+#[cfg(test)]
+mod ferry_tunnel_unit_tests {
+    use super::*;
+
+    fn tags(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+        pairs
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn duration_parse_and_ferry_weight_constants() {
+        assert_eq!(parse_osm_duration_secs("0:10"), Some(600.0));
+        assert_eq!(parse_osm_duration_secs("00:10"), Some(600.0));
+        assert_eq!(parse_osm_duration_secs("00:05:00"), Some(300.0));
+        assert_eq!(
+            parse_osm_duration_secs("3:45"),
+            Some((3.0 * 60.0 + 45.0) * 60.0)
+        );
+        assert_eq!(parse_osm_duration_secs("19:00"), Some(19.0 * 3600.0));
+        assert!(parse_osm_duration_secs("0:60").is_none());
+        assert!(parse_osm_duration_secs("nope").is_none());
+
+        let mps = FERRY_DRIVE_EQUIV_KMH * 1000.0 / 3600.0;
+        let boarding = FERRY_CAR_BOARDING_PENALTY_MIN * 60.0 * mps;
+        let car = ferry_base_weight_m(1_000.0, Some("0:10"), RoutingProfile::Car);
+        assert!((car - (600.0 * mps + boarding)).abs() < 1e-6);
+        let truck = ferry_base_weight_m(1_000.0, Some("0:10"), RoutingProfile::Truck);
+        assert!((truck - car).abs() < 1e-6);
+        let foot = ferry_base_weight_m(1_000.0, Some("0:10"), RoutingProfile::Foot);
+        assert!((foot - 600.0 * mps).abs() < 1e-6);
+        let bike_fallback = ferry_base_weight_m(1_000.0, None, RoutingProfile::Bicycle);
+        let ratio = FERRY_DRIVE_EQUIV_KMH / FERRY_FALLBACK_SPEED_KMH;
+        assert!((bike_fallback - 1_000.0 * ratio).abs() < 1e-6);
+        let car_fallback = ferry_base_weight_m(1_000.0, None, RoutingProfile::Car);
+        assert!((car_fallback - (1_000.0 * ratio + boarding)).abs() < 1e-6);
+    }
+
+    #[test]
+    fn ferry_access_matches_profile_rules() {
+        assert!(ferry_allowed_for_profile(
+            &tags(&[("route", "ferry"), ("motor_vehicle", "yes")]),
+            RoutingProfile::Car
+        ));
+        assert!(ferry_allowed_for_profile(
+            &tags(&[("route", "ferry"), ("motorcar", "designated")]),
+            RoutingProfile::Truck
+        ));
+        assert!(!ferry_allowed_for_profile(
+            &tags(&[("route", "ferry")]),
+            RoutingProfile::Car
+        ));
+        assert!(!ferry_allowed_for_profile(
+            &tags(&[("route", "ferry"), ("motor_vehicle", "no"), ("foot", "yes")]),
+            RoutingProfile::Car
+        ));
+        assert!(!ferry_allowed_for_profile(
+            &tags(&[("route", "ferry"), ("access", "no")]),
+            RoutingProfile::Foot
+        ));
+        assert!(ferry_allowed_for_profile(
+            &tags(&[("route", "ferry"), ("foot", "yes")]),
+            RoutingProfile::Foot
+        ));
+        assert!(ferry_allowed_for_profile(
+            &tags(&[("route", "ferry")]),
+            RoutingProfile::Foot
+        ));
+        assert!(!ferry_allowed_for_profile(
+            &tags(&[("route", "ferry"), ("bicycle", "no")]),
+            RoutingProfile::Bicycle
+        ));
+        assert!(ferry_allowed_for_profile(
+            &tags(&[("route", "ferry")]),
+            RoutingProfile::Bicycle
+        ));
+    }
+
+    #[test]
+    fn tunnel_tag_is_anything_but_no() {
+        assert!(osm_is_tunnel(&tags(&[("tunnel", "yes")])));
+        assert!(osm_is_tunnel(&tags(&[("tunnel", "building_passage")])));
+        assert!(!osm_is_tunnel(&tags(&[("tunnel", "no")])));
+        assert!(!osm_is_tunnel(&tags(&[])));
+        assert!(!tags_indicate_ferry(&tags(&[("ferry", "no")])));
+        assert!(tags_indicate_ferry(&tags(&[("route", "Ferry")])));
+        assert!(tags_indicate_ferry(&tags(&[("highway", "ferry")])));
     }
 }
