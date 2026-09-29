@@ -85,7 +85,7 @@ xxd -l 8 path/to/file.rkyv
 **Files:** `{stem}.navi-graph-{profile}.rkyv` or
 `{stem}.navi-graph-{profile}.t{row}_{col}.rkyv`
 
-**Constants:** `MAGIC_GRAPH`, `GRAPH_FORMAT_VERSION = 8`  
+**Constants:** `MAGIC_GRAPH`, `GRAPH_FORMAT_VERSION = 9`  
 **Source:** `pack-convert-core/src/routing/indexed/graph_pack.rs`
 
 ### Contents
@@ -99,7 +99,7 @@ Parallel column-store vectors (node count / edge count aligned):
 | `node_lats` / `node_lons` | `Vec<f64>` | Node coordinates (WGS84) |
 | `edge_src` / `edge_tgt` | `Vec<u32>` | Indices into `node_ids` |
 | `edge_length_m` | `Vec<f64>` | Edge length (metres) |
-| `edge_base_weight` | `Vec<f64>` | Unpenalized base weight (`length_m`; soft costs applied at plan time) |
+| `edge_base_weight` | `Vec<f64>` | A* weight in metres. Roads: `length_m`. Ferries: duration at 80 km/h drive-equivalent, else length at 10 km/h; car/truck also add a 10 minute boarding penalty at 80 km/h. Soft surface costs stay at plan time |
 | `edge_delta_h_m` | `Vec<f32>` | Elevation change end−start (m); **empty** if `has_delta_h` is false; **NaN** = missing DEM sample |
 | `edge_start_*` / `edge_end_*` | `Vec<f64>` | Edge endpoint lat/lon |
 | `edge_highway` | `Vec<String>` | OSM highway class |
@@ -110,7 +110,7 @@ Parallel column-store vectors (node count / edge count aligned):
 | `edge_maxspeed_variable` | `Vec<u8>` | `1` when OSM `maxspeed:variable` is truthy |
 | `edge_minspeed_kmh` | `Vec<f64>` | OSM `minspeed`; **NaN** = unset |
 | `edge_name` / `edge_road_ref` | `Vec<String>` | Empty string = absent |
-| `edge_is_motorroad` / `expressway` / `oneway` / `toll` / `ferry` / `roundabout` / `boardwalk` | `Vec<u8>` | `0`/`1` flags |
+| `edge_is_motorroad` / `expressway` / `oneway` / `toll` / `ferry` / `tunnel` / `roundabout` / `boardwalk` | `Vec<u8>` | `0`/`1` flags. `edge_is_tunnel` is immediately after `edge_is_ferry` (`tunnel=*` other than `no`) |
 | `edge_lanes` | `Vec<u8>` | `0` = unset |
 | `edge_maxweight_t` / `maxaxleload_t` / `maxbogieweight_t` | `Vec<f64>` | Tonnes; **NaN** = unset |
 | `edge_maxheight_m` / `maxwidth_m` / `maxlength_m` | `Vec<f64>` | Metres; **NaN** = unset |
@@ -399,6 +399,11 @@ sha256sum -c checksums.sha256
   **v8** (`GRAPH_FORMAT_VERSION = 8`) added `edge_surface_quality` (OSM
   surface/tracktype class). Soft surface/maxspeed costs are **not** baked into
   `edge_base_weight` (client applies them at plan time).
+  **v9** (`GRAPH_FORMAT_VERSION = 9`) added `edge_is_tunnel: Vec<u8>` immediately
+  after `edge_is_ferry`. Ferry `edge_base_weight` is a drive-equivalent length
+  (see the field table); `edge_length_m` stays geometric. A v8 preamble does
+  not load on a v9 reader, and a v9 preamble does not load where version 8 is
+  required.
 - POI/barrier v2 added overnight building centroids.
 
 ---

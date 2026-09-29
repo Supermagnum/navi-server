@@ -62,7 +62,10 @@ pub fn mode_access_forbidden(
     access.is_some_and(is_access_no)
 }
 
-pub fn tags_forbid_mode(tags: &HashMap<String, String>, mode: AccessMode) -> bool {
+pub fn tags_forbid_mode<S: std::hash::BuildHasher>(
+    tags: &HashMap<String, String, S>,
+    mode: AccessMode,
+) -> bool {
     mode_access_forbidden(
         mode,
         tags.get("motor_vehicle").map(String::as_str),
@@ -73,7 +76,10 @@ pub fn tags_forbid_mode(tags: &HashMap<String, String>, mode: AccessMode) -> boo
 }
 
 /// OSM `barrier=*` node that carries access tags relevant to routing.
-pub fn barrier_node_forbids_mode(tags: &HashMap<String, String>, mode: AccessMode) -> bool {
+pub fn barrier_node_forbids_mode<S: std::hash::BuildHasher>(
+    tags: &HashMap<String, String, S>,
+    mode: AccessMode,
+) -> bool {
     if !tags.contains_key("barrier") {
         return false;
     }

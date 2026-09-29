@@ -12,9 +12,11 @@ pub use bike_suitability::{
     tags_unsuitable_for, way_id_from_edge_id, BikeCapability,
 };
 pub use builder::{
-    append_seasonal_closure_report, edge_is_motorway_grade, format_route_avoidance_report,
-    highway_is_motorway, max_waypoint_snap_m, profile_locks_avoid_motorways, GraphEdge, RouteGraph,
-    RouteOptions, RoutingProfile, SnapTooFar, WetlandApplyStats,
+    append_seasonal_closure_report, edge_is_motorway_grade, ferry_base_weight_m,
+    format_route_avoidance_report, highway_is_motorway, max_waypoint_snap_m,
+    profile_locks_avoid_motorways, GraphEdge, RouteGraph, RouteOptions, RoutingProfile, SnapTooFar,
+    WetlandApplyStats, FERRY_CAR_BOARDING_PENALTY_MIN, FERRY_DRIVE_EQUIV_KMH,
+    FERRY_FALLBACK_SPEED_KMH,
 };
 pub use reweight::reweight_graph_for_eco;
 pub use surface_quality::{

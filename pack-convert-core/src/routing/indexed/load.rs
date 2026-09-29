@@ -89,12 +89,17 @@ fn map_file(path: &Path) -> Result<Mmap, PackLoadError> {
     Ok(mmap)
 }
 
+fn preamble_matches(bytes: &[u8], expect_magic: u32, expect_ver: u32) -> bool {
+    Preamble::from_bytes(bytes)
+        .is_some_and(|p| p.magic == expect_magic && p.format_version == expect_ver)
+}
+
 fn check_preamble(mmap: &Mmap, expect_magic: u32, expect_ver: u32) -> Result<(), PackLoadError> {
-    let p = Preamble::from_bytes(mmap).ok_or(PackLoadError::VersionMismatch)?;
-    if p.magic != expect_magic || p.format_version != expect_ver {
-        return Err(PackLoadError::VersionMismatch);
+    if preamble_matches(mmap, expect_magic, expect_ver) {
+        Ok(())
+    } else {
+        Err(PackLoadError::VersionMismatch)
     }
-    Ok(())
 }
 
 /// Deserialize graph pack body after preamble validation. Materializes owned
@@ -200,7 +205,7 @@ pub fn try_load_graph_for_plan_bbox(
 /// Key for deduplicating the same physical edge repeated on adjacent tile boundaries.
 /// Must not collapse parallel edges that share endpoints (indexed packs use
 /// `src-tgt` string ids that collide for those pairs).
-fn graph_edge_tile_merge_key(edge: &GraphEdge) -> (i64, i64, u64, u64, u64, u64, u64) {
+fn graph_edge_tile_merge_key(edge: &GraphEdge) -> (i64, i64, u64, u64, u64, u64, u64, u8) {
     (
         edge.source.0,
         edge.target.0,
@@ -209,6 +214,7 @@ fn graph_edge_tile_merge_key(edge: &GraphEdge) -> (i64, i64, u64, u64, u64, u64,
         edge.start_lon.to_bits(),
         edge.end_lat.to_bits(),
         edge.end_lon.to_bits(),
+        u8::from(edge.is_tunnel),
     )
 }
 
@@ -414,6 +420,7 @@ mod merge_tile_graphs_tests {
             maxlength_m: None,
             is_toll: false,
             is_ferry: false,
+            is_tunnel: false,
             is_boardwalk_crossing: false,
             is_roundabout: false,
             motor_vehicle_conditional: None,
@@ -473,6 +480,50 @@ mod merge_tile_graphs_tests {
         let g2 = RouteGraph::from_parts(nodes, vec![edge], RoutingProfile::Car);
         let merged = merge_tile_graphs(vec![g1, g2], RoutingProfile::Car);
         assert_eq!(merged.edges.len(), 1, "boundary duplicate must dedupe");
+    }
+
+    #[test]
+    fn merge_keeps_edges_that_differ_only_by_tunnel() {
+        let mut nodes = HashMap::new();
+        nodes.insert(
+            NodeId(1),
+            Node {
+                id: NodeId(1),
+                coord: Coord { x: 11.0, y: 60.0 },
+                uses: 2,
+            },
+        );
+        nodes.insert(
+            NodeId(2),
+            Node {
+                id: NodeId(2),
+                coord: Coord { x: 11.001, y: 60.0 },
+                uses: 2,
+            },
+        );
+        let open = stub_edge("1-2-0", 1, 2, 100.0, "secondary");
+        let mut tunnel = open.clone();
+        tunnel.is_tunnel = true;
+        tunnel.id = "1-2-1".into();
+        let g1 = RouteGraph::from_parts(nodes.clone(), vec![open], RoutingProfile::Car);
+        let g2 = RouteGraph::from_parts(nodes, vec![tunnel], RoutingProfile::Car);
+        let merged = merge_tile_graphs(vec![g1, g2], RoutingProfile::Car);
+        assert_eq!(
+            merged.edges.len(),
+            2,
+            "tunnel flag is part of the dedup key"
+        );
+    }
+
+    #[test]
+    fn preamble_expected_version_check_is_symmetric() {
+        let v8 = Preamble::new(MAGIC_GRAPH, 8).to_bytes();
+        let v9 = Preamble::new(MAGIC_GRAPH, 9).to_bytes();
+        assert_eq!(GRAPH_FORMAT_VERSION, 9);
+        assert!(preamble_matches(&v9, MAGIC_GRAPH, 9));
+        assert!(!preamble_matches(&v8, MAGIC_GRAPH, 9));
+        assert!(preamble_matches(&v8, MAGIC_GRAPH, 8));
+        assert!(!preamble_matches(&v9, MAGIC_GRAPH, 8));
     }
 }
 

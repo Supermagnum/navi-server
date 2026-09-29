@@ -11,8 +11,8 @@ use crate::routing::graph::{GraphEdge, RouteGraph, RoutingProfile, SurfaceQualit
 
 /// Little-endian ASCII "NVRK".
 pub const MAGIC_GRAPH: u32 = 0x4E_56_52_4B;
-/// v8: v7 + per-edge `surface_quality` (OSM surface/tracktype class).
-pub const GRAPH_FORMAT_VERSION: u32 = 8;
+/// v9: v8 + `edge_is_tunnel` (`Vec<u8>`, 0/1), immediately after `edge_is_ferry`.
+pub const GRAPH_FORMAT_VERSION: u32 = 9;
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone)]
 pub struct FlatGraphPack {
@@ -67,6 +67,8 @@ pub struct FlatGraphPack {
     pub edge_maxlength_m: Vec<f64>,
     pub edge_is_toll: Vec<u8>,
     pub edge_is_ferry: Vec<u8>,
+    /// OSM `tunnel=*` with any value other than `no`. `0`/`1`.
+    pub edge_is_tunnel: Vec<u8>,
     pub edge_is_roundabout: Vec<u8>,
     pub edge_is_boardwalk: Vec<u8>,
     /// CSR: `edge_shape_offsets.len() == edge_src.len() + 1`.
@@ -164,6 +166,7 @@ impl FlatGraphPack {
         let mut edge_maxlength_m = Vec::with_capacity(n);
         let mut edge_is_toll = Vec::with_capacity(n);
         let mut edge_is_ferry = Vec::with_capacity(n);
+        let mut edge_is_tunnel = Vec::with_capacity(n);
         let mut edge_is_roundabout = Vec::with_capacity(n);
         let mut edge_is_boardwalk = Vec::with_capacity(n);
         let mut edge_shape_offsets = Vec::with_capacity(n + 1);
@@ -212,6 +215,7 @@ impl FlatGraphPack {
             edge_maxlength_m.push(pack_opt_metric(e.maxlength_m));
             edge_is_toll.push(u8::from(e.is_toll));
             edge_is_ferry.push(u8::from(e.is_ferry));
+            edge_is_tunnel.push(u8::from(e.is_tunnel));
             edge_is_roundabout.push(u8::from(e.is_roundabout));
             edge_is_boardwalk.push(u8::from(e.is_boardwalk_crossing));
             edge_motor_vehicle_conditional
@@ -273,6 +277,7 @@ impl FlatGraphPack {
             edge_maxlength_m,
             edge_is_toll,
             edge_is_ferry,
+            edge_is_tunnel,
             edge_is_roundabout,
             edge_is_boardwalk,
             edge_shape_offsets,
@@ -416,6 +421,7 @@ impl FlatGraphPack {
                 maxlength_m: unpack_opt_metric(&self.edge_maxlength_m, i),
                 is_toll: self.edge_is_toll[i] != 0,
                 is_ferry: self.edge_is_ferry[i] != 0,
+                is_tunnel: self.edge_is_tunnel[i] != 0,
                 is_boardwalk_crossing: self.edge_is_boardwalk[i] != 0,
                 is_roundabout: self.edge_is_roundabout[i] != 0,
                 motor_vehicle_conditional: {
@@ -583,6 +589,7 @@ mod tests {
             maxlength_m: None,
             is_toll: false,
             is_ferry: false,
+            is_tunnel: false,
             is_boardwalk_crossing: false,
             is_roundabout: false,
             motor_vehicle_conditional: None,
@@ -692,6 +699,7 @@ mod tests {
             maxlength_m: None,
             is_toll: false,
             is_ferry: false,
+            is_tunnel: false,
             is_boardwalk_crossing: false,
             is_roundabout: false,
             motor_vehicle_conditional: None,
