@@ -115,6 +115,7 @@ for rd in sorted(p for p in root.iterdir() if p.is_dir()):
         "stem": man.get("stem"),
         "manifest": mans[0].name,
         "has_delta_h": bool(man.get("has_delta_h")),
+        "graph_format_version": man.get("graph_format_version"),
         "files": sorted(files),
         "bytes": sum(p.stat().st_size for p in rd.iterdir() if p.is_file()),
     })
@@ -315,6 +316,7 @@ for region in gen_man.get("regions", []):
         "bake_id": bake_id,
         "stem": region.get("stem"),
         "has_delta_h": bool(region.get("has_delta_h")),
+        "graph_format_version": region.get("graph_format_version"),
         "navi_manifest": navi_manifest_name,
         "files": file_digests,
     }

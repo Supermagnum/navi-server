@@ -85,13 +85,15 @@ for path in sorted(src.iterdir()):
 mans = sorted(pub.glob("*.navi-manifest.json"))
 navi_man = mans[0].name if mans else None
 has_dh = False
+graph_fmt = None
 if navi_man:
     try:
-        has_dh = bool(
-            json.loads((pub / navi_man).read_text(encoding="utf-8")).get("has_delta_h")
-        )
+        navi_body = json.loads((pub / navi_man).read_text(encoding="utf-8"))
+        has_dh = bool(navi_body.get("has_delta_h"))
+        graph_fmt = navi_body.get("graph_format_version")
     except Exception:
         has_dh = False
+        graph_fmt = None
 
 man = {
     "schema": 1,
@@ -100,6 +102,7 @@ man = {
     "bake_id": bake_id,
     "stem": navi_man.replace(".navi-manifest.json", "") if navi_man else bake_id,
     "has_delta_h": has_dh,
+    "graph_format_version": graph_fmt,
     "navi_manifest": navi_man,
     "files": files,
 }
