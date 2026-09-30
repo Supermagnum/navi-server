@@ -58,6 +58,13 @@ classify_fetch_failure() {
       FETCH_FAIL_REASON="curl_rc=${curl_rc} http=${http:-none}"
       return 0
       ;;
+    47)
+      # Too many redirects. Geofabrik -latest sometimes loops; fetch-extracts.sh
+      # tries a dated-sibling fallback before escalating. Keep ambiguous here.
+      FETCH_FAIL_CLASS="ambiguous"
+      FETCH_FAIL_REASON="curl_rc=47 http=${http:-none}"
+      return 0
+      ;;
     22)
       # HTTP error page with -f; class from status if present, else ambiguous
       if [[ -n "$http" ]]; then

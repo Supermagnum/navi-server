@@ -52,6 +52,37 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+
+# Geofabrik CDN sometimes 301s -latest.osm.pbf onto the same URL with a trailing
+# slash (or onto dated-NN.osm.pbf/), which curl -L follows until curl_rc=47.
+# Resolve the newest dated sibling so the bake can continue without a human pause.
+geofabrik_dated_fallback_url() {
+  local latest_url="$1"
+  case "$latest_url" in
+    *-latest.osm.pbf) ;;
+    *) return 1 ;;
+  esac
+  local base="${latest_url%-latest.osm.pbf}"
+  local stem="${base##*/}"
+  local parent="${base%/*}"
+  local loc html dated
+
+  loc="$(curl -sI --connect-timeout 30 --max-time 60 --max-redirs 0 "$latest_url" 2>/dev/null \
+    | awk 'BEGIN{IGNORECASE=1} /^location:/{gsub(/\r/,""); sub(/^[^:]+:[[:space:]]*/,""); print; exit}')"
+  loc="${loc%/}"
+  if [[ "$loc" =~ /${stem}-[0-9]{6}\.osm\.pbf$ ]]; then
+    printf '%s\n' "$loc"
+    return 0
+  fi
+
+  html="$(curl -fsL --connect-timeout 30 --max-time 90 "${base}.html" 2>/dev/null \
+    || curl -fsL --connect-timeout 30 --max-time 90 "${parent}/" 2>/dev/null \
+    || true)"
+  dated="$(printf '%s\n' "$html" | grep -oE "${stem}-[0-9]{6}\\.osm\\.pbf" | sort -u | tail -1 || true)"
+  [[ -n "$dated" ]] || return 1
+  printf '%s/%s\n' "$parent" "$dated"
+}
+
 fetch_one() {
   local region_id="$1"
   local src="$2"
@@ -91,6 +122,7 @@ fetch_one() {
     -fL
     --connect-timeout "${NAVI_HTTP_TIMEOUT_SECS}"
     --retry 0
+    --max-redirs 20
     -o "$tmp"
     -w '%{http_code}|%{size_download}|%{time_total}'
     -D "${state_dir}/headers.raw"
@@ -136,6 +168,27 @@ fetch_one() {
 
     classify_fetch_failure "$rc" "${state_dir}/headers.raw"
     log_warn "fetch attempt=${attempt} region=${region_id} class=${FETCH_FAIL_CLASS} ${FETCH_FAIL_REASON}"
+
+    # One-shot recovery for Geofabrik -latest redirect loops / soft-404s.
+    if [[ "$url" == *"-latest.osm.pbf" ]] && { [[ "$rc" -eq 47 ]] || [[ "${FETCH_FAIL_HTTP:-}" == "404" ]]; }; then
+      local dated_url=""
+      if dated_url="$(geofabrik_dated_fallback_url "$url")"; then
+        log_warn "geofabrik -latest redirect loop; falling back to dated url=${dated_url} region=${region_id}"
+        url="$dated_url"
+        # Drop conditional validators — dated object is a different resource.
+        curl_base_args=(
+          -fL
+          --connect-timeout "${NAVI_HTTP_TIMEOUT_SECS}"
+          --retry 0
+          --max-redirs 20
+          -o "$tmp"
+          -w '%{http_code}|%{size_download}|%{time_total}'
+          -D "${state_dir}/headers.raw"
+        )
+        continue
+      fi
+      log_warn "geofabrik dated fallback unavailable region=${region_id} url=${url}"
+    fi
 
     if [[ "$FETCH_FAIL_CLASS" != "transient" ]]; then
       die "download failed region=${region_id} class=${FETCH_FAIL_CLASS} ${FETCH_FAIL_REASON} curl_rc=${rc}"
@@ -213,8 +266,13 @@ fetch_one() {
   # Checksum when the provider publishes one.
   if md5_url="$(region_md5_url "$src")"; then
     md5_file="${pbf}.md5"
+    # If PBF came from a dated Geofabrik fallback, use the matching .md5
+    # (-latest.md5 currently redirect-loops the same way).
+    case "$url" in
+      *-[0-9][0-9][0-9][0-9][0-9][0-9].osm.pbf) md5_url="${url}.md5" ;;
+    esac
     log_info "fetch checksum ${md5_url}"
-    if curl -fL --connect-timeout "${NAVI_HTTP_TIMEOUT_SECS}" -o "$md5_file" "$md5_url"; then
+    if curl -fL --connect-timeout "${NAVI_HTTP_TIMEOUT_SECS}" --max-redirs 20 -o "$md5_file" "$md5_url"; then
       expected="$(awk '{print $1; exit}' "$md5_file")"
       actual="$(md5sum "$pbf" | awk '{print $1}')"
       if [[ "$expected" != "$actual" ]]; then
