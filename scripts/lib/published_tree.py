@@ -105,14 +105,26 @@ def rebuild_current_json(
             gman = json.loads((g / "manifest.json").read_text(encoding="utf-8"))
             g_dh = bool(gman.get("has_delta_h"))
             bake_id = gman.get("bake_id")
+            graph_fmt = gman.get("graph_format_version")
         except Exception:
             g_dh = None
             bake_id = None
+            graph_fmt = None
+        if graph_fmt is None:
+            try:
+                mans = sorted(g.glob("*.navi-manifest.json"))
+                if mans:
+                    graph_fmt = json.loads(mans[0].read_text(encoding="utf-8")).get(
+                        "graph_format_version"
+                    )
+            except Exception:
+                graph_fmt = None
         entry = {
             "region_id": rel,
             "generation": g.name,
             "manifest_url": f"/packs/{rel}/{g.name}/manifest.json",
             "has_delta_h": g_dh,
+            "graph_format_version": graph_fmt,
             "bytes": sum(f.stat().st_size for f in g.rglob("*") if f.is_file()),
         }
         if bake_id:
