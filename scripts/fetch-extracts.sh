@@ -169,8 +169,8 @@ fetch_one() {
     classify_fetch_failure "$rc" "${state_dir}/headers.raw"
     log_warn "fetch attempt=${attempt} region=${region_id} class=${FETCH_FAIL_CLASS} ${FETCH_FAIL_REASON}"
 
-    # One-shot recovery for Geofabrik -latest redirect loops (curl_rc=47).
-    if [[ "$rc" -eq 47 && "$url" == *"-latest.osm.pbf" ]]; then
+    # One-shot recovery for Geofabrik -latest redirect loops / soft-404s.
+    if [[ "$url" == *"-latest.osm.pbf" ]] && { [[ "$rc" -eq 47 ]] || [[ "${FETCH_FAIL_HTTP:-}" == "404" ]]; }; then
       local dated_url=""
       if dated_url="$(geofabrik_dated_fallback_url "$url")"; then
         log_warn "geofabrik -latest redirect loop; falling back to dated url=${dated_url} region=${region_id}"
