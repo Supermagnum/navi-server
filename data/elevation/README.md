@@ -15,21 +15,31 @@ elevation/
 here. With `NAVI_BAKE_DELTA_H=1` (default), `navi-indexed-convert --elev-dir`
 samples these tiles into graph-pack `edge_delta_h_m`.
 
-Tiles are **not** committed (see repo `.gitignore`). Populate via
-`scripts/prefetch-dem-bbox.py` (Copernicus) or copy an existing DEM cache into
-this tree. Convert never downloads DEM over the network.
+Tiles are **not** committed (see repo `.gitignore`). Weekly standing cache:
+`scripts/fill-weekly-dem.sh` / convert prefetch via
+`scripts/prefetch-dem-bbox.py --cells-file` (Copernicus road-cells). Planet
+runners use `data/elevation-planet` (`NAVI_ELEV_PLANET_DIR`) and may
+`--evict`. Convert never downloads DEM itself — scripts do before convert.
+
+
+## Road-cell coverage (weekly)
+
+Cell lists come from every node on `highway=*` and ferry ways in the region
+PBF (including intermediate shape points), cached under
+`data/state/dem_cells/<region_id>.json`. Convert requires each cell present
+or listed in the 404 index; otherwise the region is soft-skipped. Per-region
+`delta_h=0` on `regions.conf` disables Δh without DEM. See
+`docs/dem-weekly.md`.
 
 
 ## Missing tiles / samples
 
 Copernicus GLO-30 does not publish ocean-only 1° cells (HTTP 404 on prefetch).
-`scripts/prefetch-dem-bbox.py` skips cells that do not intersect the extract
-Osmosis `.poly` (soft-fetched by `fetch-extracts.sh` beside the PBF) and
-records confirmed 404 stems in `elevation/copernicus_ocean_404.txt`
-(persistent negative cache; gitignored; not under scratch/). Missing or
-unusable `.poly` fails open (full bbox grid). Unit tests:
-`scripts/test-dem-ocean-skip.py`. An empty tree or a missing tile still
-allows convert with Δh enabled.
+`scripts/prefetch-dem-bbox.py` records confirmed 404 stems in
+`elevation/copernicus_ocean_404.txt` (per-source index; gitignored). Refresh:
+`--refresh-404` (drop stems overlapping the request) or `--refresh-404-all`.
+Legacy bbox mode may also skip cells outside the extract `.poly`. Unit tests:
+`scripts/test-dem-ocean-skip.py`.
 
 On disk in the graph pack:
 

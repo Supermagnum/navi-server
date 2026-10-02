@@ -43,9 +43,15 @@ load_config() {
   : "${NAVI_PUBLISHED_DIR:=${NAVI_PACK_ROOT}/published}"
   : "${NAVI_PROFILES:=car,foot}"
   : "${NAVI_ELEV_DIR:=${NAVI_PACK_ROOT}/elevation}"
+  # Planet-leaves / planet-smoke standing tree (may --evict). Weekly must NOT
+  # share this with NAVI_ELEV_DIR.
+  : "${NAVI_ELEV_PLANET_DIR:=${NAVI_PACK_ROOT}/elevation-planet}"
   # Bake edge_delta_h_m into graph packs (default on). Set to 0 to disable.
-  # When on, NAVI_ELEV_DIR must point at a DEM tile directory.
+  # When on, NAVI_ELEV_DIR must point at a DEM tile directory. Per-region
+  # override: trailing delta_h=0 on a regions.conf line.
   : "${NAVI_BAKE_DELTA_H:=1}"
+  # Weekly convert prefetches Copernicus road-cells into NAVI_ELEV_DIR (no --evict).
+  : "${NAVI_PREFETCH_DEM:=1}"
   : "${NAVI_BAKE_TOWN_ROUTES:=0}"
   : "${NAVI_TOWN_ROUTE_BIN:=}"
   : "${NAVI_KEEP_GENERATIONS:=2}"
@@ -363,6 +369,75 @@ region_pbf_path() {
 region_poly_path() {
   local region_id="$1"
   printf '%s/%s.poly\n' "$NAVI_EXTRACTS_DIR" "$region_id"
+}
+
+region_dem_cells_path() {
+  local region_id="$1"
+  printf '%s/dem_cells/%s.json\n' "$NAVI_STATE_DIR" "$region_id"
+}
+
+# True (exit 0) when this region should bake Δh. Global NAVI_BAKE_DELTA_H=0
+# wins; else regions.conf trailing delta_h=0|false|off disables per region.
+region_delta_h_enabled() {
+  local rid="$1"
+  local v=""
+  if [[ "${NAVI_BAKE_DELTA_H}" != "1" ]]; then
+    return 1
+  fi
+  v="$(region_conf_kv "$rid" "delta_h" \
+    "${NAVI_PACK_ROOT}/regions.conf" \
+    "${NAVI_REGIONS_CONF:-}" \
+    "${NAVI_PACK_ROOT}/regions.planet.conf" || true)"
+  case "${v,,}" in
+    0|false|off|no) return 1 ;;
+  esac
+  return 0
+}
+
+# Build road-cell list from PBF (cached) and prefetch into elev_dir without --evict.
+# Soft-fail: logs WARN and returns 0 so convert/coverage can skip the region.
+prefetch_region_dem_cells() {
+  local region_id="$1"
+  local elev_dir="${2:-${NAVI_ELEV_DIR:-}}"
+  local pbf cells_path dem_rc
+  if [[ "${NAVI_PREFETCH_DEM:-1}" != "1" ]]; then
+    log_info "dem prefetch skipped region=${region_id} (NAVI_PREFETCH_DEM=0)"
+    return 0
+  fi
+  [[ -n "$elev_dir" ]] || {
+    log_warn "dem prefetch skipped region=${region_id} (empty elev dir)"
+    return 0
+  }
+  mkdir -p "$elev_dir"
+  pbf="$(region_pbf_path "$region_id")"
+  if [[ ! -f "$pbf" ]]; then
+    log_warn "dem prefetch skipped region=${region_id} reason=missing_pbf path=${pbf}"
+    return 0
+  fi
+  set +e
+  python3 "${SCRIPT_DIR}/build-dem-cell-list.py" \
+    --region "$region_id" --pbf "$pbf" --state-dir "$NAVI_STATE_DIR"
+  dem_rc=$?
+  set -e
+  if [[ "$dem_rc" -ne 0 ]]; then
+    log_warn "dem cell-list soft-fail region=${region_id} rc=${dem_rc}"
+    return 0
+  fi
+  cells_path="$(region_dem_cells_path "$region_id")"
+  if [[ ! -f "$cells_path" ]]; then
+    log_warn "dem prefetch skipped region=${region_id} reason=no_cells_cache"
+    return 0
+  fi
+  log_info "dem prefetch region=${region_id} cells_file=${cells_path} elev=${elev_dir}"
+  set +e
+  python3 "${SCRIPT_DIR}/prefetch-dem-bbox.py" \
+    --elev-dir "$elev_dir" --cells-file "$cells_path"
+  dem_rc=$?
+  set -e
+  if [[ "$dem_rc" -ne 0 ]]; then
+    log_warn "dem prefetch soft-fail region=${region_id} rc=${dem_rc}"
+  fi
+  return 0
 }
 
 region_state_dir() {

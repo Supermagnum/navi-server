@@ -10,12 +10,10 @@
 #   ./convert-region.sh --profiles car,truck,foot,bicycle hedmark
 #   ./convert-region.sh --out-dir /path/to/staging/gen/regions hedmark
 #
-# Δh default comes from data/config.env (NAVI_BAKE_DELTA_H=1). When on,
-# NAVI_ELEV_DIR (or --elev-dir) must point at a DEM tile directory.
-#
-# Per-region DEM coverage (see lib/dem_coverage.py + docs/dem-weekly.md):
-# when Δh is on and the elev tree has no tiles covering the region, that
-# region is skipped (previous published gen stays live) and the run continues.
+# Δh default comes from data/config.env (NAVI_BAKE_DELTA_H=1). Per-region
+# trailing delta_h=0 on regions.conf disables Δh for that region only.
+# When Δh is on: build road-cell list from the PBF, prefetch Copernicus tiles
+# (no --evict), then require every cell present or known-404 before convert.
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -26,7 +24,8 @@ load_config
 OUT_DIR=""
 PROFILES="${NAVI_PROFILES}"
 ELEV_DIR="${NAVI_ELEV_DIR}"
-BAKE_DELTA_H="${NAVI_BAKE_DELTA_H}"
+# Global default; per-region override applied inside convert_one.
+BAKE_DELTA_H_GLOBAL="${NAVI_BAKE_DELTA_H}"
 DO_ALL=0
 FILTER_IDS=()
 
@@ -35,9 +34,9 @@ while [[ $# -gt 0 ]]; do
     --all) DO_ALL=1; shift ;;
     --out-dir) OUT_DIR="$2"; shift 2 ;;
     --profiles) PROFILES="$2"; shift 2 ;;
-    --elev-dir) ELEV_DIR="$2"; BAKE_DELTA_H=1; shift 2 ;;
+    --elev-dir) ELEV_DIR="$2"; BAKE_DELTA_H_GLOBAL=1; shift 2 ;;
     --delta-h)
-      BAKE_DELTA_H=1
+      BAKE_DELTA_H_GLOBAL=1
       if [[ -z "${ELEV_DIR}" && -z "${NAVI_ELEV_DIR}" ]]; then
         die "--delta-h requires NAVI_ELEV_DIR in config.env or --elev-dir"
       fi
@@ -45,7 +44,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --no-delta-h)
-      BAKE_DELTA_H=0
+      BAKE_DELTA_H_GLOBAL=0
       ELEV_DIR=""
       shift
       ;;
@@ -61,8 +60,7 @@ if [[ "$DO_ALL" -eq 0 && ${#FILTER_IDS[@]} -eq 0 ]]; then
   die "pass a region id or --all"
 fi
 
-# Config default is Δh on — require a DEM dir unless explicitly disabled.
-if [[ "$BAKE_DELTA_H" == "1" ]]; then
+if [[ "$BAKE_DELTA_H_GLOBAL" == "1" ]]; then
   ELEV_DIR="${ELEV_DIR:-$NAVI_ELEV_DIR}"
   if [[ -z "$ELEV_DIR" ]]; then
     die "NAVI_BAKE_DELTA_H=1 but NAVI_ELEV_DIR is empty — set DEM path in ${NAVI_PACK_ROOT}/config.env (or pass --elev-dir / --no-delta-h)"
@@ -76,11 +74,10 @@ CONVERT_BIN="$(resolve_convert_bin)"
 log_info "using convert binary: ${CONVERT_BIN}"
 
 # Returns 0 = converted, 2 = skipped (DEM / missing PBF soft), 1 = hard failure.
-# Uses set +e internally so non-zero `return` cannot trip the caller's errexit.
 convert_one() {
   set +e
   local region_id="$1"
-  local pbf out elev_args cover_msg rc
+  local pbf out elev_args cover_msg rc cells_path want_delta=0
   pbf="$(region_pbf_path "$region_id")"
   if [[ ! -f "$pbf" ]]; then
     log_warn "convert skip region=${region_id} reason=missing_extract path=${pbf}"
@@ -95,15 +92,27 @@ convert_one() {
   mkdir -p "$out"
 
   elev_args=()
-  if [[ -n "$ELEV_DIR" ]]; then
+  NAVI_BAKE_DELTA_H="$BAKE_DELTA_H_GLOBAL"
+  if region_delta_h_enabled "$region_id"; then
+    want_delta=1
+  fi
+
+  if [[ "$want_delta" -eq 1 && -n "$ELEV_DIR" ]]; then
+    prefetch_region_dem_cells "$region_id" "$ELEV_DIR"
+    cells_path="$(region_dem_cells_path "$region_id")"
     cover_msg="$(
       PYTHONPATH="${SCRIPT_DIR}/lib${PYTHONPATH:+:$PYTHONPATH}" \
-        python3 - "$ELEV_DIR" "$region_id" "${NAVI_REGIONS_CONF}.bboxes.json" <<'PY'
+        python3 - "$ELEV_DIR" "$region_id" "$cells_path" "${NAVI_REGIONS_CONF}.bboxes.json" <<'PY'
 import sys
 from pathlib import Path
 from dem_coverage import region_dem_ok
-elev, rid, bbox = sys.argv[1], sys.argv[2], Path(sys.argv[3])
-ok, msg = region_dem_ok(Path(elev), rid, bbox if bbox.is_file() else None)
+elev, rid, cells, bbox = sys.argv[1], sys.argv[2], Path(sys.argv[3]), Path(sys.argv[4])
+ok, msg = region_dem_ok(
+    Path(elev),
+    rid,
+    cells_path=cells if cells.is_file() else None,
+    bboxes_path=bbox if bbox.is_file() else None,
+)
 print(msg)
 sys.exit(0 if ok else 2)
 PY
@@ -111,7 +120,6 @@ PY
     rc=$?
     if [[ "$rc" -ne 0 ]]; then
       log_warn "convert skip region=${region_id} reason=dem_coverage ${cover_msg}"
-      # Do not leave a partial/empty convert tree that publish might pick up.
       rm -rf "$out"
       return 2
     fi
@@ -121,7 +129,6 @@ PY
     log_info "convert region=${region_id} delta_h=no profiles=${PROFILES}"
   fi
 
-  # Existing CLI contract — do not invent new flags on the binary.
   "$CONVERT_BIN" \
     --data-dir "$out" \
     --pbf "$pbf" \
@@ -134,9 +141,10 @@ PY
     return 1
   fi
 
-  # Record convert metadata for publish/validate.
   local meta="${out}/.convert-meta.json"
-  python3 - "$region_id" "$pbf" "$out" "$PROFILES" "${ELEV_DIR:-}" "$meta" <<'PY'
+  local elev_meta=""
+  [[ "$want_delta" -eq 1 ]] && elev_meta="$ELEV_DIR"
+  python3 - "$region_id" "$pbf" "$out" "$PROFILES" "${elev_meta}" "$meta" <<'PY'
 import json, os, sys, time
 region_id, pbf, out, profiles, elev, meta = sys.argv[1:7]
 files = sorted(f for f in os.listdir(out) if not f.startswith("."))
@@ -213,6 +221,4 @@ if [[ "$matched" -eq 0 && "$skipped" -gt 0 ]]; then
 fi
 
 log_info "convert step complete ok=${ok_n} dem_or_soft_skip=${dem_skip_n} fail=${fail_n} skip_reason=${skipped}"
-# Never abort the whole weekly run for a per-region skip/fail: publish only
-# stages regions that produced convert output; previous gens stay live for the rest.
 exit 0

@@ -42,14 +42,22 @@ export NAVI_REGIONS_CONF="$PACK/regions.conf"
 export NAVI_PUBLISHED_DIR="$PACK/published"
 export NAVI_ELEV_DIR="$PACK/elevation"
 export NAVI_BAKE_DELTA_H=1
+export NAVI_PREFETCH_DEM=0
 export NAVI_SCRATCH_DIR="$PACK/scratch"
 export NAVI_EXTRACTS_DIR="$PACK/scratch/extracts"
 export NAVI_CONVERT_DIR="$PACK/scratch/convert"
 export NAVI_LOG_DIR="$PACK/logs"
 export NAVI_STAGING_DIR="$PACK/staging"
 export NAVI_GENERATIONS_DIR="$PACK/generations"
+export NAVI_STATE_DIR="$PACK/state"
 # Avoid sun-order requiring real conf layout beyond bbox.
 export NAVI_BAKE_SUN_ORDER=0
+# Pre-seed road-cell lists (zero-byte PBFs are not scannable).
+mkdir -p "$PACK/state/dem_cells"
+printf '%s\n' '{"schema":1,"cells":[[59,5]],"cell_count":1}' \
+  >"$PACK/state/dem_cells/fake_ok.json"
+printf '%s\n' '{"schema":1,"cells":[[10,10]],"cell_count":1}' \
+  >"$PACK/state/dem_cells/fake_empty.json"
 
 # --- dem_coverage unit ---
 if python3 "${SCRIPT_DIR}/test-dem-coverage.py" -q; then

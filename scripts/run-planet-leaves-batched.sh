@@ -49,8 +49,12 @@ done
 export NAVI_BAKE_DELTA_H=1
 export NAVI_BAKE_TOWN_ROUTES=0
 export NAVI_REGIONS_CONF="$REGIONS_FILE"
-: "${NAVI_ELEV_DIR:=${NAVI_PACK_ROOT}/elevation}"
-export NAVI_ELEV_DIR
+# Planet DEM tree is isolated from the weekly standing cache so --evict cannot
+# wipe tiles weekly regions need.
+: "${NAVI_ELEV_PLANET_DIR:=${NAVI_PACK_ROOT}/elevation-planet}"
+export NAVI_ELEV_DIR="${NAVI_ELEV_PLANET_DIR}"
+mkdir -p "$NAVI_ELEV_DIR"
+log_info "planet elev_dir=${NAVI_ELEV_DIR} (weekly uses ${NAVI_PACK_ROOT}/elevation)"
 load_config
 export NAVI_REGIONS_CONF="$REGIONS_FILE"
 

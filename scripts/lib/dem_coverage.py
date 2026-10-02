@@ -3,9 +3,9 @@
 Copernicus GLO-30 cache layout (see prefetch-dem-bbox.py):
   elev_dir/copernicus/<NxxExxx>/Copernicus_DSM_COG_10_….tif
 
-Also accepts loose *.tif / *.hgt / *.geotiff anywhere under elev_dir (SRTM /
-viewfinder). Coverage for a bbox is the fraction of 1-degree cells that have
-at least one non-empty DEM payload on disk.
+"Covered" for a region means every cell in the road-cell list is either:
+  - present on disk as a non-empty DEM payload, or
+  - recorded in the Copernicus 404/ocean negative cache.
 """
 
 from __future__ import annotations
@@ -14,6 +14,8 @@ import json
 import math
 from pathlib import Path
 from typing import Iterable
+
+from dem_ocean_404_cache import load_missing
 
 DEM_GLOB_SUFFIXES = (".tif", ".tiff", ".geotiff", ".hgt", ".HGT")
 
@@ -42,14 +44,11 @@ def _is_dem_file(path: Path) -> bool:
             return False
     except OSError:
         return False
-    name = path.name
-    lower = name.lower()
+    lower = path.name.lower()
     return lower.endswith(DEM_GLOB_SUFFIXES)
 
 
 def cell_has_dem(elev_dir: Path, lat_floor: int, lon_floor: int) -> bool:
-    """True when the Copernicus stem dir has a DEM payload, or a loose DEM
-    whose name contains the stem (best-effort for non-Copernicus layouts)."""
     elev = Path(elev_dir)
     stem = tile_stem(lat_floor, lon_floor)
     cop = elev / "copernicus" / stem
@@ -60,7 +59,6 @@ def cell_has_dem(elev_dir: Path, lat_floor: int, lon_floor: int) -> bool:
                     return True
         except OSError:
             pass
-    # Loose / alternate trees (srtm, viewfinder, flat caches).
     for sub in (elev / "srtm", elev / "viewfinder", elev):
         if not sub.is_dir():
             continue
@@ -93,14 +91,49 @@ def coverage_for_bbox(
     max_lat: float,
     max_lon: float,
 ) -> tuple[int, int]:
-    """Return (present_cells, total_cells) for the bbox grid."""
-    cells = bbox_cells(min_lat, min_lon, max_lat, max_lon)
-    if not cells:
-        return 0, 0
-    present = sum(
-        1 for lat, lon in cells if cell_has_dem(Path(elev_dir), lat, lon)
+    """Legacy: (present_dem_cells, total_bbox_cells)."""
+    present, _ocean, total, _missing = coverage_for_cells(
+        elev_dir, bbox_cells(min_lat, min_lon, max_lat, max_lon)
     )
-    return present, len(cells)
+    return present, total
+
+
+def coverage_for_cells(
+    elev_dir: Path, cells: Iterable[tuple[int, int]]
+) -> tuple[int, int, int, list[tuple[int, int]]]:
+    """Return (present, known_404, total, missing_unresolved)."""
+    elev = Path(elev_dir)
+    known_404 = load_missing(elev)
+    present = 0
+    ocean = 0
+    missing: list[tuple[int, int]] = []
+    cell_list = list(cells)
+    for lat, lon in cell_list:
+        stem = tile_stem(lat, lon)
+        if cell_has_dem(elev, lat, lon):
+            present += 1
+        elif stem in known_404:
+            ocean += 1
+        else:
+            missing.append((lat, lon))
+    return present, ocean, len(cell_list), missing
+
+
+def load_cells_file(path: Path) -> list[tuple[int, int]] | None:
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if isinstance(data, list):
+        return [(int(a), int(b)) for a, b in data]
+    cells = data.get("cells") or []
+    out: list[tuple[int, int]] = []
+    for c in cells:
+        if isinstance(c, (list, tuple)) and len(c) == 2:
+            out.append((int(c[0]), int(c[1])))
+    return out
 
 
 def load_bbox(
@@ -121,34 +154,65 @@ def load_bbox(
 def region_dem_ok(
     elev_dir: Path,
     region_id: str,
+    *,
+    cells_path: Path | None = None,
     bboxes_path: Path | None = None,
 ) -> tuple[bool, str]:
     """Decide whether convert may bake Δh for region_id.
 
-    With a bbox entry: require at least one DEM cell present for that grid.
-    Without a bbox: require any DEM payload under elev_dir (legacy fallback;
-    validate catches empty-Δh regressions).
+    Prefer an explicit road-cell list: every cell must be present or known 404.
+    Legacy bbox / any-dem fallbacks remain for older call sites.
     """
     elev = Path(elev_dir)
     if not elev.is_dir():
         return False, f"elev dir missing: {elev}"
-    bbox = None
-    if bboxes_path is not None:
-        bbox = load_bbox(Path(bboxes_path), region_id)
-    if bbox is not None:
-        present, total = coverage_for_bbox(elev, *bbox)
-        if present <= 0:
+
+    cells = None
+    if cells_path is not None:
+        cells = load_cells_file(Path(cells_path))
+    if cells is not None:
+        if not cells:
+            return False, f"empty road-cell list for {region_id}"
+        present, ocean, total, missing = coverage_for_cells(elev, cells)
+        if missing:
+            sample = ",".join(tile_stem(a, b) for a, b in missing[:8])
+            more = "" if len(missing) <= 8 else f"+{len(missing) - 8}"
             return (
                 False,
-                f"no DEM tiles covering {region_id} "
-                f"(0/{total} cells under {elev}; bbox={bbox})",
+                f"DEM incomplete for {region_id}: present={present} "
+                f"ocean_404={ocean} missing={len(missing)}/{total} "
+                f"sample={sample}{more}",
             )
-        return True, f"dem coverage {region_id} present={present}/{total}"
+        return (
+            True,
+            f"dem coverage {region_id} present={present} ocean_404={ocean} "
+            f"total={total}",
+        )
+
+    if bboxes_path is not None:
+        bbox = load_bbox(Path(bboxes_path), region_id)
+        if bbox is not None:
+            grid = bbox_cells(*bbox)
+            present, ocean, total, missing = coverage_for_cells(elev, grid)
+            # Legacy bbox path: require at least one present DEM (ocean-only
+            # bbox is not enough to bake meaningful Δh).
+            if present <= 0:
+                return (
+                    False,
+                    f"no DEM tiles covering {region_id} "
+                    f"(present=0 ocean_404={ocean} total={total}; bbox={bbox})",
+                )
+            return (
+                True,
+                f"dem coverage {region_id} present={present}/{total} "
+                f"ocean_404={ocean} (bbox legacy)",
+            )
+
     if not elev_has_any_dem(elev):
         return False, f"no DEM tiles (*.tif/*.hgt) under {elev}"
     return (
         True,
-        f"dem present under {elev} (no bbox for {region_id}; "
+        f"dem present under {elev} (no cell list for {region_id}; "
         "coverage not region-scoped)",
     )
 
