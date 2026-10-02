@@ -61,6 +61,11 @@ pub struct NaviManifest {
     pub delta_h_missing_edges: usize,
     #[serde(default)]
     pub elev_dir: Option<String>,
+    /// When true, car graph packs include bounded ferry terminal boarding links
+    /// (pier / footway / platform chains). Absent / false on older packs —
+    /// clients keep their overlay for those regions.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub ferry_links_baked: bool,
 }
 
 fn is_zero_usize(v: &usize) -> bool {

@@ -30,6 +30,10 @@ use super::builder::{
     osm_is_tunnel, raw_way_skipped_for_profile, record_car_ferry_relation_sketch,
     tags_indicate_ferry, CarFerryRelSketch, GraphEdge, RouteGraph, RoutingProfile,
 };
+use super::ferry_boarding::{
+    is_ferry_boarding_candidate, promote_ferry_boarding_way_ids, BoardingWayRef,
+    FERRY_BOARDING_MAX_CHAIN_M,
+};
 use super::surface_quality::classify_surface_tags;
 use crate::routing::access;
 use crate::routing::wetland::tags_map_indicate_boardwalk;
@@ -100,6 +104,7 @@ fn keep_way_tag(key: &str) -> bool {
             | "bicycle"
             | "motor_vehicle:conditional"
             | "access:conditional"
+            | "man_made"
     )
 }
 
@@ -252,6 +257,25 @@ type TiledPass1 = (
     HashMap<i64, Vec<i64>>,
 );
 
+/// Pass 1 keep rule: profile highways, ferries, and opt-in boarding candidates.
+fn spill_keep_way(
+    tags: &HashMap<String, String>,
+    profiles: &[RoutingProfile],
+    ferry_links: bool,
+) -> bool {
+    let highway_ok = tags
+        .get("highway")
+        .is_some_and(|highway| highway_ok_for_any(highway, profiles));
+    if highway_ok || tags_indicate_ferry(tags) {
+        return true;
+    }
+    ferry_links
+        && profiles
+            .iter()
+            .any(|p| matches!(p, RoutingProfile::Car | RoutingProfile::Truck))
+        && is_ferry_boarding_candidate(tags)
+}
+
 /// Pass 1 for tiled convert: filter profile highways and append length-prefixed
 /// [`SpilledWay`] records. Each Rayon worker keeps its own spill file and node-id
 /// batch so bincode serialization and writes never contend on a global lock.
@@ -259,6 +283,7 @@ fn spill_tiled_highway_ways(
     path: &Path,
     spill_dir: &Path,
     profiles: &[RoutingProfile],
+    ferry_links: bool,
     dest: &mut impl Write,
 ) -> anyhow::Result<TiledPass1> {
     struct ThreadPass1 {
@@ -329,10 +354,7 @@ fn spill_tiled_highway_ways(
                                 .map(|(k, v)| (k.to_string(), v.to_string()))
                                 .collect(),
                         );
-                        let highway_ok = tags
-                            .get("highway")
-                            .is_some_and(|highway| highway_ok_for_any(highway, profiles));
-                        if !highway_ok && !tags_indicate_ferry(&tags) {
+                        if !spill_keep_way(&tags, profiles, ferry_links) {
                             return;
                         }
                         let refs: Vec<i64> = way.refs().collect();
@@ -505,6 +527,16 @@ impl RouteGraph {
         profile: RoutingProfile,
         bbox: [f64; 4],
     ) -> anyhow::Result<Self> {
+        Self::build_from_pbf_bbox_with_ferry_links(path, profile, bbox, false)
+    }
+
+    /// Like [`Self::build_from_pbf_bbox`], optionally promoting ferry boarding links.
+    pub fn build_from_pbf_bbox_with_ferry_links(
+        path: impl AsRef<Path>,
+        profile: RoutingProfile,
+        bbox: [f64; 4],
+        ferry_links: bool,
+    ) -> anyhow::Result<Self> {
         let path = path.as_ref();
         crate::download::progress::set(0, Some(4), "Planning route: indexing area…");
         // Pass 1: node ids inside bbox (ids only — storing every coord OOMs on large extracts).
@@ -541,10 +573,7 @@ impl RouteGraph {
                             .map(|(k, v)| (k.to_string(), v.to_string()))
                             .collect(),
                     );
-                    let highway_ok = tags
-                        .get("highway")
-                        .is_some_and(|highway| highway_ok_for_profile(highway, profile));
-                    if !highway_ok && !tags_indicate_ferry(&tags) {
+                    if !spill_keep_way(&tags, &[profile], ferry_links) {
                         return;
                     }
                     let refs: Vec<i64> = way.refs().collect();
@@ -622,7 +651,14 @@ impl RouteGraph {
         crate::download::plan_cancel::abort_if_cancelled()?;
         crate::download::progress::set(3, Some(4), "Planning route: linking graph…");
         let arcs: Vec<Arc<RawWay>> = ways.into_iter().map(Arc::new).collect();
-        let graph = graph_from_raw_ways(&arcs, &coords, profile, &barrier_tags, &parent_car_ways)?;
+        let graph = graph_from_raw_ways(
+            &arcs,
+            &coords,
+            profile,
+            &barrier_tags,
+            &parent_car_ways,
+            ferry_links,
+        )?;
         if graph.edges.is_empty() {
             anyhow::bail!("bbox graph empty for {bbox:?} from {}", path.display());
         }
@@ -652,6 +688,7 @@ impl RouteGraph {
             pad_deg,
             spill_dir,
             &skip,
+            false,
             move |_profile, row, col, logical, g| on_tile(row, col, logical, g),
         )?;
         results
@@ -666,6 +703,9 @@ impl RouteGraph {
     /// `skip_tiles` is `(profile, row, col)` for archives already on disk from a
     /// crashed convert. Pass 1/2 still run (way spill is not checkpointed); the
     /// matching tile-build jobs are omitted.
+    ///
+    /// `ferry_links`: when true, car/truck graphs promote bounded pier/footway/
+    /// platform chains from car-capable ferry endpoints to the road network.
     pub fn build_tiled_from_pbf_profiles(
         path: impl AsRef<Path>,
         profiles: &[RoutingProfile],
@@ -673,6 +713,7 @@ impl RouteGraph {
         pad_deg: f64,
         spill_dir: impl AsRef<Path>,
         skip_tiles: &HashSet<(RoutingProfile, usize, usize)>,
+        ferry_links: bool,
         on_tile: impl Fn(RoutingProfile, usize, usize, [f64; 4], Self) -> anyhow::Result<()>
             + Send
             + Sync,
@@ -715,7 +756,7 @@ impl RouteGraph {
         );
         let (ways_spill, mut ways_writer) = TempSpill::create(spill_dir, "tiled-ways")?;
         let (needed, way_count, parent_car_sketches, ferry_way_nodes) =
-            spill_tiled_highway_ways(path, spill_dir, profiles, &mut ways_writer)?;
+            spill_tiled_highway_ways(path, spill_dir, profiles, ferry_links, &mut ways_writer)?;
         ways_writer
             .flush()
             .map_err(|e| anyhow::anyhow!("spill flush: {e}"))?;
@@ -804,15 +845,19 @@ impl RouteGraph {
                     let highway_ok = tags
                         .get("highway")
                         .is_some_and(|highway| highway_ok_for_profile(highway, profile));
-                    if tags_indicate_ferry(&tags) {
-                        if raw_way_skipped_for_profile(
+                    let keep = if tags_indicate_ferry(&tags) {
+                        !raw_way_skipped_for_profile(
                             &tags,
                             profile,
                             parent_car_ways.contains(&way.id),
-                        ) {
-                            continue;
-                        }
-                    } else if !highway_ok {
+                        )
+                    } else {
+                        highway_ok
+                            || (ferry_links
+                                && matches!(profile, RoutingProfile::Car | RoutingProfile::Truck)
+                                && is_ferry_boarding_candidate(&tags))
+                    };
+                    if !keep {
                         continue;
                     }
                     let mut mask = vec![0u64; mask_words];
@@ -930,6 +975,7 @@ impl RouteGraph {
                             profile,
                             &barrier_tags,
                             &parent_car_ways,
+                            ferry_links,
                         ) {
                             Ok(g) if !g.edges.is_empty() => {
                                 batch_produced.fetch_add(1, Ordering::Relaxed);
@@ -1004,11 +1050,44 @@ fn graph_from_raw_ways(
     profile: RoutingProfile,
     barrier_tags: &HashMap<i64, HashMap<String, String>>,
     parent_car_ways: &HashSet<i64>,
+    ferry_links: bool,
 ) -> anyhow::Result<RouteGraph> {
+    let motor = matches!(profile, RoutingProfile::Car | RoutingProfile::Truck);
+    let promoted: HashSet<i64> = if ferry_links && motor {
+        let refs: Vec<BoardingWayRef<'_>> = ways
+            .iter()
+            .map(|w| BoardingWayRef {
+                id: w.id,
+                nodes: &w.nodes,
+                tags: &w.tags,
+            })
+            .collect();
+        promote_ferry_boarding_way_ids(&refs, coords, FERRY_BOARDING_MAX_CHAIN_M)
+    } else {
+        HashSet::new()
+    };
+
+    let include_way = |way: &RawWay| -> bool {
+        if promoted.contains(&way.id) {
+            return true;
+        }
+        if is_ferry_boarding_candidate(&way.tags)
+            && motor
+            && !way
+                .tags
+                .get("highway")
+                .is_some_and(|h| highway_ok_for_profile(h, profile))
+        {
+            // Unpromoted boarding candidates must not become car-routable.
+            return false;
+        }
+        !raw_way_skipped_for_profile(&way.tags, profile, parent_car_ways.contains(&way.id))
+    };
+
     let mode = profile.access_mode();
     let mut uses: HashMap<i64, i32> = HashMap::new();
     for way in ways {
-        if raw_way_skipped_for_profile(&way.tags, profile, parent_car_ways.contains(&way.id)) {
+        if !include_way(way) {
             continue;
         }
         let n = way.nodes.len();
@@ -1038,7 +1117,7 @@ fn graph_from_raw_ways(
 
     let mut edges: Vec<GraphEdge> = Vec::new();
     for way in ways {
-        if raw_way_skipped_for_profile(&way.tags, profile, parent_car_ways.contains(&way.id)) {
+        if !include_way(way) {
             continue;
         }
         // Mandated minimum speed: foot/bicycle cannot legally use the way.

@@ -73,11 +73,30 @@ fi
 CONVERT_BIN="$(resolve_convert_bin)"
 log_info "using convert binary: ${CONVERT_BIN}"
 
+# Default off. NAVI_BAKE_FERRY_LINKS=1 enables for every region in this convert.
+# Otherwise NAVI_FERRY_LINKS_REGIONS is a comma-separated bake_id allowlist.
+ferry_links_enabled_for_region() {
+  local rid="$1"
+  local all="${NAVI_BAKE_FERRY_LINKS:-0}"
+  case "$all" in
+    1|true|TRUE|yes|YES|on|ON) return 0 ;;
+  esac
+  local list="${NAVI_FERRY_LINKS_REGIONS:-}"
+  [[ -n "$list" ]] || return 1
+  local IFS=','
+  local id
+  for id in $list; do
+    id="$(echo "$id" | tr -d '[:space:]')"
+    [[ "$id" == "$rid" ]] && return 0
+  done
+  return 1
+}
+
 # Returns 0 = converted, 2 = skipped (DEM / missing PBF soft), 1 = hard failure.
 convert_one() {
   set +e
   local region_id="$1"
-  local pbf out elev_args cover_msg rc cells_path want_delta=0
+  local pbf out elev_args ferry_args cover_msg rc cells_path want_delta=0
   pbf="$(region_pbf_path "$region_id")"
   if [[ ! -f "$pbf" ]]; then
     log_warn "convert skip region=${region_id} reason=missing_extract path=${pbf}"
@@ -129,11 +148,22 @@ PY
     log_info "convert region=${region_id} delta_h=no profiles=${PROFILES}"
   fi
 
+  # Opt-in ferry terminal boarding links (default off — Monday weekly must not
+  # silently change car-graph topology for every region). Enable with
+  # NAVI_BAKE_FERRY_LINKS=1 (all regions this convert) or
+  # NAVI_FERRY_LINKS_REGIONS=id1,id2,... (comma list).
+  ferry_args=()
+  if ferry_links_enabled_for_region "$region_id"; then
+    ferry_args=(--ferry-links)
+    log_info "convert region=${region_id} ferry_links=yes"
+  fi
+
   "$CONVERT_BIN" \
     --data-dir "$out" \
     --pbf "$pbf" \
     --profiles "$PROFILES" \
-    "${elev_args[@]+"${elev_args[@]}"}"
+    "${elev_args[@]+"${elev_args[@]}"}" \
+    "${ferry_args[@]+"${ferry_args[@]}"}"
   rc=$?
   if [[ "$rc" -ne 0 ]]; then
     log_warn "convert fail region=${region_id} rc=${rc} — continuing with other regions"

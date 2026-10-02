@@ -24,6 +24,7 @@ fn main() {
     let mut pbf = None;
     let mut elev = None;
     let mut profiles = vec![RoutingProfile::Car, RoutingProfile::Foot];
+    let mut ferry_links = false;
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
@@ -52,6 +53,10 @@ fn main() {
                     .collect();
                 i += 2;
             }
+            "--ferry-links" => {
+                ferry_links = true;
+                i += 1;
+            }
             other => panic!("unknown arg {other}"),
         }
     }
@@ -60,6 +65,7 @@ fn main() {
     let mut opts = ConvertOptions::new(&data_dir, &pbf);
     opts.elev_dir = elev;
     opts.profiles = profiles;
+    opts.ferry_links = ferry_links;
     match convert_region_packs(&opts) {
         Ok(r) => {
             println!(
