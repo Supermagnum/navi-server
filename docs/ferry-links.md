@@ -2,12 +2,11 @@
 
 ## Problem
 
-Baked car packs keep `route=ferry` ways but drop the pier / footway / platform
-links that connect a ferry endpoint to the road network. Terminals such as
-Halhjem, Sandvikvag, Arsvagen and Mortavika (E39 south of Bergen) become islands
-in the directed car graph, so Bergen to Stavanger is unroutable without a
-client-side ferry overlay. Lavik-Oppedal still works when the ferry way shares a
-node with a car highway.
+Baked car packs keep `route=ferry` ways but historically drop pier / footway /
+platform links that connect a ferry endpoint to the road network. Where that
+happens, the landing is a directed-graph island and the client must attach a
+ferry overlay. Some landings (e.g. Lavik-Oppedal) already share a node with a
+car highway and need no overlay.
 
 ## Step 1 findings (read-only)
 
@@ -16,8 +15,7 @@ node with a car highway.
 In `pack-convert-core/src/routing/graph/bbox_build.rs`:
 
 - `keep_way_tag` retains routing tags (`highway`, `route`, `ferry`, `duration`,
-  access, etc.). This change also keeps `man_made` (for piers) when ferry-link
-  promotion needs it.
+  access, etc.). This change also keeps `man_made` (for piers).
 - Pass 1 / tile-assign keep a way only when `spill_keep_way` / the tile filter
   says so. **Without ferry links**, that is:
 
@@ -46,52 +44,29 @@ Target generation:
 | Pack dir size | **531 MiB** |
 | Car graph tiles | **26** |
 | Car graph size | **174 MiB** |
-| Foot tiles | 26 |
 | Convert wall (planet-leaves log) | **~94 s** (`convert_ms=94219`) |
 | Peak RSS (same log) | **~4.1 GiB** |
 
-Audit on that pack:
+Naive “not in giant non-ferry component” count was **380** endpoint hits / **68**
+named ferries. That over-counts: landings on large secondary road networks
+(Stavanger-side Boknafjorden, island networks) are joined to the mainland only
+by ferry, so they are not in the single giant component even when boarding is
+fine.
 
-```text
-car_edges=1066006 ferry_edges=487 disconnected_terminals=380
-```
+Refined classification on the same published pack:
 
-**68** distinct ferry names with at least one disconnected endpoint. Includes
-the E39 Boknafjorden crossing **Arsvagen - Mortavika**. Also includes many
-island/passenger-style names (Hurtigruten segments, local island hops).
+| Class | Count | Meaning |
+|-------|------:|---------|
+| `no_road` | 63 | ferry endpoint with zero non-ferry incident edges |
+| `tiny` (&lt;50 nodes) | 11 | tiny non-ferry component (likely missing boarding) |
+| `other_comp` | (large) | on a big road component that is not the giant — expected |
 
-Notable relative to the client finding:
+E39 terminals:
 
-- **Arsvagen - Mortavika**: disconnected (both ends appear in the audit).
-- **Halhjem / Sandvikvag**: name does **not** appear in the disconnected list on
-  this published pack (ferry edges for that name are already attached to the
-  giant non-ferry car component, or the OSM name differs). Scratch re-bake with
-  `--ferry-links` is still required to confirm Bergen→Stavanger end-to-end.
-- **Lavik-Oppedal**: not in the disconnected list (expected: ferry touches highway).
-
-Full unique disconnected names (published vestlandet):
-
-Arasvika - Hennset; Arsvagen - Mortavika; Aukra - Hollingsholmen;
-Brattvag - Dryna; Brattvag - Haroya; Byoyene; Daloy - Haldorsnes;
-Dryna - Haroya; Eidssund - Halsnoy; Eidssund - Helgoy; Eidssund - Judaberg;
-Eidssund - Nord-Hidle; Festoya - Solavagen; Finden - Findabotnen;
-Finnoya - Sandoya; Fjortofta - Haroya; Forsand-Bratteli; Furneset - Molde;
-Geiranger - Hellesylt; Geithus - Findabotnen; Geithus - Otterskred;
-Halsa - Kanestraum; Hareid - Sulesund; Haugesund - Utsira; Hebnes - Foldoy;
-Helgoy - Nord-Hidle; Hirtshals - Stavanger; Hjelmeland - Nesvik;
-Hjelmeland - Skipavik; Hufthammar - Krokeide; Hurtigruten; Jelsa - Foldoy;
-Judaberg - Fogn; Judaberg - Halsnoy; Judaberg - Helgoy; Judaberg - Nord-Hidle;
-Krakhella - Rutledal; Kvamsoya - Voksa; Kvanne - Rykkjem; Kvitsoy - Mekjarvik;
-Lauvik-Forsand; Lauvvik - Oanes; Linge - Eidsdal; Molde - Sekken;
-Nedstrand - Nord-Hidle; Nesvik - Skipavik; Nordeide - Maren; Orta - Finnoya;
-Orta - Sandoya; Os–Malkenes; Sandvika - Edoy; Sandoya - Ona;
-Seivika - Tommervag; Smage - Orta; Solholmen - Mordalsvagen;
-Stranda - Liabygda; Sykkylven - Magerholm; Solsnes - Afarnes; Sor-Bokn - Byre;
-Trandal - Standal; Trandal - Saebo; Vetlesand - Ortnevik; Vetlesand - Sylvarnes;
-Vik - Otterskred; Voksa - Aram; Vollevik - Finden; Vollevik - Sylvarnes.
-
-(ASCII-folded above for this doc; the audit tool prints OSM names with full
-Unicode.)
+- **Arsvågen**: already has `highway=service` (movable bridge) into the ferry
+  node in both published and scratch packs — not a pier-gap.
+- **Mortavika / Halhjem / Sandvikvåg / Lavik / Oppedal**: on the giant or
+  otherwise road-connected; Halhjem–Sandvikvåg ferry edges present.
 
 ### Ferry costing today
 
@@ -109,10 +84,6 @@ Unicode.)
 `motor_vehicle` / `motorcar` gate car ferry admission via
 `ferry_allowed_for_profile` (yes-set required for car/truck).
 
-If a long unnamed ferry chain wins over a tagged shorter crossing, check for
-missing/incorrect `duration` on the preferred OSM ways — costing is **not**
-length-only when `duration` is present.
-
 ### Weekly re-bake decision
 
 `scripts/run-weekly.sh` always:
@@ -122,12 +93,9 @@ length-only when `duration` is present.
 3. Publishes.
 
 There is **no** converter-hash / fingerprint gate that skips convert when the
-binary changes. `NaviManifest::status_for_pbf` on the client side only checks
-PBF size/mtime + format versions (we do **not** bump `graph_format_version`).
-
-So deploying a converter that always promotes ferry links would change car
-topology on the next Monday for every weekly region. That is why promotion is
-**opt-in** (see below).
+binary changes. So a converter that always promotes ferry links would change
+car topology on the next Monday for every weekly region. Promotion is **opt-in**
+(see below). No `graph_format_version` bump (packs stay v9).
 
 ## Step 2 fix
 
@@ -161,28 +129,52 @@ pre-change topology.
 
 ## Step 3 verify (vestlandet scratch)
 
-**Blocked for the agent:** vestlandet PBF under
-`data/scratch/extracts/` is not readable by the normal user after held-PBF
-cleanup. Run the sudo fetch/copy commands below, then the user-side convert.
+Scratch bake (normal user, after sudo PBF copy):
 
-After bake:
-
-```bash
-export CARGO_TARGET_DIR=/tmp/navi-ferry-links-target
-cargo run -p pack-convert-core --release --bin ferry_terminal_audit -- \
-  /tmp/navi-ferry-scratch/europe_norway_vestlandet
+```text
+convert_ms ≈ 79270 (wall ~1:20)
+peak_rss_mb ≈ 3406 (time -v Max RSS ≈ 3506540 kB ≈ 3.3 GiB)
+ferry_links_baked: true
+car_edges: 1066006 → 1066022 (+16)
+car tiles: 26 → 26
+car graph size: published 174 MiB → scratch 410 MiB
+pack dir: published 531 MiB → scratch 1.2 GiB
 ```
 
-Expect: `disconnected_terminals=0` for car-capable landings that have a pier
-chain within 500 m, or each remainder explained (e.g. passenger-only, chain
-longer than bound, missing OSM boarding geometry).
+Scratch includes wetland/poi/barrier and a fuller elevation encode; tile count is
+unchanged. The +16 car edges are the promoted boarding chains (bounded).
 
-Directed reachability (no overlay) on the scratch pack:
+Refined audit after `--ferry-links`:
 
-- Bergen → Stavanger via Halhjem–Sandvikvag and Arsvagen–Mortavika
-- Bergen → Forde via Lavik–Oppedal
+| Class | Published | Scratch |
+|-------|----------:|--------:|
+| `no_road` | 63 | **58** (−5) |
+| `tiny` (&lt;50) | 11 | 14 |
 
-Post-bake size / edges-added / peak memory: fill in after scratch convert.
+Remaining `no_road` / `tiny` are mostly passenger/Hurtigruten landings, foreign
+terminals (Hirtshals), or OSM geometry without a ≤500 m pier/footway/platform
+chain to a car road — each is expected to stay non-car or keep needing overlay.
+
+### Directed routes (no client overlay)
+
+On the scratch pack:
+
+| Route | Result |
+|-------|--------|
+| Bergen → Stavanger (station 58.9670,5.7315) | **OK ~205 km** via **Halhjem–Sandvikvåg** and **Arsvågen–Mortavika** |
+| Bergen → Førde | **OK ~170 km** via **Lavik–Oppedal** |
+
+Note: city-centre snap `(58.9700, 5.7331)` hits OSM node `11335393456`, a
+directed dead-end (indeg=outdeg=1) that is undirected-connected but not
+directed-reachable. That is a snap/one-way issue, not a missing ferry link.
+The same Bergen→StavangerStation route also succeeds on the **published** pack
+without this change — E39 landings already touch `highway=service` / trunk.
+
+### CI
+
+- `cargo fmt --all -- --check`
+- `cargo clippy --workspace --all-targets -- -D warnings`
+- `cargo test --workspace` (includes `ferry_boarding_links_v9` fixture)
 
 ### Per-region convert times (planet-leaves v9 log anchors)
 
@@ -194,16 +186,18 @@ Post-bake size / edges-added / peak memory: fill in after scratch convert.
 | europe_norway_sorlandet | 26185 | ~0.4 | 1302 |
 | europe_norway_ostlandet | 190721 | ~3.2 | 7773 |
 
-Estimated total for those five (convert only, this host class): **~8 minutes**
-of convert wall time, plus fetch. Peak memory is dominated by ostlandet (~8 GiB);
-weekly 16 GiB target remains OK if regions stay sequential.
+Estimated total for those five (convert only): **~8 minutes**, plus fetch.
+Peak memory dominated by ostlandet (~8 GiB); weekly 16 GiB target OK if sequential.
+
+Coastal regions that benefit most from opt-in re-bake: the five Norway rows
+above (vestlandet already scratch-verified).
 
 ## Publish vestlandet scratch (only after approval)
 
 Do **not** run these until approved. One-line each:
 
 ```bash
-# Install the branch convert binary where weekly/scripts resolve it (adjust if your resolve_convert_bin points elsewhere).
+# Install the branch convert binary where weekly/scripts resolve it.
 sudo install -o navit-server -g navit-server -m 755 \
   /tmp/navi-ferry-links-target/release/navi-indexed-convert \
   /media/navi/navi-server/target/release/navi-indexed-convert
@@ -218,31 +212,31 @@ sudo -u navit-server env NAVI_PACK_CONFIG=/media/navi/navi-server/data/config.en
   /media/navi/navi-server/scripts/publish-packs.sh --region europe_norway_vestlandet
 ```
 
-## Scratch bake commands needing sudo
-
-PBF for vestlandet is not readable by the normal user. Run these, then reply
-with the output:
+To bake other Norway coastal regions later without a full world run:
 
 ```bash
-# Fetch vestlandet PBF as navit-server into extracts.
+sudo -u navit-server env NAVI_PACK_CONFIG=/media/navi/navi-server/data/config.env \
+  NAVI_FERRY_LINKS_REGIONS=europe_norway_vestlandet,europe_norway_trondelag,europe_norway_nord_norge,europe_norway_sorlandet,europe_norway_ostlandet \
+  /media/navi/navi-server/scripts/convert-region.sh --region <one-id>
+```
+
+## Scratch bake commands that needed sudo (already run)
+
+```bash
 sudo -u navit-server env NAVI_PACK_CONFIG=/media/navi/navi-server/data/config.env \
   /media/navi/navi-server/scripts/fetch-extracts.sh europe_norway_vestlandet
-
-# Make a user-readable copy for scratch convert (no write into published/).
 sudo mkdir -p /tmp/navi-ferry-scratch && sudo chown "$USER:$USER" /tmp/navi-ferry-scratch
 sudo cp -a /media/navi/navi-server/data/scratch/extracts/europe_norway_vestlandet-latest.osm.pbf \
   /tmp/navi-ferry-scratch/
 sudo chown "$USER:$USER" /tmp/navi-ferry-scratch/europe_norway_vestlandet-latest.osm.pbf
 ```
 
-Then as the normal user (from this branch clone):
+User-side convert used:
 
 ```bash
 cd /tmp/navi-server-ferry-links
 export CARGO_TARGET_DIR=/tmp/navi-ferry-links-target
-cargo build --release -p navi-indexed-convert
-mkdir -p /tmp/navi-ferry-scratch/europe_norway_vestlandet
-/usr/bin/time -v ./target/release/navi-indexed-convert \
+/usr/bin/time -v /tmp/navi-ferry-links-target/release/navi-indexed-convert \
   --data-dir /tmp/navi-ferry-scratch/europe_norway_vestlandet \
   --pbf /tmp/navi-ferry-scratch/europe_norway_vestlandet-latest.osm.pbf \
   --profiles car,foot \
@@ -250,19 +244,9 @@ mkdir -p /tmp/navi-ferry-scratch/europe_norway_vestlandet
   --ferry-links
 ```
 
-(If `./target/release/...` is missing because `CARGO_TARGET_DIR` is set, use
-`/tmp/navi-ferry-links-target/release/navi-indexed-convert`.)
-
-## CI checks run on this branch
-
-- `cargo fmt --all -- --check`
-- `cargo clippy --workspace --all-targets -- -D warnings`
-- `cargo test --workspace` (includes `ferry_boarding_links_v9` fixture)
-
 ## Monday job confirmation
 
 With `NAVI_BAKE_FERRY_LINKS` unset and `NAVI_FERRY_LINKS_REGIONS` empty (default),
 the next `navi-pack-bake.timer` run will **not** bake ferry boarding links into
 any region. It will still convert/publish as today; car topology for ferry
 terminals stays as before until you name regions or set the global flag.
-No `graph_format_version` bump; packs stay v9.
