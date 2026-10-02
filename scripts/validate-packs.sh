@@ -92,6 +92,9 @@ export NAVI_SIZE_WETLAND_MAX_RATIO_WETLAND_HEAVY
 export NAVI_SIZE_TOTAL_MIN_RATIO NAVI_SIZE_TOTAL_MAX_RATIO
 export NAVI_SIZE_VS_PREV_MAX_FACTOR
 export NAVI_EXTRACTS_DIR FILTER_REGION GEN_DIR PREV_LIVE NAVI_REGIONS_CONF
+export NAVI_PUBLISHED_DIR
+export NAVI_DELTA_H_MISSING_MAX_FACTOR NAVI_DELTA_H_MISSING_ABS_FLOOR
+export NAVI_DELTA_H_MISSING_FIRST_GEN_ABS NAVI_DELTA_H_MISSING_FIRST_GEN_SHARE
 
 python3 <<'PY'
 import json, os, sys
@@ -102,6 +105,11 @@ extracts = Path(os.environ["NAVI_EXTRACTS_DIR"])
 prev = os.environ.get("PREV_LIVE") or ""
 filter_region = os.environ.get("FILTER_REGION") or ""
 regions_conf = Path(os.environ.get("NAVI_REGIONS_CONF") or "")
+published_dir = Path(os.environ.get("NAVI_PUBLISHED_DIR") or "")
+delta_h_missing_max_factor = float(os.environ.get("NAVI_DELTA_H_MISSING_MAX_FACTOR", "10"))
+delta_h_missing_abs_floor = int(os.environ.get("NAVI_DELTA_H_MISSING_ABS_FLOOR", "50000"))
+delta_h_first_gen_abs = int(os.environ.get("NAVI_DELTA_H_MISSING_FIRST_GEN_ABS", "50000"))
+delta_h_first_gen_share = float(os.environ.get("NAVI_DELTA_H_MISSING_FIRST_GEN_SHARE", "0.05"))
 
 def ratio_env(name, default):
     return float(os.environ.get(name, default))
@@ -118,6 +126,143 @@ default_bands = {
               ratio_env("NAVI_SIZE_TOTAL_MAX_RATIO", "35.0")),
 }
 vs_prev_max = float(os.environ.get("NAVI_SIZE_VS_PREV_MAX_FACTOR", "3.0"))
+
+def publish_relpath_for_rid(rid: str) -> str:
+    """Best-effort Geofabrik-style publish path from regions.conf."""
+    if not regions_conf.is_file():
+        return rid
+    for line in regions_conf.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        parts = line.split()
+        if not parts or parts[0] != rid:
+            continue
+        src = parts[1] if len(parts) > 1 else ""
+        if src.startswith("geofabrik:"):
+            path = src[len("geofabrik:"):].lstrip("/").rstrip("/")
+            return path or rid
+        prefix = "url:https://download.openstreetmap.fr/extracts/"
+        if src.startswith(prefix):
+            rest = src[len(prefix):]
+            if rest.endswith("-latest.osm.pbf"):
+                rest = rest[: -len("-latest.osm.pbf")]
+            elif rest.endswith(".osm.pbf"):
+                rest = rest[: -len(".osm.pbf")]
+            return rest.lstrip("/").rstrip("/") or rid
+        break
+    return rid
+
+def latest_published_navi_manifest(rid: str):
+    """Newest complete published *.navi-manifest.json for rid, or None."""
+    if not published_dir.is_dir():
+        return None
+    roots = [
+        published_dir / "packs" / publish_relpath_for_rid(rid),
+        published_dir / "packs" / rid,
+    ]
+    gens = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for g in root.iterdir():
+            if not g.is_dir():
+                continue
+            if (g / ".publish_in_progress").exists() or (g / ".smoke_in_progress").exists():
+                continue
+            if not (g / "manifest.json").is_file():
+                continue
+            mans = list(g.glob("*.navi-manifest.json"))
+            if mans:
+                gens.append((g.name, mans[0]))
+    if not gens:
+        return None
+    gens.sort(key=lambda t: t[0])
+    return gens[-1][1]
+
+def check_delta_h_missing_regression(rid: str, man: dict):
+    """Fail when Δh is on but missing-edge count blows up vs last published gen.
+
+    Keeps the previous published generation live because validate fails for this
+    region before publish finalizes it (publish omits failed regions).
+
+    First published generation (no baseline):
+      - If manifest has edge_count (or edges): fail when
+        missing/edges > NAVI_DELTA_H_MISSING_FIRST_GEN_SHARE (default 0.05).
+      - Else: fail when missing >= NAVI_DELTA_H_MISSING_FIRST_GEN_ABS
+        (default 50000). That is a coarse empty-DEM gate (~1–2% of a
+        Norway-scale pack); convert-time DEM coverage is the primary filter
+        for tiny extracts.
+    """
+    if not man.get("has_delta_h"):
+        return
+    cur = man.get("delta_h_missing_edges")
+    if cur is None:
+        flag(f"{rid}: has_delta_h=true but delta_h_missing_edges absent from manifest")
+        return
+    try:
+        cur_n = int(cur)
+    except (TypeError, ValueError):
+        fail(f"{rid}: delta_h_missing_edges not an int: {cur!r}")
+        return
+    prev_man_path = latest_published_navi_manifest(rid)
+    if prev_man_path is None:
+        edge_count = man.get("edge_count")
+        if edge_count is None:
+            edge_count = man.get("edges")
+        if edge_count is not None:
+            try:
+                edges_n = int(edge_count)
+            except (TypeError, ValueError):
+                fail(f"{rid}: edge_count not an int: {edge_count!r}")
+                return
+            if edges_n <= 0:
+                fail(f"{rid}: edge_count={edges_n} invalid with has_delta_h")
+                return
+            share = cur_n / edges_n
+            if share > delta_h_first_gen_share:
+                fail(
+                    f"{rid}: first-gen delta_h_missing share={share:.4f} "
+                    f"({cur_n}/{edges_n}) exceeds "
+                    f"NAVI_DELTA_H_MISSING_FIRST_GEN_SHARE={delta_h_first_gen_share}"
+                )
+            else:
+                ok(
+                    f"{rid}: first-gen delta_h_missing_edges={cur_n}/{edges_n} "
+                    f"share={share:.4f} (limit={delta_h_first_gen_share})"
+                )
+            return
+        if cur_n >= delta_h_first_gen_abs:
+            fail(
+                f"{rid}: first-gen delta_h_missing_edges={cur_n} exceeds "
+                f"NAVI_DELTA_H_MISSING_FIRST_GEN_ABS={delta_h_first_gen_abs} "
+                f"(no published baseline; DEM tree likely empty/incomplete)"
+            )
+        else:
+            ok(
+                f"{rid}: first-gen delta_h_missing_edges={cur_n} "
+                f"(no baseline; abs limit={delta_h_first_gen_abs})"
+            )
+        return
+    try:
+        prev_man = json.loads(prev_man_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        flag(f"{rid}: could not read previous published manifest {prev_man_path}: {e}")
+        return
+    prev_n = int(prev_man.get("delta_h_missing_edges") or 0)
+    limit = max(int(prev_n * delta_h_missing_max_factor), prev_n + delta_h_missing_abs_floor)
+    if cur_n > limit:
+        fail(
+            f"{rid}: delta_h_missing_edges regression cur={cur_n} prev={prev_n} "
+            f"limit={limit} (factor={delta_h_missing_max_factor} "
+            f"floor=+{delta_h_missing_abs_floor}) prev_manifest={prev_man_path} "
+            "— omitting from publish; previous generation stays live"
+        )
+    else:
+        ok(
+            f"{rid}: delta_h_missing_edges={cur_n} vs prev={prev_n} "
+            f"(limit={limit})"
+        )
 
 # Optional trailing key=value on regions.conf lines (after source).
 # Keys: {graph,poi,wetland,total}_{min,max}_ratio
@@ -386,6 +531,7 @@ for region_dir in region_dirs:
             fail(f"{rid}: manifest parse error {man_path.name}: {e}")
             continue
         ok(f"{rid}: manifest {man_path.name} schema={man.get('schema')} stem={man.get('stem')}")
+        check_delta_h_missing_regression(rid, man)
 
         refs = referenced_files(man)
         if not refs:

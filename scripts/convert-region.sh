@@ -12,6 +12,10 @@
 #
 # Δh default comes from data/config.env (NAVI_BAKE_DELTA_H=1). When on,
 # NAVI_ELEV_DIR (or --elev-dir) must point at a DEM tile directory.
+#
+# Per-region DEM coverage (see lib/dem_coverage.py + docs/dem-weekly.md):
+# when Δh is on and the elev tree has no tiles covering the region, that
+# region is skipped (previous published gen stays live) and the run continues.
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -46,7 +50,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -h|--help)
-      sed -n '2,16p' "$0"
+      sed -n '2,20p' "$0"
       exit 0
       ;;
     *) FILTER_IDS+=("$1"); shift ;;
@@ -63,7 +67,7 @@ if [[ "$BAKE_DELTA_H" == "1" ]]; then
   if [[ -z "$ELEV_DIR" ]]; then
     die "NAVI_BAKE_DELTA_H=1 but NAVI_ELEV_DIR is empty — set DEM path in ${NAVI_PACK_ROOT}/config.env (or pass --elev-dir / --no-delta-h)"
   fi
-  [[ -d "$ELEV_DIR" ]] || die "elev dir missing: $ELEV_DIR (set NAVI_ELEV_DIR in config.env)"
+  mkdir -p "$ELEV_DIR"
 else
   ELEV_DIR=""
 fi
@@ -71,11 +75,17 @@ fi
 CONVERT_BIN="$(resolve_convert_bin)"
 log_info "using convert binary: ${CONVERT_BIN}"
 
+# Returns 0 = converted, 2 = skipped (DEM / missing PBF soft), 1 = hard failure.
+# Uses set +e internally so non-zero `return` cannot trip the caller's errexit.
 convert_one() {
+  set +e
   local region_id="$1"
-  local pbf out elev_args
+  local pbf out elev_args cover_msg rc
   pbf="$(region_pbf_path "$region_id")"
-  [[ -f "$pbf" ]] || die "missing extract for ${region_id}: ${pbf} (run fetch-extracts.sh first)"
+  if [[ ! -f "$pbf" ]]; then
+    log_warn "convert skip region=${region_id} reason=missing_extract path=${pbf}"
+    return 2
+  fi
 
   if [[ -n "$OUT_DIR" ]]; then
     out="${OUT_DIR}/${region_id}"
@@ -86,8 +96,27 @@ convert_one() {
 
   elev_args=()
   if [[ -n "$ELEV_DIR" ]]; then
+    cover_msg="$(
+      PYTHONPATH="${SCRIPT_DIR}/lib${PYTHONPATH:+:$PYTHONPATH}" \
+        python3 - "$ELEV_DIR" "$region_id" "${NAVI_REGIONS_CONF}.bboxes.json" <<'PY'
+import sys
+from pathlib import Path
+from dem_coverage import region_dem_ok
+elev, rid, bbox = sys.argv[1], sys.argv[2], Path(sys.argv[3])
+ok, msg = region_dem_ok(Path(elev), rid, bbox if bbox.is_file() else None)
+print(msg)
+sys.exit(0 if ok else 2)
+PY
+    )"
+    rc=$?
+    if [[ "$rc" -ne 0 ]]; then
+      log_warn "convert skip region=${region_id} reason=dem_coverage ${cover_msg}"
+      # Do not leave a partial/empty convert tree that publish might pick up.
+      rm -rf "$out"
+      return 2
+    fi
+    log_info "convert region=${region_id} delta_h=yes elev_dir=${ELEV_DIR} ${cover_msg}"
     elev_args=(--elev-dir "$ELEV_DIR")
-    log_info "convert region=${region_id} delta_h=yes elev_dir=${ELEV_DIR}"
   else
     log_info "convert region=${region_id} delta_h=no profiles=${PROFILES}"
   fi
@@ -98,6 +127,12 @@ convert_one() {
     --pbf "$pbf" \
     --profiles "$PROFILES" \
     "${elev_args[@]+"${elev_args[@]}"}"
+  rc=$?
+  if [[ "$rc" -ne 0 ]]; then
+    log_warn "convert fail region=${region_id} rc=${rc} — continuing with other regions"
+    rm -rf "$out"
+    return 1
+  fi
 
   # Record convert metadata for publish/validate.
   local meta="${out}/.convert-meta.json"
@@ -120,11 +155,21 @@ with open(meta, "w", encoding="utf-8") as f:
     json.dump(payload, f, indent=2)
     f.write("\n")
 PY
+  rc=$?
+  if [[ "$rc" -ne 0 ]]; then
+    log_warn "convert meta fail region=${region_id} rc=${rc}"
+    rm -rf "$out"
+    return 1
+  fi
   log_info "convert OK region=${region_id} out=${out}"
+  return 0
 }
 
 matched=0
 skipped=0
+ok_n=0
+dem_skip_n=0
+fail_n=0
 WORK=()
 while IFS=$'\t' read -r region_id src; do
   if [[ "$DO_ALL" -eq 0 ]]; then
@@ -148,7 +193,15 @@ fi
 
 for region_id in "${WORK[@]+"${WORK[@]}"}"; do
   matched=1
+  set +e
   convert_one "$region_id"
+  rc=$?
+  set -e
+  case "$rc" in
+    0) ok_n=$((ok_n + 1)) ;;
+    2) dem_skip_n=$((dem_skip_n + 1)) ;;
+    *) fail_n=$((fail_n + 1)) ;;
+  esac
 done
 
 if [[ "$matched" -eq 0 && "$skipped" -eq 0 ]]; then
@@ -159,4 +212,7 @@ if [[ "$matched" -eq 0 && "$skipped" -gt 0 ]]; then
   exit 0
 fi
 
-log_info "convert step complete"
+log_info "convert step complete ok=${ok_n} dem_or_soft_skip=${dem_skip_n} fail=${fail_n} skip_reason=${skipped}"
+# Never abort the whole weekly run for a per-region skip/fail: publish only
+# stages regions that produced convert output; previous gens stay live for the rest.
+exit 0

@@ -50,19 +50,27 @@ assemble_one() {
   local region_id="$1"
   local src="${NAVI_CONVERT_DIR}/${region_id}"
   local dst="${STAGE}/regions/${region_id}"
-  [[ -d "$src" ]] || die "convert output missing for ${region_id}: ${src}"
-  [[ -n "$(find "$src" -maxdepth 1 -name '*.navi-manifest.json' -print -quit)" ]] \
-    || die "no manifest in ${src}"
+  if [[ ! -d "$src" ]]; then
+    log_warn "publish skip region=${region_id} reason=no_convert_output path=${src} (previous gen stays live)"
+    return 2
+  fi
+  if [[ -z "$(find "$src" -maxdepth 1 -name '*.navi-manifest.json' -print -quit)" ]]; then
+    log_warn "publish skip region=${region_id} reason=no_manifest path=${src} (previous gen stays live)"
+    return 2
+  fi
   mkdir -p "$dst"
   # Copy packs + manifest; leave scratch convert tree intact for debugging.
   find "$src" -maxdepth 1 -type f \( \
       -name '*.rkyv' -o -name '*.navi-manifest.json' -o -name '.convert-meta.json' \
     \) -exec cp -a {} "$dst"/ \;
   log_info "staged region=${region_id} -> ${dst}"
+  return 0
 }
 
 matched=0
 skipped=0
+staged_n=0
+assemble_skip_n=0
 while IFS=$'\t' read -r region_id src; do
   if [[ ${#FILTER_IDS[@]} -gt 0 ]]; then
     keep=0
@@ -76,14 +84,23 @@ while IFS=$'\t' read -r region_id src; do
     continue
   fi
   matched=1
+  set +e
   assemble_one "$region_id"
+  arc=$?
+  set -e
+  if [[ "$arc" -eq 0 ]]; then
+    staged_n=$((staged_n + 1))
+  else
+    assemble_skip_n=$((assemble_skip_n + 1))
+  fi
 done < <(list_regions)
 
 if [[ "$matched" -eq 0 && "$skipped" -eq 0 ]]; then
   die "no matching regions to publish"
 fi
-if [[ "$matched" -eq 0 && "$skipped" -gt 0 ]]; then
-  die "no regions to publish (all matching regions had skip_reason; count=${skipped})"
+if [[ "$staged_n" -eq 0 ]]; then
+  log_warn "publish: nothing staged (assemble_skip=${assemble_skip_n} skip_reason=${skipped}) — leaving live tree unchanged"
+  exit 0
 fi
 
 # Optional town-routes already baked into convert? Prefer explicit bake into STAGE.
@@ -130,9 +147,66 @@ out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 print(f"wrote {out} regions={len(regions)}")
 PY
 
+# Per-region validate: omit failures so other regions still publish and the
+# previous published generation stays live for the failed ones.
 if [[ "$SKIP_VALIDATE" -eq 0 ]]; then
-  log_info "validating staging tree ${STAGE}"
-  "${SCRIPT_DIR}/validate-packs.sh" "$STAGE"
+  log_info "validating staging tree ${STAGE} (per-region; continue on failure)"
+  validate_omit=0
+  for region_dir in "${STAGE}/regions"/*; do
+    [[ -d "$region_dir" ]] || continue
+    rid="$(basename "$region_dir")"
+    set +e
+    "${SCRIPT_DIR}/validate-packs.sh" --region "$rid" "$STAGE"
+    vrc=$?
+    set -e
+    if [[ "$vrc" -ne 0 ]]; then
+      log_warn "validate fail region=${rid} — omitting from publish; previous generation stays live"
+      rm -rf "$region_dir"
+      validate_omit=$((validate_omit + 1))
+    fi
+  done
+  if [[ "$validate_omit" -gt 0 ]]; then
+    log_warn "publish omitted ${validate_omit} region(s) after validate failure"
+    # Rebuild generation-manifest from remaining staged regions.
+    python3 - "$STAGE" "$GEN_ID" <<'PY'
+import json, os, sys, time
+from pathlib import Path
+stage, gen_id = sys.argv[1], sys.argv[2]
+regions = []
+root = Path(stage) / "regions"
+if root.is_dir():
+    for rd in sorted(p for p in root.iterdir() if p.is_dir()):
+        mans = sorted(rd.glob("*.navi-manifest.json"))
+        if not mans:
+            continue
+        man = json.loads(mans[0].read_text(encoding="utf-8"))
+        files = [p.name for p in rd.iterdir() if p.is_file() and not p.name.startswith(".")]
+        regions.append({
+            "region_id": rd.name,
+            "stem": man.get("stem"),
+            "manifest": mans[0].name,
+            "has_delta_h": bool(man.get("has_delta_h")),
+            "graph_format_version": man.get("graph_format_version"),
+            "files": sorted(files),
+            "bytes": sum(p.stat().st_size for p in rd.iterdir() if p.is_file()),
+        })
+payload = {
+    "schema": 1,
+    "generation": gen_id,
+    "created_unix": int(time.time()),
+    "regions": regions,
+}
+out = Path(stage) / "generation-manifest.json"
+out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+print(f"rewrote {out} regions={len(regions)}")
+PY
+  fi
+  remaining="$(find "${STAGE}/regions" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')"
+  if [[ "${remaining}" -eq 0 ]]; then
+    log_warn "publish: all staged regions failed validate — leaving live tree unchanged"
+    rm -rf "$STAGE"
+    exit 0
+  fi
 else
   log_warn "SKIP VALIDATE — staging will still be published"
 fi
