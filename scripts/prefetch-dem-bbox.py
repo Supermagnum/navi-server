@@ -18,10 +18,13 @@ Ocean-skip:
 
 Usage:
   ./prefetch-dem-bbox.py --elev-dir DIR --bbox=min_lat,min_lon,max_lat,max_lon
+  ./prefetch-dem-bbox.py --elev-dir DIR --cells-file PATH.json
   ./prefetch-dem-bbox.py --elev-dir DIR --bbox=… --poly /path/to/region.poly
   ./prefetch-dem-bbox.py --elev-dir DIR --bbox=… --lease-id REGION-PID
   ./prefetch-dem-bbox.py --elev-dir DIR --bbox=… --lease-release --lease-id …
   ./prefetch-dem-bbox.py --elev-dir DIR --bbox=… --evict
+  ./prefetch-dem-bbox.py --elev-dir DIR --cells-file PATH --refresh-404
+  ./prefetch-dem-bbox.py --elev-dir DIR --refresh-404-all
 """
 
 from __future__ import annotations
@@ -39,8 +42,13 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR / "lib"))
-from dem_ocean_404_cache import load_missing, remember_missing  # noqa: E402
+from dem_ocean_404_cache import (  # noqa: E402
+    load_missing,
+    refresh_missing,
+    remember_missing,
+)
 from dem_poly_filter import classify_bbox_tiles, try_load_poly  # noqa: E402
+from dem_road_cells import load_cells_file  # noqa: E402
 
 BUCKET = "https://copernicus-dem-30m.s3.eu-central-1.amazonaws.com"
 
@@ -179,7 +187,16 @@ def download_locked(elev: Path, stem: str, url: str, dest: Path) -> bool:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--elev-dir", required=True)
-    ap.add_argument("--bbox", required=True, help="min_lat,min_lon,max_lat,max_lon")
+    ap.add_argument(
+        "--bbox",
+        default="",
+        help="min_lat,min_lon,max_lat,max_lon (planet / legacy)",
+    )
+    ap.add_argument(
+        "--cells-file",
+        default="",
+        help="JSON from build-dem-cell-list.py (weekly road-cell mode)",
+    )
     ap.add_argument(
         "--poly",
         default="",
@@ -194,7 +211,7 @@ def main() -> int:
         "--max-tiles",
         type=int,
         default=2500,
-        help="abort prefetch if bbox needs more cells (default 2500)",
+        help="abort prefetch if request needs more cells (default 2500)",
     )
     ap.add_argument(
         "--lease-id",
@@ -204,21 +221,62 @@ def main() -> int:
     ap.add_argument(
         "--lease-release",
         action="store_true",
-        help="drop leases for --lease-id over this bbox (no download)",
+        help="drop leases for --lease-id over this request set (no download)",
     )
     ap.add_argument(
         "--evict",
         action="store_true",
-        help="delete cached tiles with zero leases for this bbox",
+        help="delete cached tiles with zero leases for this bbox (bbox mode only)",
+    )
+    ap.add_argument(
+        "--refresh-404",
+        action="store_true",
+        help="drop 404-index entries for the requested cells so they are re-fetched",
+    )
+    ap.add_argument(
+        "--refresh-404-all",
+        action="store_true",
+        help="clear the entire Copernicus 404/ocean index under elev-dir",
     )
     args = ap.parse_args()
-    parts = [float(x) for x in args.bbox.split(",")]
-    if len(parts) != 4:
-        print("bbox must be min_lat,min_lon,max_lat,max_lon", file=sys.stderr)
-        return 2
-    min_lat, min_lon, max_lat, max_lon = parts
     elev = Path(args.elev_dir)
-    tiles = list(bbox_tiles(min_lat, min_lon, max_lat, max_lon))
+    elev.mkdir(parents=True, exist_ok=True)
+
+    if args.refresh_404_all:
+        n = refresh_missing(elev, None)
+        print(f"dem_404_refresh cleared={n} path={elev / 'copernicus_ocean_404.txt'}")
+        if not args.bbox and not args.cells_file:
+            return 0
+
+    tiles: list[tuple[int, int]] = []
+    mode = ""
+    min_lat = min_lon = max_lat = max_lon = 0.0
+    if args.cells_file:
+        mode = "cells"
+        cells_path = Path(args.cells_file)
+        if not cells_path.is_file():
+            print(f"FAIL: cells-file missing {cells_path}", file=sys.stderr)
+            return 2
+        tiles = load_cells_file(cells_path)
+        if not tiles:
+            print(f"FAIL: empty cells-file {cells_path}", file=sys.stderr)
+            return 2
+    elif args.bbox:
+        mode = "bbox"
+        parts = [float(x) for x in args.bbox.split(",")]
+        if len(parts) != 4:
+            print("bbox must be min_lat,min_lon,max_lat,max_lon", file=sys.stderr)
+            return 2
+        min_lat, min_lon, max_lat, max_lon = parts
+        tiles = list(bbox_tiles(min_lat, min_lon, max_lat, max_lon))
+    else:
+        print("FAIL: need --bbox or --cells-file", file=sys.stderr)
+        return 2
+
+    if args.refresh_404:
+        stems = [tile_stem(la, lo) for la, lo in tiles]
+        n = refresh_missing(elev, stems)
+        print(f"dem_404_refresh removed={n} mode={mode} cells={len(stems)}")
 
     if args.lease_release:
         if not args.lease_id:
@@ -229,6 +287,9 @@ def main() -> int:
         return 0
 
     if args.evict:
+        if mode != "bbox":
+            print("FAIL: --evict requires --bbox (not cells-file)", file=sys.stderr)
+            return 2
         removed, skipped = evict_bbox(elev, min_lat, min_lon, max_lat, max_lon)
         print(
             f"dem_evict removed={removed} skipped_leased={skipped} bbox_cells={len(tiles)}"
@@ -237,14 +298,14 @@ def main() -> int:
 
     if len(tiles) > args.max_tiles:
         print(
-            f"FAIL: bbox needs {len(tiles)} tiles > max {args.max_tiles}",
+            f"FAIL: request needs {len(tiles)} tiles > max {args.max_tiles}",
             file=sys.stderr,
         )
         return 3
 
     ocean_skip = 0
     fetch_tiles = tiles
-    if args.poly:
+    if args.poly and mode == "bbox":
         rings = try_load_poly(args.poly)
         if rings is None:
             print(
@@ -263,9 +324,16 @@ def main() -> int:
     known_404 = load_missing(elev)
     if args.dry_run:
         neg = sum(1 for lat, lon in fetch_tiles if tile_stem(lat, lon) in known_404)
+        cached = sum(
+            1
+            for lat, lon in fetch_tiles
+            if tile_dest(elev, lat, lon).is_file()
+            and tile_dest(elev, lat, lon).stat().st_size > 0
+        )
         print(
-            f"dem_prefetch dry_run=1 ok=0 cached=0 miss=0 ocean_skip={ocean_skip} "
-            f"neg_cache_hit={neg} fetch={len(fetch_tiles)} total={len(tiles)}"
+            f"dem_prefetch dry_run=1 mode={mode} ok=0 cached={cached} miss=0 "
+            f"ocean_skip={ocean_skip} neg_cache_hit={neg} "
+            f"fetch={len(fetch_tiles)} total={len(tiles)}"
         )
         return 0
 
@@ -298,8 +366,9 @@ def main() -> int:
 
     lease_note = f" lease_id={args.lease_id}" if args.lease_id else ""
     print(
-        f"dem_prefetch ok={ok} cached={cached} miss={miss} ocean_skip={ocean_skip} "
-        f"neg_cache_hit={neg_hit} fetch={len(fetch_tiles)} total={len(tiles)}{lease_note}"
+        f"dem_prefetch mode={mode} ok={ok} cached={cached} miss={miss} "
+        f"ocean_skip={ocean_skip} neg_cache_hit={neg_hit} "
+        f"fetch={len(fetch_tiles)} total={len(tiles)}{lease_note}"
     )
     return 0
 

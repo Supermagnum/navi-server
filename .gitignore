@@ -34,6 +34,8 @@
 !/data/elevation/**/.gitkeep
 # Persistent Copernicus ocean-404 negative cache (runtime; see elevation/README.md)
 /data/elevation/copernicus_ocean_404.txt
+# Planet-leaves isolated DEM tree (may --evict; never the weekly standing cache)
+/data/elevation-planet/
 
 # Editor / OS junk
 *.swp

@@ -111,8 +111,14 @@ else
   log_info "skip fetch"
 fi
 
-# 2. Convert
+# 2. Convert — per-region Copernicus prefetch of PBF road-cells into
+# NAVI_ELEV_DIR (standing weekly cache; never --evict). Planet-leaves must use
+# NAVI_ELEV_PLANET_DIR instead. Requires held PBFs from step 1.
 if [[ "$SKIP_CONVERT" -eq 0 ]]; then
+  log_info "elev_dir=${NAVI_ELEV_DIR} elev_planet_dir=${NAVI_ELEV_PLANET_DIR} prefetch_dem=${NAVI_PREFETCH_DEM:-1}"
+  if [[ "$NAVI_BAKE_DELTA_H" == "1" && ! -f "${NAVI_REGIONS_CONF}.bboxes.json" ]]; then
+    log_warn "missing ${NAVI_REGIONS_CONF}.bboxes.json (sun-order / legacy bbox fallback); continuing with road-cell lists"
+  fi
   if [[ ${#FILTER_IDS[@]} -gt 0 ]]; then
     for r in "${FILTER_IDS[@]}"; do
       "${SCRIPT_DIR}/convert-region.sh" "$r"
