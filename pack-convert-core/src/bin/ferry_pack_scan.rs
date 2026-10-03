@@ -6,7 +6,9 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
-use pack_convert_core::routing::graph::{way_id_from_edge_id, GraphEdge, RouteGraph, RoutingProfile};
+use pack_convert_core::routing::graph::{
+    way_id_from_edge_id, GraphEdge, RouteGraph, RoutingProfile,
+};
 use pack_convert_core::routing::indexed::{load_graph_pack, merge_tile_graphs, NaviManifest};
 use serde::Serialize;
 
