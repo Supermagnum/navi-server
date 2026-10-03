@@ -91,9 +91,13 @@ pub fn is_car_drivable_road<S: BuildHasher>(tags: &HashMap<String, String, S>) -
     tags.get("highway").is_some_and(|h| car_highway_ok(h))
 }
 
-/// Car-capable ferry (`motor_vehicle` / `motorcar` yes).
-pub fn is_car_capable_ferry<S: BuildHasher>(tags: &HashMap<String, String, S>) -> bool {
-    tags_indicate_ferry(tags) && ferry_allowed_for_profile(tags, RoutingProfile::Car)
+/// Car-capable ferry (way tags, or parent `route=ferry` inheritance).
+pub fn is_car_capable_ferry<S: BuildHasher>(
+    tags: &HashMap<String, String, S>,
+    parent_car_capable: bool,
+) -> bool {
+    tags_indicate_ferry(tags)
+        && ferry_allowed_for_profile(tags, RoutingProfile::Car, parent_car_capable)
 }
 
 /// Way geometry for boarding promotion (id + node chain + tags).
@@ -188,12 +192,14 @@ pub fn promote_ferry_boarding_way_ids(
     ways: &[BoardingWayRef<'_>],
     coords: &HashMap<i64, (f64, f64)>,
     max_chain_m: f64,
+    parent_car_ways: &HashSet<i64>,
 ) -> HashSet<i64> {
     promote_ferry_boarding_way_ids_with_min_road(
         ways,
         coords,
         max_chain_m,
         FERRY_BOARDING_MIN_ROAD_COMPONENT_NODES,
+        parent_car_ways,
     )
 }
 
@@ -204,6 +210,7 @@ pub fn promote_ferry_boarding_way_ids_with_min_road(
     coords: &HashMap<i64, (f64, f64)>,
     max_chain_m: f64,
     min_road_component_nodes: usize,
+    parent_car_ways: &HashSet<i64>,
 ) -> HashSet<i64> {
     let mut candidate_ids: HashSet<i64> = HashSet::new();
     let mut ferry_endpoint_nodes: HashSet<i64> = HashSet::new();
@@ -213,7 +220,7 @@ pub fn promote_ferry_boarding_way_ids_with_min_road(
     let mut adj: HashMap<i64, Vec<(i64, i64, f64)>> = HashMap::new();
 
     for w in ways {
-        if is_car_capable_ferry(w.tags) {
+        if is_car_capable_ferry(w.tags, parent_car_ways.contains(&w.id)) {
             if let (Some(&a), Some(&b)) = (w.nodes.first(), w.nodes.last()) {
                 ferry_endpoint_nodes.insert(a);
                 ferry_endpoint_nodes.insert(b);
@@ -376,7 +383,12 @@ mod tests {
             },
         ];
 
-        let promoted = promote_ferry_boarding_way_ids(&ways, &coords, FERRY_BOARDING_MAX_CHAIN_M);
+        let promoted = promote_ferry_boarding_way_ids(
+            &ways,
+            &coords,
+            FERRY_BOARDING_MAX_CHAIN_M,
+            &HashSet::new(),
+        );
         assert!(promoted.contains(&200), "footway link promoted");
         assert!(promoted.contains(&300), "pier link promoted");
         assert!(!promoted.contains(&999), "unrelated footway not promoted");
@@ -417,7 +429,12 @@ mod tests {
                 tags: &ferry,
             },
         ];
-        let promoted = promote_ferry_boarding_way_ids(&ways, &coords, FERRY_BOARDING_MAX_CHAIN_M);
+        let promoted = promote_ferry_boarding_way_ids(
+            &ways,
+            &coords,
+            FERRY_BOARDING_MAX_CHAIN_M,
+            &HashSet::new(),
+        );
         assert!(promoted.is_empty());
     }
 
@@ -483,6 +500,7 @@ mod tests {
             &coords,
             FERRY_BOARDING_MAX_CHAIN_M,
             3,
+            &HashSet::new(),
         );
         assert!(
             promoted.is_empty(),
@@ -524,8 +542,12 @@ mod tests {
             nodes: &ferry_n,
             tags: &ferry,
         });
-        let promoted_default =
-            promote_ferry_boarding_way_ids(&ways_big, &big_coords, FERRY_BOARDING_MAX_CHAIN_M);
+        let promoted_default = promote_ferry_boarding_way_ids(
+            &ways_big,
+            &big_coords,
+            FERRY_BOARDING_MAX_CHAIN_M,
+            &HashSet::new(),
+        );
         assert!(
             promoted_default.is_empty(),
             "default 50-node gate must reject stub-only boarding"
@@ -553,8 +575,12 @@ mod tests {
             nodes: &ferry2,
             tags: &ferry,
         });
-        let promoted_ok =
-            promote_ferry_boarding_way_ids(&ways_ok, &big_coords, FERRY_BOARDING_MAX_CHAIN_M);
+        let promoted_ok = promote_ferry_boarding_way_ids(
+            &ways_ok,
+            &big_coords,
+            FERRY_BOARDING_MAX_CHAIN_M,
+            &HashSet::new(),
+        );
         assert!(
             promoted_ok.contains(&30),
             "boarding to the substantial network must still promote"

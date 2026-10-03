@@ -1068,7 +1068,7 @@ fn graph_from_raw_ways(
                 tags: &w.tags,
             })
             .collect();
-        promote_ferry_boarding_way_ids(&refs, coords, FERRY_BOARDING_MAX_CHAIN_M)
+        promote_ferry_boarding_way_ids(&refs, coords, FERRY_BOARDING_MAX_CHAIN_M, parent_car_ways)
     } else {
         HashSet::new()
     };
