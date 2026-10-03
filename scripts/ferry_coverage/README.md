@@ -22,6 +22,7 @@ mkdir -p "$SCRATCH/logs"
 python3 "$CLONE/scripts/ferry_coverage/overpass_fetch.py" --scratch "$SCRATCH"
 python3 "$CLONE/scripts/ferry_coverage/tag_inventory.py" --scratch "$SCRATCH"
 python3 "$CLONE/scripts/ferry_coverage/map_regions.py" --scratch "$SCRATCH"
+python3 "$CLONE/scripts/ferry_coverage/enrich_classifier.py" --scratch "$SCRATCH"
 
 export CARGO_TARGET_DIR="$SCRATCH/target"
 cargo build -p pack-convert-core --release --bin ferry_pack_scan

@@ -57,6 +57,22 @@ out tags geom;
 """.strip()
 
 
+def _query_route_ferry_rel_members(
+    bbox: tuple[float, float, float, float] | None = None,
+) -> str:
+    bb = ""
+    if bbox is not None:
+        s, w, n, e = bbox
+        bb = f"({s},{w},{n},{e})"
+    # `out;` includes members (needed for parent-relation inheritance). `out tags geom`
+    # on relations often yields bounds+tags only.
+    return f"""
+[out:json][timeout:{TIMEOUT_S}];
+relation["type"="route"]["route"="ferry"]{bb};
+out;
+""".strip()
+
+
 def _query_ferry_tag_only(bbox: tuple[float, float, float, float] | None = None) -> str:
     bb = ""
     if bbox is not None:
@@ -216,6 +232,13 @@ def main() -> int:
         _query_ferry_tag_only,
         "ferry_tag_only",
         overpass / "ferry_tag_only.meta.json",
+    )
+    time.sleep(10.0)
+    fetch_dataset(
+        overpass / "route_ferry_rel_members.json",
+        _query_route_ferry_rel_members,
+        "route_ferry_rel_members",
+        overpass / "route_ferry_rel_members.meta.json",
     )
     return 0
 

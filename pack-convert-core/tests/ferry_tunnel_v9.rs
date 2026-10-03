@@ -28,7 +28,10 @@ const OSM: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
   <node id="12" lat="59.0050" lon="10.0320"/>
   <node id="13" lat="59.0050" lon="10.0330"/>
   <node id="14" lat="59.0050" lon="10.0340"/>
-  <node id="20" lat="59.0150" lon="10.0300"/>
+  <node id="30" lat="59.0100" lon="10.0250"/>
+  <node id="31" lat="59.0100" lon="10.0350"/>
+  <node id="32" lat="59.0100" lon="10.0450"/>
+  <node id="33" lat="59.0100" lon="10.0480"/>
   <node id="21" lat="59.0150" lon="10.0310"/>
   <way id="100">
     <nd ref="1"/><nd ref="2"/>
@@ -91,6 +94,56 @@ const OSM: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
     <tag k="tunnel" v="building_passage"/>
     <tag k="name" v="Passage"/>
   </way>
+  <way id="500">
+    <nd ref="4"/><nd ref="30"/>
+    <tag k="route" v="ferry"/>
+    <tag k="ferry" v="secondary"/>
+    <tag k="duration" v="PT10M"/>
+    <tag k="name" v="Losna-Rutledal"/>
+  </way>
+  <way id="102">
+    <nd ref="30"/><nd ref="31"/>
+    <tag k="highway" v="primary"/>
+  </way>
+  <way id="600">
+    <nd ref="31"/><nd ref="32"/>
+    <tag k="route" v="ferry"/>
+    <tag k="duration" v="15"/>
+    <tag k="name" v="Inherited relation ferry"/>
+  </way>
+  <way id="103">
+    <nd ref="32"/><nd ref="33"/>
+    <tag k="highway" v="primary"/>
+  </way>
+  <relation id="9000">
+    <member type="way" ref="600" role=""/>
+    <tag k="type" v="route"/>
+    <tag k="route" v="ferry"/>
+    <tag k="motor_vehicle" v="yes"/>
+    <tag k="name" v="Car route relation"/>
+  </relation>
+  <node id="40" lat="59.0220" lon="10.0400"/>
+  <node id="41" lat="59.0220" lon="10.0410"/>
+  <way id="700">
+    <nd ref="40"/><nd ref="41"/>
+    <tag k="route" v="ferry"/>
+    <tag k="name" v="Kystruten test liner"/>
+  </way>
+  <relation id="9001">
+    <member type="way" ref="700" role=""/>
+    <member type="node" ref="1" role="stop"/>
+    <member type="node" ref="2" role="stop"/>
+    <member type="node" ref="3" role="stop"/>
+    <member type="node" ref="4" role="stop"/>
+    <member type="node" ref="5" role="stop"/>
+    <member type="node" ref="6" role="stop"/>
+    <member type="node" ref="7" role="stop"/>
+    <member type="node" ref="8" role="stop"/>
+    <tag k="type" v="route"/>
+    <tag k="route" v="ferry"/>
+    <tag k="motor_vehicle" v="yes"/>
+    <tag k="name" v="Kystruten Bergen-Kirkenes"/>
+  </relation>
 </osm>
 "#;
 
@@ -146,6 +199,22 @@ fn car_and_foot_ferries_and_tunnel_flags_roundtrip_v9() {
         way_edges(&car, "301").is_empty(),
         "car graph must not contain access=no ferry"
     );
+    assert!(
+        !way_edges(&car, "500").is_empty(),
+        "car graph must admit ferry=secondary with no motor tags"
+    );
+    assert!(
+        !way_edges(&car, "600").is_empty(),
+        "car graph must admit untagged member of a car-capable route=ferry relation"
+    );
+    assert!(
+        way_edges(&car, "700").is_empty(),
+        "car graph must not inherit from a many-stop coastal liner relation"
+    );
+    let inherited = way_edges(&car, "500");
+    let expected_iso =
+        ferry_base_weight_m(inherited[0].length_m, Some("PT10M"), RoutingProfile::Car);
+    assert!((inherited[0].base_weight - expected_iso).abs() < 1e-3);
     assert!(
         way_edges(&foot, "301").is_empty(),
         "foot graph must not contain access=no ferry when foot is unset"

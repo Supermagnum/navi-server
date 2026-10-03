@@ -6,6 +6,7 @@ Read-only analysis of OSM `route=ferry` (Overpass) against published Navi packs 
 
 - Scratch: `/tmp/navi-ferry-coverage-20261003`
 - Per-ferry CSV: `/tmp/navi-ferry-coverage-20261003/out/ferries_all.csv`
+- Extended CSV columns: `regions`, `in_pack`, `parent_relation_ids`, `parent_car_capable`, `classification_proposed` (scratch only, not committed: `/tmp/navi-ferry-coverage-20261003/out/ferries_all.csv`)
 - Region assignment CSV: `/tmp/navi-ferry-coverage-20261003/out/ferries_by_region.csv`
 - Overpass `osm_base` (route=ferry): `2026-10-03T03:40:50Z`
 - Pack scan estimate: ~2.93 h (328 packs with car-capable OSM ferries)
@@ -79,6 +80,157 @@ pub(crate) fn ferry_allowed_for_profile(...) -> bool {
 - duration tag present: 6475
 - parseable as `H:MM` / `HH:MM:SS`: 6085
 - car-capable `route=ferry` without duration: 2384 (share 0.5067)
+
+## 1b. Classifier gaps (admission + duration)
+
+Proposed car/truck admission (this PR): motor_vehicle / motorcar / vehicle in yes-set (`yes|true|1|designated|permissive|official|destination|customers`), **or** those keys absent, not explicitly denied (`no|private` on those keys or `access`), and either `ferry=<road class>` (`motorway|trunk|primary|secondary|tertiary|unclassified|residential|service`) or a parent `route=ferry` relation is car-capable. Explicit motor denial always wins. Untagged ferries with neither signal stay excluded.
+
+Duration parser also accepts bare minutes, ISO 8601 `P[nD]T[nH][nM][nS]`, and two-part `MM:SS` when the first field is `>= 60` (otherwise `H:MM`). Unparseable values keep the length-based 10 km/h estimate.
+
+- Old classification counts: `{'car-capable': 4732, 'passenger-bicycle-only': 34368, 'unknown': 341}`
+- Proposed classification counts: `{'car-capable': 6177, 'passenger-bicycle-only': 32931, 'unknown': 333}`
+
+### (a) Road-class `ferry=*` with no motor_vehicle/motorcar/vehicle/hgv
+
+Ways with no `motor_vehicle` / `motorcar` / `vehicle` / `hgv` tag but `ferry` in the road-class set: **1010** worldwide (old classifier: passenger-bicycle-only).
+
+World examples:
+
+- way/28371115 South Baymouth - Tobermory Ferry `ferry=primary` regions=`north_america_canada_ontario;north_america_us` in_pack=no
+- way/430179119 Krakhella - Losna `ferry=primary` regions=`europe_norway_vestlandet;north_america_us` in_pack=no
+- way/430179126 Losna - Rutledal `ferry=primary` regions=`europe_norway_vestlandet;north_america_us` in_pack=no
+- way/482077654 Oldeide - Husevågøy `ferry=primary` regions=`europe_norway_vestlandet;north_america_us` in_pack=no
+
+All such ways in the five Norway regions (name + published pack):
+
+#### `europe_norway_vestlandet` (24)
+
+- Bjelkarøy - Hjellestad (way/44681286, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Bjelkarøy - Lerøy (way/116011612, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Borgundøy - Fjelbergøy (way/67196959, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Fedje - Sævrøy (way/51411873, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Fjelbergøy - Sydnes (way/67196940, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Hodnanes - Nordhuglo (way/37117929, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Husavik - Sandvikvåg (way/37705210, `ferry=primary`) — no (not a car ferry edge in published pack)
+- Husevågøy - Måløy (way/482077663, `ferry=primary`) — no (not a car ferry edge in published pack)
+- Isane - Stårheim (way/62192663, `ferry=primary`) — no (not a car ferry edge in published pack)
+- Jektavik - Hodnanes (way/37117888, `ferry=primary`) — no (not a car ferry edge in published pack)
+- Jektavik - Nordhuglo (way/37118010, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Krakhella - Losna (way/430179119, `ferry=primary`) — no (not a car ferry edge in published pack)
+- Lerøy - Klokkarvik (way/44681264, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Losna - Rutledal (way/430179126, `ferry=primary`) — no (not a car ferry edge in published pack)
+- Mjånes - Hisarøy (way/330838236, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Måren - Ortnevik (way/127606206, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Nordeide - Måren - Ortnevik (way/503602072, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Oldeide - Husevågøy (way/482077654, `ferry=primary`) — no (not a car ferry edge in published pack)
+- Skånevik - Matre (way/38591802, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Småge - Ona (way/240388389, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Småge - Ona (way/499272603, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Varaldsøy - Gjermundshamn (way/34559173, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Varaldsøy - Årsnes (way/38541072, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Vassøyferjå (way/33758761, `ferry=tertiary`) — no (not a car ferry edge in published pack)
+
+#### `europe_norway_trondelag` (5)
+
+- Garten - Storfosna (way/27036740, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Seierstad - Ølhammeren (way/177275107, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Storfosna - Leksa (way/27036750, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Værnes - Leksa (way/27095868, `ferry=primary`) — no (not a car ferry edge in published pack)
+- way/27027402 (way/27027402, `ferry=secondary`) — no (not a car ferry edge in published pack)
+
+#### `europe_norway_nord_norge` (4)
+
+- Bognes - Lødingen (way/19095068, `ferry=trunk`) — no (not a car ferry edge in published pack)
+- Bognes - Lødingen (way/1122832008, `ferry=trunk`) — no (not a car ferry edge in published pack)
+- Festvåg - Misten (way/24628844, `ferry=primary`) — no (not a car ferry edge in published pack)
+- Klokkarøya-Kjerringholmen (way/1473679637, `ferry=secondary`) — no (not a car ferry edge in published pack)
+
+#### `europe_norway_sorlandet` (6)
+
+- Andabeløy - Abelnes (way/28233448, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Kongshavn - Randøyana (way/1419315445, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- Kongshavn - Randøyana (way/1419315446, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- Kongshavn - Randøyana (way/1419315447, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- Kongshavn - Randøyana (way/1419315448, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- Launes - Kvellandstrand (way/28251389, `ferry=primary`) — no (not a car ferry edge in published pack)
+
+#### `europe_norway_ostlandet` (18)
+
+- Kragerø - Bærø (way/122737473, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- Kragerø - Langøy (way/483736415, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- Kragerø - Skåtøyroa (way/163472620, `ferry=tertiary`) — no (not a car ferry edge in published pack)
+- Kragerø - Stabbestad (way/74194550, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- Kragerø - Tangane (way/120200076, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- Kragerø - Tåtøy (way/297503129, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- Kragerø - Tåtøy (way/389069153, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- Kragerø - Tåtøy (way/1230684684, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- Randsfjordferja II (way/472427225, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- Skåtøyroa - Tangane (way/1230684681, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- Stabbestad - Skåtøyroa (way/1230684683, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- Tåtøy - Stabbestad (way/297503130, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- way/120200080 (way/120200080, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- way/31745429 (way/31745429, `ferry=secondary`) — no (not a car ferry edge in published pack)
+- way/483736413 (way/483736413, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- way/583202751 (way/583202751, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- way/583202752 (way/583202752, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+- way/583202753 (way/583202753, `ferry=unclassified`) — no (not a car ferry edge in published pack)
+
+### (b) Untagged members of a car-capable `route=ferry` relation
+
+Ways with no motor tags that would become car-capable by inheriting a car-capable parent relation: **311**.
+
+- way/5038751 Ίος - Σαντορίνη (Αθήνιος) parents=[452941] in_pack=no
+- way/24239124  parents=[11937355] in_pack=no
+- way/24259593 Porto Empedocle - Linosa - Lampedusa parents=[6756964] in_pack=no
+- way/25581064 Hurtigruten parents=[563319] in_pack=no
+- way/25613318 Hurtigruten parents=[563319] in_pack=no
+- way/25617695 Kystruten / Hurtigruten (nordgående) parents=[563319] in_pack=no
+- way/25624410 Hurtigruten parents=[563319] in_pack=no
+- way/25624413 Hurtigruten parents=[563319] in_pack=no
+- way/25624481 Hurtigruten parents=[563319] in_pack=no
+- way/27662822 Σφακιά - Λουτρό parents=[446043] in_pack=no
+- way/33875625  parents=[6244577] in_pack=no
+- way/37609933 Buquebus: Buenos Aires - Montevideo parents=[1235836] in_pack=no
+- way/38284684 Hurtigruten parents=[563319] in_pack=no
+- way/38285559 Hurtigruten parents=[563319] in_pack=no
+- way/39043554 Buquebus: Buenos Aires - Colonia del Sacramento parents=[1235837] in_pack=no
+
+### (c) Duration values the old parser rejects
+
+Total rejected (tag present, old `H:MM`/`HH:MM:SS` only): **390**
+
+| format | count | examples |
+|---|---:|---|
+| `bare_minutes` | 303 | `08`, `20`, `25`, `20`, `5`, `20` |
+| `iso8601` | 52 | `PT10M40S`, `PT20M`, `PT10M`, `PT75M`, `PT25M`, `PT20M` |
+| `other` | 14 | `.10`, `15min`, `2,5`, `0,5`, `10 min`, `6分钟` |
+| `mm_ss_first_ge_60` | 11 | `120:00`, `144:00`, `120:00`, `108:00:00`, `120:00`, `155:30` |
+| `other_colon` | 9 | `00:2`, `00:8`, `00:5`, `00:5`, `:03`, `24:30 h` |
+| `h_mm_three_digit_hours` | 1 | `000:40` |
+
+### Weekly region class-change counts (inventory, not a world bake)
+
+Ferry **ways** whose proposed car class differs from the old `motor_vehicle`/`motorcar` yes-set. Counted per weekly `regions.conf` id (a way on a regional boundary may appear in more than one row).
+
+| bake_id | became car | left car | net |
+|---|---:|---:|---:|
+| europe_norway_nord_norge | 51 | 0 | 51 |
+| europe_norway_vestlandet | 34 | 0 | 34 |
+| africa_nigeria | 29 | 0 | 29 |
+| europe_norway_ostlandet | 19 | 0 | 19 |
+| north_america_mexico | 11 | 0 | 11 |
+| europe_norway_trondelag | 8 | 0 | 8 |
+| europe_norway_sorlandet | 8 | 0 | 8 |
+| asia_vietnam | 3 | 7 | -4 |
+| asia_myanmar | 3 | 0 | 3 |
+| asia_india_eastern_zone | 3 | 0 | 3 |
+| antarctica | 3 | 0 | 3 |
+| asia_bangladesh | 2 | 1 | 1 |
+| asia_pakistan | 2 | 0 | 2 |
+| asia_malaysia_singapore_brunei | 1 | 0 | 1 |
+| asia_thailand | 0 | 2 | -2 |
+
+Sum of became-car way counts across weekly rows: **177** (not unique worldwide).
 
 ### Tag key totals (every key)
 
@@ -3312,6 +3464,31 @@ cd /media/navi/navi-server && set -a; source data/config.env; set +a
 - `north_america_us_north_dakota`
 - `north_america_us_south_dakota`
 
+## 6. Rollout (admission + duration; ferry links stay opt-in)
+
+This admission/duration change is a **correctness** fix. Ship **on by default** in the converter (not behind `NAVI_FERRY_LINKS_REGIONS`). Ferry boarding links remain a separate opt-in.
+
+If on by default (recommended): next Monday weekly convert rewrites car topology in every weekly region that contains newly admitted ferries (see class-change table in §1b). No live `regions.conf` edit is required.
+
+If someone later gates admission behind the ferry-links opt-in (not recommended):
+
+```bash
+# do not set this for admission; ferry-links only
+NAVI_FERRY_LINKS_REGIONS=europe_norway_vestlandet,europe_norway_nord_norge
+# optional global ferry-links flag (separate PR)
+# NAVI_BAKE_FERRY_LINKS=1
+```
+
+Exact weekly `regions.conf` lines for Norway landsdeler (already present; do not edit live):
+
+```
+europe_norway_vestlandet	geofabrik:europe/norway/vestlandet
+europe_norway_trondelag	geofabrik:europe/norway/trondelag
+europe_norway_nord_norge	geofabrik:europe/norway/nord-norge
+europe_norway_sorlandet	geofabrik:europe/norway/sorlandet
+europe_norway_ostlandet	geofabrik:europe/norway/ostlandet
+```
+
 ## Appendix: ferries in no region
 
 Count: 4861. Sample:
@@ -3366,6 +3543,7 @@ CLONE=/tmp/navi-server-ferry-coverage
 python3 $CLONE/scripts/ferry_coverage/overpass_fetch.py --scratch $SCRATCH
 python3 $CLONE/scripts/ferry_coverage/tag_inventory.py --scratch $SCRATCH
 python3 $CLONE/scripts/ferry_coverage/map_regions.py --scratch $SCRATCH
+python3 $CLONE/scripts/ferry_coverage/enrich_classifier.py --scratch $SCRATCH
 export CARGO_TARGET_DIR=$SCRATCH/target
 cargo build -p pack-convert-core --release --bin ferry_pack_scan
 nohup nice -n 19 ionice -c3 python3 $CLONE/scripts/ferry_coverage/compare_packs.py --scratch $SCRATCH --scan-bin $SCRATCH/target/release/ferry_pack_scan > $SCRATCH/logs/pack_compare.log 2>&1 &

@@ -44,6 +44,9 @@ def run(scratch: Path, repo: Path, live_data: Path) -> Path:
         est = load_json(scratch / "out" / "pack_scan_estimate.json")
 
     rec = recommend_run(scratch, live_data)
+    gaps = {}
+    if (scratch / "out" / "classifier_gaps.json").is_file():
+        gaps = load_json(scratch / "out" / "classifier_gaps.json")
     ok_rows = [r for r in pack_compare if r.get("status") == "ok"]
     pc_by = {r["bake_id"]: r for r in ok_rows}
 
@@ -67,6 +70,12 @@ def run(scratch: Path, repo: Path, live_data: Path) -> Path:
     lines.append("")
     lines.append(f"- Scratch: `{scratch}`")
     lines.append(f"- Per-ferry CSV: `{inv.get('csv_path')}`")
+    if gaps.get("csv_path"):
+        lines.append(
+            "- Extended CSV columns: `regions`, `in_pack`, `parent_relation_ids`, "
+            "`parent_car_capable`, `classification_proposed` "
+            f"(scratch only, not committed: `{gaps.get('csv_path')}`)"
+        )
     lines.append(f"- Region assignment CSV: `{map_sum.get('csv_path')}`")
     lines.append(f"- Overpass `osm_base` (route=ferry): `{inv.get('osm_base_route_ferry')}`")
     if est:
@@ -117,6 +126,120 @@ def run(scratch: Path, repo: Path, live_data: Path) -> Path:
         f"(share {dur.get('car_capable_without_duration_share')})"
     )
     lines.append("")
+    if gaps:
+        lines.append("## 1b. Classifier gaps (admission + duration)")
+        lines.append("")
+        lines.append(
+            "Proposed car/truck admission (this PR): motor_vehicle / motorcar / "
+            "vehicle in yes-set (`yes|true|1|designated|permissive|official|"
+            "destination|customers`), **or** those keys absent, not explicitly "
+            "denied (`no|private` on those keys or `access`), and either "
+            "`ferry=<road class>` (`motorway|trunk|primary|secondary|tertiary|"
+            "unclassified|residential|service`) or a parent `route=ferry` "
+            "relation is car-capable. Explicit motor denial always wins. "
+            "Untagged ferries with neither signal stay excluded."
+        )
+        lines.append("")
+        lines.append(
+            "Duration parser also accepts bare minutes, ISO 8601 `P[nD]T[nH][nM][nS]`, "
+            "and two-part `MM:SS` when the first field is `>= 60` (otherwise `H:MM`). "
+            "Unparseable values keep the length-based 10 km/h estimate."
+        )
+        lines.append("")
+        lines.append(
+            f"- Old classification counts: `{gaps.get('classification_old')}`"
+        )
+        lines.append(
+            f"- Proposed classification counts: `{gaps.get('classification_proposed')}`"
+        )
+        lines.append("")
+        ga = gaps.get("gap_a_road_class_no_motor_tags") or {}
+        lines.append(
+            "### (a) Road-class `ferry=*` with no motor_vehicle/motorcar/vehicle/hgv"
+        )
+        lines.append("")
+        lines.append(
+            "Ways with no `motor_vehicle` / `motorcar` / `vehicle` / `hgv` tag but "
+            f"`ferry` in the road-class set: **{ga.get('world_count')}** worldwide "
+            "(old classifier: passenger-bicycle-only)."
+        )
+        lines.append("")
+        lines.append("World examples:")
+        lines.append("")
+        for ex in ga.get("examples") or []:
+            lines.append(
+                f"- way/{ex.get('osm_id')} {md_escape(str(ex.get('name') or ''))} "
+                f"`ferry={ex.get('ferry')}` regions=`{';'.join(ex.get('regions') or [])}` "
+                f"in_pack={ex.get('in_pack')}"
+            )
+        lines.append("")
+        lines.append("All such ways in the five Norway regions (name + published pack):")
+        lines.append("")
+        for bid, items in (ga.get("norway") or {}).items():
+            lines.append(f"#### `{bid}` ({len(items)})")
+            lines.append("")
+            if not items:
+                lines.append("_none_")
+                lines.append("")
+                continue
+            for it in items:
+                pack = "yes (car ferry edge in published pack)" if it.get("in_pack") == "yes" else "no (not a car ferry edge in published pack)"
+                lines.append(
+                    f"- {md_escape(str(it.get('name') or ''))} "
+                    f"(way/{it.get('osm_id')}, `ferry={it.get('ferry')}`) — {pack}"
+                )
+            lines.append("")
+        gb = gaps.get("gap_b_inherit_parent_relation") or {}
+        lines.append("### (b) Untagged members of a car-capable `route=ferry` relation")
+        lines.append("")
+        lines.append(
+            f"Ways with no motor tags that would become car-capable by inheriting "
+            f"a car-capable parent relation: **{gb.get('ways_that_become_car_if_inherit')}**."
+        )
+        lines.append("")
+        for ex in (gb.get("examples") or [])[:15]:
+            lines.append(
+                f"- way/{ex.get('osm_id')} {md_escape(str(ex.get('name') or ''))} "
+                f"parents={ex.get('parent_relation_ids')} in_pack={ex.get('in_pack')}"
+            )
+        lines.append("")
+        gc = gaps.get("gap_c_duration_rejected") or {}
+        lines.append("### (c) Duration values the old parser rejects")
+        lines.append("")
+        lines.append(f"Total rejected (tag present, old `H:MM`/`HH:MM:SS` only): **{gc.get('total')}**")
+        lines.append("")
+        lines.append("| format | count | examples |")
+        lines.append("|---|---:|---|")
+        examples = gc.get("examples") or {}
+        for fmt, n in gc.get("by_format") or []:
+            exs = ", ".join(f"`{md_escape(str(x))}`" for x in (examples.get(fmt) or [])[:6])
+            lines.append(f"| `{fmt}` | {n} | {exs} |")
+        lines.append("")
+        lines.append("### Weekly region class-change counts (inventory, not a world bake)")
+        lines.append("")
+        lines.append(
+            "Ferry **ways** whose proposed car class differs from the old "
+            "`motor_vehicle`/`motorcar` yes-set. Counted per weekly `regions.conf` "
+            "id (a way on a regional boundary may appear in more than one row)."
+        )
+        lines.append("")
+        lines.append("| bake_id | became car | left car | net |")
+        lines.append("|---|---:|---:|---:|")
+        changed = [r for r in (gaps.get("weekly_class_change_ways") or []) if r.get("became_car_ways") or r.get("left_car_ways")]
+        for r in sorted(changed, key=lambda x: -x.get("became_car_ways", 0)):
+            lines.append(
+                f"| {r['bake_id']} | {r.get('became_car_ways')} | "
+                f"{r.get('left_car_ways')} | {r.get('net')} |"
+            )
+        if not changed:
+            lines.append("| _(none)_ | 0 | 0 | 0 |")
+        lines.append("")
+        lines.append(
+            f"Sum of became-car way counts across weekly rows: "
+            f"**{gaps.get('weekly_class_change_sum_became')}** "
+            "(not unique worldwide)."
+        )
+        lines.append("")
     lines.append("### Tag key totals (every key)")
     lines.append("")
     for k, n in inv.get("all_tag_keys") or []:
@@ -485,6 +608,38 @@ def run(scratch: Path, repo: Path, live_data: Path) -> Path:
         lines.append(f"- … +{len(no_ferry_regions) - 300} more")
     lines.append("")
 
+    lines.append("## 6. Rollout (admission + duration; ferry links stay opt-in)")
+    lines.append("")
+    lines.append(
+        "This admission/duration change is a **correctness** fix. Ship **on by default** "
+        "in the converter (not behind `NAVI_FERRY_LINKS_REGIONS`). Ferry boarding links "
+        "remain a separate opt-in."
+    )
+    lines.append("")
+    lines.append("If on by default (recommended): next Monday weekly convert rewrites car "
+                 "topology in every weekly region that contains newly admitted ferries "
+                 "(see class-change table in §1b). No live `regions.conf` edit is required.")
+    lines.append("")
+    lines.append("If someone later gates admission behind the ferry-links opt-in (not recommended):")
+    lines.append("")
+    lines.append("```bash")
+    lines.append("# do not set this for admission; ferry-links only")
+    lines.append("NAVI_FERRY_LINKS_REGIONS=europe_norway_vestlandet,europe_norway_nord_norge")
+    lines.append("# optional global ferry-links flag (separate PR)")
+    lines.append("# NAVI_BAKE_FERRY_LINKS=1")
+    lines.append("```")
+    lines.append("")
+    lines.append("Exact weekly `regions.conf` lines for Norway landsdeler (already present; do not edit live):")
+    lines.append("")
+    lines.append("```")
+    lines.append("europe_norway_vestlandet	geofabrik:europe/norway/vestlandet")
+    lines.append("europe_norway_trondelag	geofabrik:europe/norway/trondelag")
+    lines.append("europe_norway_nord_norge	geofabrik:europe/norway/nord-norge")
+    lines.append("europe_norway_sorlandet	geofabrik:europe/norway/sorlandet")
+    lines.append("europe_norway_ostlandet	geofabrik:europe/norway/ostlandet")
+    lines.append("```")
+    lines.append("")
+
     lines.append("## Appendix: ferries in no region")
     lines.append("")
     lines.append(f"Count: {len(no_region)}. Sample:")
@@ -505,6 +660,9 @@ def run(scratch: Path, repo: Path, live_data: Path) -> Path:
     lines.append("python3 $CLONE/scripts/ferry_coverage/overpass_fetch.py --scratch $SCRATCH")
     lines.append("python3 $CLONE/scripts/ferry_coverage/tag_inventory.py --scratch $SCRATCH")
     lines.append("python3 $CLONE/scripts/ferry_coverage/map_regions.py --scratch $SCRATCH")
+    lines.append(
+        "python3 $CLONE/scripts/ferry_coverage/enrich_classifier.py --scratch $SCRATCH"
+    )
     lines.append("export CARGO_TARGET_DIR=$SCRATCH/target")
     lines.append("cargo build -p pack-convert-core --release --bin ferry_pack_scan")
     lines.append(
