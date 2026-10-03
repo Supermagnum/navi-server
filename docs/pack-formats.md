@@ -99,7 +99,7 @@ Parallel column-store vectors (node count / edge count aligned):
 | `node_lats` / `node_lons` | `Vec<f64>` | Node coordinates (WGS84) |
 | `edge_src` / `edge_tgt` | `Vec<u32>` | Indices into `node_ids` |
 | `edge_length_m` | `Vec<f64>` | Edge length (metres) |
-| `edge_base_weight` | `Vec<f64>` | A* weight in metres. Roads: `length_m`. Ferries: duration at 80 km/h drive-equivalent, else length at 10 km/h; car/truck also add a 10 minute boarding penalty at 80 km/h. Soft surface costs stay at plan time |
+| `edge_base_weight` | `Vec<f64>` | A* weight in metres. Roads: `length_m`. Ferries: OSM `duration` at 80 km/h drive-equivalent (H:MM, HH:MM:SS, bare minutes, ISO 8601 `PT…`, or MM:SS when the first field is `>= 60`), else length at 10 km/h; car/truck also add a 10 minute boarding penalty at 80 km/h. Soft surface costs stay at plan time |
 | `edge_delta_h_m` | `Vec<f32>` | Elevation change end−start (m); **empty** if `has_delta_h` is false; **NaN** = missing DEM sample |
 | `edge_start_*` / `edge_end_*` | `Vec<f64>` | Edge endpoint lat/lon |
 | `edge_highway` | `Vec<String>` | OSM highway class |
