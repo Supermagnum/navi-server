@@ -122,6 +122,28 @@ const OSM: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
     <tag k="motor_vehicle" v="yes"/>
     <tag k="name" v="Car route relation"/>
   </relation>
+  <node id="40" lat="59.0220" lon="10.0400"/>
+  <node id="41" lat="59.0220" lon="10.0410"/>
+  <way id="700">
+    <nd ref="40"/><nd ref="41"/>
+    <tag k="route" v="ferry"/>
+    <tag k="name" v="Kystruten test liner"/>
+  </way>
+  <relation id="9001">
+    <member type="way" ref="700" role=""/>
+    <member type="node" ref="1" role="stop"/>
+    <member type="node" ref="2" role="stop"/>
+    <member type="node" ref="3" role="stop"/>
+    <member type="node" ref="4" role="stop"/>
+    <member type="node" ref="5" role="stop"/>
+    <member type="node" ref="6" role="stop"/>
+    <member type="node" ref="7" role="stop"/>
+    <member type="node" ref="8" role="stop"/>
+    <tag k="type" v="route"/>
+    <tag k="route" v="ferry"/>
+    <tag k="motor_vehicle" v="yes"/>
+    <tag k="name" v="Kystruten Bergen-Kirkenes"/>
+  </relation>
 </osm>
 "#;
 
@@ -184,6 +206,10 @@ fn car_and_foot_ferries_and_tunnel_flags_roundtrip_v9() {
     assert!(
         !way_edges(&car, "600").is_empty(),
         "car graph must admit untagged member of a car-capable route=ferry relation"
+    );
+    assert!(
+        way_edges(&car, "700").is_empty(),
+        "car graph must not inherit from a many-stop coastal liner relation"
     );
     let inherited = way_edges(&car, "500");
     let expected_iso =

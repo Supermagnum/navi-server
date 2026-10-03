@@ -1223,6 +1223,15 @@ pub const FERRY_DRIVE_EQUIV_KMH: f64 = 80.0;
 pub const FERRY_FALLBACK_SPEED_KMH: f64 = 10.0;
 /// Extra car/truck cost for boarding, in minutes, converted at [`FERRY_DRIVE_EQUIV_KMH`].
 pub const FERRY_CAR_BOARDING_PENALTY_MIN: f64 = 10.0;
+/// Inherit car access from a parent `route=ferry` relation only when the
+/// relation's member-way geometry is at most this long (point-to-point / short
+/// multi-stop vehicle ferries). Coastal liners exceed this.
+pub const FERRY_INHERIT_MAX_RELATION_LENGTH_M: f64 = 150_000.0;
+/// Same cap applied to an individual member way even if the parent is shorter.
+pub const FERRY_INHERIT_MAX_WAY_LENGTH_M: f64 = 150_000.0;
+/// Inclusive stop/terminal budget for inheritance. OSM car-capable relations
+/// are almost all ≤5 stops (p95); >6 is liner / hurtigbåt territory.
+pub const FERRY_INHERIT_MAX_STOPS: u32 = 6;
 
 fn ferry_drive_equiv_m_per_s() -> f64 {
     FERRY_DRIVE_EQUIV_KMH * 1000.0 / 3600.0
@@ -1386,7 +1395,8 @@ pub(crate) fn ferry_motor_yes(raw: &str) -> bool {
 /// - any of `motor_vehicle` / `motorcar` / `vehicle` is in the ferry yes-set, or
 /// - none of those keys is present, the way is not explicitly denied
 ///   (`no`/`private` on those keys or `access`), and either `ferry=<road class>`
-///   or a parent `route=ferry` relation is car-capable.
+///   or a parent `route=ferry` relation is car-capable **and** a short
+///   vehicle service (see [`inheritable_parent_car_ferry_ways`]).
 ///
 /// Explicit `no`/`private` on `motor_vehicle`, `motorcar`, or `vehicle` always
 /// denies. `access=no|private` denies the inferred (untagged / parent / road-class)
@@ -1473,19 +1483,105 @@ pub(crate) fn raw_way_skipped_for_profile<S: std::hash::BuildHasher>(
     access::tags_forbid_mode(tags, profile.access_mode())
 }
 
-/// If `tags` is a car-capable `route=ferry` relation, insert member way ids.
-pub(crate) fn record_car_ferry_relation_members<S: std::hash::BuildHasher>(
+/// Car-capable `route=ferry` relation sketch; length is resolved after coords.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct CarFerryRelSketch {
+    pub member_way_ids: Vec<i64>,
+    pub stop_or_terminal_count: u32,
+}
+
+/// Node member roles that count as stops/terminals for the inheritance cap.
+pub(crate) fn ferry_relation_stop_role(role: &str) -> bool {
+    let r = role.trim().to_ascii_lowercase();
+    if r.contains("stop") {
+        return true;
+    }
+    matches!(
+        r.as_str(),
+        "platform" | "terminal" | "harbour" | "harbor" | "port" | "halt"
+    )
+}
+
+/// If `tags` is a car-capable `route=ferry` relation, return a sketch of members.
+pub(crate) fn record_car_ferry_relation_sketch<S: std::hash::BuildHasher>(
     tags: &HashMap<String, String, S>,
-    member_way_ids: impl IntoIterator<Item = i64>,
-    into: &mut HashSet<i64>,
-) {
+    member_way_ids: Vec<i64>,
+    stop_or_terminal_count: u32,
+) -> Option<CarFerryRelSketch> {
     if !tags_indicate_ferry(tags) {
-        return;
+        return None;
     }
     if !ferry_allowed_for_profile(tags, RoutingProfile::Car, false) {
-        return;
+        return None;
     }
-    into.extend(member_way_ids);
+    Some(CarFerryRelSketch {
+        member_way_ids,
+        stop_or_terminal_count,
+    })
+}
+
+fn ferry_haversine_m(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
+    let r = 6_371_000.0_f64;
+    let p1 = lat1.to_radians();
+    let p2 = lat2.to_radians();
+    let dlat = (lat2 - lat1).to_radians();
+    let dlon = (lon2 - lon1).to_radians();
+    let a = (dlat / 2.0).sin().powi(2) + p1.cos() * p2.cos() * (dlon / 2.0).sin().powi(2);
+    2.0 * r * a.sqrt().clamp(0.0, 1.0).asin()
+}
+
+pub(crate) fn way_geom_length_m(nodes: &[i64], coords: &HashMap<i64, (f64, f64)>) -> f64 {
+    let mut len = 0.0;
+    let mut prev: Option<(f64, f64)> = None;
+    for id in nodes {
+        let Some(&(lat, lon)) = coords.get(id) else {
+            continue;
+        };
+        if let Some((plat, plon)) = prev {
+            len += ferry_haversine_m(plat, plon, lat, lon);
+        }
+        prev = Some((lat, lon));
+    }
+    len
+}
+
+/// Member ways that may inherit car access from a short vehicle `route=ferry`.
+///
+/// Ways with their own motor yes-set are admitted independently via
+/// [`ferry_allowed_for_profile`]; this set only gates the parent-relation path.
+pub(crate) fn inheritable_parent_car_ferry_ways(
+    sketches: &[CarFerryRelSketch],
+    way_nodes: &HashMap<i64, Vec<i64>>,
+    coords: &HashMap<i64, (f64, f64)>,
+) -> HashSet<i64> {
+    let mut lengths: HashMap<i64, f64> = HashMap::new();
+    let mut out = HashSet::new();
+    for sk in sketches {
+        if sk.stop_or_terminal_count > FERRY_INHERIT_MAX_STOPS {
+            continue;
+        }
+        let mut rel_len = 0.0;
+        for &wid in &sk.member_way_ids {
+            let wlen = *lengths.entry(wid).or_insert_with(|| {
+                way_nodes
+                    .get(&wid)
+                    .map(|nodes| way_geom_length_m(nodes, coords))
+                    .unwrap_or(0.0)
+            });
+            rel_len += wlen;
+        }
+        if rel_len > FERRY_INHERIT_MAX_RELATION_LENGTH_M {
+            continue;
+        }
+        for &wid in &sk.member_way_ids {
+            let wlen = lengths.get(&wid).copied().unwrap_or(0.0);
+            if wlen > FERRY_INHERIT_MAX_WAY_LENGTH_M {
+                continue;
+            }
+            out.insert(wid);
+        }
+    }
+    out
 }
 
 fn push_directed_edge(
@@ -3133,6 +3229,109 @@ mod ferry_tunnel_unit_tests {
         // ferry=yes is not a road class.
         assert!(!ferry_allowed_for_profile(
             &tags(&[("route", "ferry"), ("ferry", "yes")]),
+            RoutingProfile::Car,
+            false
+        ));
+        // motorcar is more specific than motor_vehicle=no.
+        assert!(ferry_allowed_for_profile(
+            &tags(&[
+                ("route", "ferry"),
+                ("motor_vehicle", "no"),
+                ("motorcar", "permissive"),
+                ("name", "Drobak - Oscarborg")
+            ]),
+            RoutingProfile::Car,
+            false
+        ));
+    }
+
+    #[test]
+    fn liner_relation_does_not_grant_inherit_short_vehicle_does() {
+        assert!(ferry_relation_stop_role("stop"));
+        assert!(ferry_relation_stop_role("forward stop (Jun - Aug)"));
+        assert!(ferry_relation_stop_role("terminal"));
+        assert!(!ferry_relation_stop_role(""));
+        assert!(!ferry_relation_stop_role("from"));
+
+        let mut coords = HashMap::new();
+        // ~11 km per 0.1 deg latitude.
+        coords.insert(1, (59.0, 10.0));
+        coords.insert(2, (59.05, 10.0)); // ~5.6 km hop
+        coords.insert(3, (61.5, 10.0)); // ~278 km from 59.0
+        let mut way_nodes = HashMap::new();
+        way_nodes.insert(600, vec![1, 2]);
+        way_nodes.insert(700, vec![1, 3]);
+
+        let short = CarFerryRelSketch {
+            member_way_ids: vec![600],
+            stop_or_terminal_count: 2,
+        };
+        let liner_stops = CarFerryRelSketch {
+            member_way_ids: vec![600],
+            stop_or_terminal_count: 31,
+        };
+        let liner_long = CarFerryRelSketch {
+            member_way_ids: vec![700],
+            stop_or_terminal_count: 2,
+        };
+        let got = inheritable_parent_car_ferry_ways(
+            &[short, liner_stops.clone(), liner_long],
+            &way_nodes,
+            &coords,
+        );
+        assert!(got.contains(&600), "short vehicle relation must inherit");
+        assert!(
+            !got.contains(&700),
+            "member way longer than 150 km must not inherit"
+        );
+
+        let only_liner = inheritable_parent_car_ferry_ways(&[liner_stops], &way_nodes, &coords);
+        assert!(
+            only_liner.is_empty(),
+            "Kystruten-scale stop count must not inherit"
+        );
+
+        assert!(record_car_ferry_relation_sketch(
+            &tags(&[
+                ("route", "ferry"),
+                ("motor_vehicle", "yes"),
+                ("name", "Askrova - Florø")
+            ]),
+            vec![600],
+            0,
+        )
+        .is_some());
+        assert!(record_car_ferry_relation_sketch(
+            &tags(&[("route", "ferry"), ("name", "passenger")]),
+            vec![600],
+            2,
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn explicit_motor_yes_unaffected_by_liner_parent_flag() {
+        assert!(ferry_allowed_for_profile(
+            &tags(&[
+                ("route", "ferry"),
+                ("motor_vehicle", "yes"),
+                ("name", "Bodø - Moskenes")
+            ]),
+            RoutingProfile::Car,
+            false
+        ));
+        assert!(ferry_allowed_for_profile(
+            &tags(&[
+                ("route", "ferry"),
+                ("motor_vehicle", "yes"),
+                ("name", "Hirtshals - Kristiansand")
+            ]),
+            RoutingProfile::Car,
+            false
+        ));
+        // Untagged Hurtigruten hop: parent flag would admit, convert must not set it.
+        assert!(!ferry_allowed_for_profile(
+            &tags(&[("route", "ferry"), ("name", "Hurtigruten")]),
             RoutingProfile::Car,
             false
         ));

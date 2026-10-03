@@ -26,8 +26,9 @@ use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use super::builder::{
-    ferry_base_weight_m, osm_is_tunnel, raw_way_skipped_for_profile,
-    record_car_ferry_relation_members, tags_indicate_ferry, GraphEdge, RouteGraph, RoutingProfile,
+    ferry_base_weight_m, ferry_relation_stop_role, inheritable_parent_car_ferry_ways,
+    osm_is_tunnel, raw_way_skipped_for_profile, record_car_ferry_relation_sketch,
+    tags_indicate_ferry, CarFerryRelSketch, GraphEdge, RouteGraph, RoutingProfile,
 };
 use super::surface_quality::classify_surface_tags;
 use crate::routing::access;
@@ -220,20 +221,36 @@ fn append_spill_file(dest: &mut impl Write, src_path: &Path) -> anyhow::Result<u
     Ok(count)
 }
 
-fn absorb_car_ferry_relation(rel: &osmpbf::Relation<'_>, into: &mut HashSet<i64>) {
+fn absorb_car_ferry_relation(rel: &osmpbf::Relation<'_>, into: &mut Vec<CarFerryRelSketch>) {
     let tags: HashMap<String, String> = rel
         .tags()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect();
-    let members = rel.members().filter_map(|m| {
-        if m.member_type == RelMemberType::Way {
-            Some(m.member_id)
-        } else {
-            None
+    let mut member_ways = Vec::new();
+    let mut stops = 0u32;
+    for m in rel.members() {
+        match m.member_type {
+            RelMemberType::Way => member_ways.push(m.member_id),
+            RelMemberType::Node => {
+                let role = m.role().unwrap_or("");
+                if ferry_relation_stop_role(role) {
+                    stops += 1;
+                }
+            }
+            _ => {}
         }
-    });
-    record_car_ferry_relation_members(&tags, members, into);
+    }
+    if let Some(sk) = record_car_ferry_relation_sketch(&tags, member_ways, stops) {
+        into.push(sk);
+    }
 }
+
+type TiledPass1 = (
+    HashSet<i64>,
+    u64,
+    Vec<CarFerryRelSketch>,
+    HashMap<i64, Vec<i64>>,
+);
 
 /// Pass 1 for tiled convert: filter profile highways and append length-prefixed
 /// [`SpilledWay`] records. Each Rayon worker keeps its own spill file and node-id
@@ -243,7 +260,7 @@ fn spill_tiled_highway_ways(
     spill_dir: &Path,
     profiles: &[RoutingProfile],
     dest: &mut impl Write,
-) -> anyhow::Result<(HashSet<i64>, u64, HashSet<i64>)> {
+) -> anyhow::Result<TiledPass1> {
     struct ThreadPass1 {
         /// Kept so [`TempSpill`]'s drop guard does not delete the file while
         /// `writer` is still appending.
@@ -264,7 +281,8 @@ fn spill_tiled_highway_ways(
     let spill_err = Mutex::new(None::<anyhow::Error>);
     let spill_paths: Arc<Mutex<Vec<PathBuf>>> = Arc::new(Mutex::new(Vec::new()));
     let needed_acc = Arc::new(Mutex::new(HashSet::new()));
-    let parent_car_acc = Arc::new(Mutex::new(HashSet::new()));
+    let parent_car_acc = Arc::new(Mutex::new(Vec::<CarFerryRelSketch>::new()));
+    let ferry_way_acc = Arc::new(Mutex::new(HashMap::<i64, Vec<i64>>::new()));
 
     crate::download::pbf_priority::for_each_pbf_data_block(path, |block| {
         if spill_err
@@ -324,6 +342,12 @@ fn spill_tiled_highway_ways(
                         for id in &refs {
                             state.batch_needed.insert(*id);
                         }
+                        if tags_indicate_ferry(&tags) {
+                            ferry_way_acc
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner())
+                                .insert(way.id(), refs.clone());
+                        }
                         let spilled = SpilledWay::from_raw(way.id(), refs, tags);
                         if let Err(e) = write_spilled_way(&mut state.writer, &spilled) {
                             *spill_err.lock().unwrap_or_else(|x| x.into_inner()) = Some(e);
@@ -355,11 +379,15 @@ fn spill_tiled_highway_ways(
         .map_err(|_| anyhow::anyhow!("needed set still shared"))?
         .into_inner()
         .map_err(|_| anyhow::anyhow!("needed set poisoned"))?;
-    let parent_car_ways = Arc::try_unwrap(parent_car_acc)
+    let parent_car_sketches = Arc::try_unwrap(parent_car_acc)
         .map_err(|_| anyhow::anyhow!("parent ferry set still shared"))?
         .into_inner()
         .map_err(|_| anyhow::anyhow!("parent ferry set poisoned"))?;
-    Ok((needed, way_count, parent_car_ways))
+    let ferry_way_nodes = Arc::try_unwrap(ferry_way_acc)
+        .map_err(|_| anyhow::anyhow!("ferry way map still shared"))?
+        .into_inner()
+        .map_err(|_| anyhow::anyhow!("ferry way map poisoned"))?;
+    Ok((needed, way_count, parent_car_sketches, ferry_way_nodes))
 }
 
 fn in_bbox(lat: f64, lon: f64, bbox: [f64; 4]) -> bool {
@@ -501,11 +529,11 @@ impl RouteGraph {
         // Pass 2: highway ways that reference at least one in-bbox node.
         let mut ways: Vec<RawWay> = Vec::new();
         let mut needed: HashSet<i64> = HashSet::new();
-        let mut parent_car_ways: HashSet<i64> = HashSet::new();
+        let mut parent_car_sketches: Vec<CarFerryRelSketch> = Vec::new();
         {
             crate::download::pbf_priority::for_each_pbf_elements(path, |element| match element {
                 Element::Relation(rel) => {
-                    absorb_car_ferry_relation(&rel, &mut parent_car_ways);
+                    absorb_car_ferry_relation(&rel, &mut parent_car_sketches);
                 }
                 Element::Way(way) => {
                     let tags = filter_way_tags(
@@ -538,13 +566,6 @@ impl RouteGraph {
                 _ => {}
             })?;
         }
-        ways.retain(|w| {
-            if tags_indicate_ferry(&w.tags) {
-                !raw_way_skipped_for_profile(&w.tags, profile, parent_car_ways.contains(&w.id))
-            } else {
-                true
-            }
-        });
         drop(in_bbox_ids);
 
         crate::download::plan_cancel::abort_if_cancelled()?;
@@ -580,6 +601,23 @@ impl RouteGraph {
             })?;
         }
         drop(needed);
+
+        let ferry_way_nodes: HashMap<i64, Vec<i64>> = ways
+            .iter()
+            .filter(|w| tags_indicate_ferry(&w.tags))
+            .map(|w| (w.id, w.nodes.clone()))
+            .collect();
+        let parent_car_ways =
+            inheritable_parent_car_ferry_ways(&parent_car_sketches, &ferry_way_nodes, &coords);
+        drop(parent_car_sketches);
+        drop(ferry_way_nodes);
+        ways.retain(|w| {
+            if tags_indicate_ferry(&w.tags) {
+                !raw_way_skipped_for_profile(&w.tags, profile, parent_car_ways.contains(&w.id))
+            } else {
+                true
+            }
+        });
 
         crate::download::plan_cancel::abort_if_cancelled()?;
         crate::download::progress::set(3, Some(4), "Planning route: linking graph…");
@@ -676,7 +714,7 @@ impl RouteGraph {
             &format!("Indexed maps: pass1 way-spill ({label})…"),
         );
         let (ways_spill, mut ways_writer) = TempSpill::create(spill_dir, "tiled-ways")?;
-        let (needed, way_count, parent_car_ways) =
+        let (needed, way_count, parent_car_sketches, ferry_way_nodes) =
             spill_tiled_highway_ways(path, spill_dir, profiles, &mut ways_writer)?;
         ways_writer
             .flush()
@@ -726,10 +764,15 @@ impl RouteGraph {
             })?;
         }
         drop(needed);
+        let parent_car_ways =
+            inheritable_parent_car_ferry_ways(&parent_car_sketches, &ferry_way_nodes, &coords);
+        drop(parent_car_sketches);
+        drop(ferry_way_nodes);
         log::info!(
             target: "NaviConvert",
-            "CONVERT_PHASE pass2 done ({label}) coords={}",
-            coords.len()
+            "CONVERT_PHASE pass2 done ({label}) coords={} inherit_car_ferry_ways={}",
+            coords.len(),
+            parent_car_ways.len()
         );
 
         let mut out = Vec::with_capacity(profiles.len());

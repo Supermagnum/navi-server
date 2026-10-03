@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import math
 import re
 import sys
 from collections import Counter, defaultdict
@@ -39,6 +40,9 @@ FERRY_ROAD_CLASSES = {
 }
 FERRY_MOTOR_YES = ACCESS_YES | {"destination", "customers"}
 FERRY_MOTOR_KEYS = ("motor_vehicle", "motorcar", "vehicle")
+FERRY_INHERIT_MAX_RELATION_KM = 150.0
+FERRY_INHERIT_MAX_WAY_KM = 150.0
+FERRY_INHERIT_MAX_STOPS = 6
 NORWAY_FIVE = (
     "europe_norway_vestlandet",
     "europe_norway_trondelag",
@@ -80,6 +84,40 @@ def ferry_allowed_car_new(tags: dict[str, str], parent_car: bool) -> bool:
         return False
     ferry = (tags.get("ferry") or "").strip().lower()
     return ferry in FERRY_ROAD_CLASSES or parent_car
+
+
+def ferry_relation_stop_role(role: str | None) -> bool:
+    r = (role or "").strip().lower()
+    if "stop" in r:
+        return True
+    return r in {"platform", "terminal", "harbour", "harbor", "port", "halt"}
+
+
+def _hav_m(a: tuple[float, float], b: tuple[float, float]) -> float:
+    lat1, lon1 = a
+    lat2, lon2 = b
+    r = 6_371_000.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    h = math.sin(dlat / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dlon / 2) ** 2
+    return 2 * r * math.asin(min(1.0, math.sqrt(h)))
+
+
+def geom_length_km(geom: list[dict[str, Any]] | None) -> float:
+    if not geom or len(geom) < 2:
+        return 0.0
+    total = 0.0
+    prev: tuple[float, float] | None = None
+    for p in geom:
+        try:
+            pt = (float(p["lat"]), float(p["lon"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+        if prev is not None:
+            total += _hav_m(prev, pt)
+        prev = pt
+    return total / 1000.0
 
 
 def duration_format_bucket(raw: str) -> str:
@@ -161,7 +199,13 @@ def main() -> int:
         osm_type = str(el.get("type"))
         osm_id = int(el.get("id"))
         tags = {str(k): str(v) for k, v in (el.get("tags") or {}).items()}
-        rec = {"osm_type": osm_type, "osm_id": osm_id, "tags": tags, "members": el.get("members")}
+        rec = {
+            "osm_type": osm_type,
+            "osm_id": osm_id,
+            "tags": tags,
+            "members": el.get("members"),
+            "geometry": el.get("geometry"),
+        }
         by_key[(osm_type, osm_id)] = rec
         if osm_type == "relation":
             relations.append(rec)
@@ -186,11 +230,33 @@ def main() -> int:
         relations = list(rel_by_id.values())
 
     parent_car: dict[int, bool] = {}
+    way_len_km: dict[int, float] = {}
+    for (typ, oid), rec in by_key.items():
+        if typ != "way":
+            continue
+        geom = rec.get("geometry")
+        if isinstance(geom, list):
+            way_len_km[oid] = geom_length_km(geom)
+
     for rel in relations:
         tags = rel["tags"]
-        car = ferry_allowed_car_new(tags, False)
-        parent_car[rel["osm_id"]] = car
-        for mem in rel.get("members") or []:
+        car_tags = ferry_allowed_car_new(tags, False)
+        members = rel.get("members") or []
+        stops = 0
+        rel_len = 0.0
+        for mem in members:
+            if not isinstance(mem, dict):
+                continue
+            if mem.get("type") == "node" and ferry_relation_stop_role(str(mem.get("role") or "")):
+                stops += 1
+            if mem.get("type") == "way":
+                rel_len += way_len_km.get(int(mem["ref"]), 0.0)
+        parent_car[rel["osm_id"]] = (
+            car_tags
+            and stops <= FERRY_INHERIT_MAX_STOPS
+            and rel_len <= FERRY_INHERIT_MAX_RELATION_KM
+        )
+        for mem in members:
             if not isinstance(mem, dict):
                 continue
             if mem.get("type") != "way":
@@ -262,7 +328,12 @@ def main() -> int:
 
             pids = way_parents.get(osm_id, []) if osm_type == "way" else []
             parent_ids_s = ";".join(str(i) for i in pids)
-            any_parent_car = any(parent_car.get(i) for i in pids)
+            any_parent_car = False
+            if osm_type == "way":
+                wlen = way_len_km.get(osm_id, 0.0)
+                any_parent_car = wlen <= FERRY_INHERIT_MAX_WAY_KM and any(
+                    parent_car.get(i) for i in pids
+                )
 
             old_car = row["classification"] == "car-capable"
             new_car = ferry_allowed_car_new(tags, any_parent_car) if osm_type != "relation" else ferry_allowed_car_new(tags, False)
