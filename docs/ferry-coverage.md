@@ -2548,9 +2548,9 @@ Examples from this cut-off list:
 
 _No planet-wide bake. Weekly (`data/regions.conf`) is the only regular bake. Leaf regions that need ferry links and fit the budget: add to weekly + set NAVI_FERRY_LINKS_REGIONS. Over-budget / cut-off leaves: run a targeted single-region bake now (`./scripts/run-weekly.sh --region <id>` with NAVI_FERRY_LINKS_REGIONS=<id>) so ferry-links/v9 land without a planet run; reconsider weekly membership only after they fit. Do not edit live config from this analysis._
 
-## 4. Converter problem candidates (boarding islands)
+## 4. Converter problem candidates (do not fix here)
 
-OSM ids / pack edges where packs disagree with `ferry_allowed_for_profile` or expected car set. Published packs reconstruct edge ids as `src-tgt-i`; matching uses endpoint proximity. **Admission + duration** are fixed in this PR (`pack-convert-core`). Boarding-island `no_road`/`tiny` stays with the separate ferry-links opt-in.
+OSM ids / pack edges where packs disagree with `ferry_allowed_for_profile` or expected car set. Published packs do **not** retain OSM way ids in edge ids (rebuilt as `src-tgt-i` on load); matching uses endpoint proximity. Investigation only — no converter changes in this PR.
 
 - `africa_cameroon` missing_from_pack way/313541314 name='' class=None
 - `africa_cameroon` missing_from_pack way/319680517 name='' class=None

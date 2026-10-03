@@ -496,14 +496,13 @@ def run(scratch: Path, repo: Path, live_data: Path) -> Path:
     lines.append("")
 
     # ---- 4 converter problems ----
-    lines.append("## 4. Converter problem candidates (boarding islands)")
+    lines.append("## 4. Converter problem candidates (do not fix here)")
     lines.append("")
     lines.append(
         "OSM ids / pack edges where packs disagree with `ferry_allowed_for_profile` "
-        "or expected car set. Published packs reconstruct edge ids as `src-tgt-i`; "
-        "matching uses endpoint proximity. **Admission + duration** are fixed in "
-        "this PR (`pack-convert-core`). Boarding-island `no_road`/`tiny` stays with "
-        "the separate ferry-links opt-in."
+        "or expected car set. Published packs do **not** retain OSM way ids in edge "
+        "ids (rebuilt as `src-tgt-i` on load); matching uses endpoint proximity. "
+        "Investigation only — no converter changes in this PR."
     )
     lines.append("")
     problems = []
