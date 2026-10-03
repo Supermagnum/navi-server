@@ -105,7 +105,10 @@ When enabled for a region:
    `highway=footway|platform`) for car/truck profiles.
 2. At car/truck graph build, BFS from car-capable ferry endpoints over candidate
    edges only, up to `FERRY_BOARDING_MAX_CHAIN_M` (**500 m**), and promote only
-   ways on a path that reaches a car-drivable road node.
+   ways on a path that reaches a car-drivable road node on a **non-stub** road
+   component (`FERRY_BOARDING_MIN_ROAD_COMPONENT_NODES` = **50**, matching the
+   audit `tiny` band). Chains that only touch a disconnected pier-side stub are
+   left unpromoted so `tiny` does not increase.
 3. Passenger-only ferries (no `motor_vehicle`/`motorcar` yes) and their links
    stay non-car.
 4. Manifest field `ferry_links_baked: true` on `{stem}.navi-manifest.json` and

@@ -21,7 +21,7 @@ pub use builder::{
 };
 pub use ferry_boarding::{
     is_car_capable_ferry, is_ferry_boarding_candidate, promote_ferry_boarding_way_ids,
-    BoardingWayRef, FERRY_BOARDING_MAX_CHAIN_M,
+    BoardingWayRef, FERRY_BOARDING_MAX_CHAIN_M, FERRY_BOARDING_MIN_ROAD_COMPONENT_NODES,
 };
 pub use reweight::reweight_graph_for_eco;
 pub use surface_quality::{

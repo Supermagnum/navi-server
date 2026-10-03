@@ -5,8 +5,10 @@
 //! the car profile, leaving ferry landings as directed-graph islands.
 //!
 //! When enabled, we retain those candidate ways and promote only the short
-//! undirected chains that connect a **car-capable** ferry endpoint to the
-//! first car-drivable road node (length-bounded).
+//! undirected chains that connect a **car-capable** ferry endpoint to a
+//! car-drivable road node that sits on a **non-stub** road component (length-
+//! bounded). Attaching to a disconnected stub would inflate the audit `tiny`
+//! class without making the landing useful for routing.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::hash::BuildHasher;
@@ -39,6 +41,15 @@ fn car_highway_ok(highway: &str) -> bool {
 /// Maximum undirected length (metres) of pier/footway/platform chain from a
 /// car-ferry endpoint to the first car-drivable road node.
 pub const FERRY_BOARDING_MAX_CHAIN_M: f64 = 500.0;
+
+/// Minimum car-drivable component size (node count) that counts as a real
+/// road network rather than a disconnected stub. Matches the ferry-terminal
+/// audit `tiny` band (<50 non-ferry nodes).
+///
+/// When every car-road component in the extract is smaller than this (unit /
+/// fixture graphs), the threshold falls back to the largest component size so
+/// legitimate short chains still promote.
+pub const FERRY_BOARDING_MIN_ROAD_COMPONENT_NODES: usize = 50;
 
 /// Haversine used only for chain length accounting (same formula as bbox_build).
 fn haversine_m(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
@@ -92,16 +103,97 @@ pub struct BoardingWayRef<'a> {
     pub tags: &'a HashMap<String, String>,
 }
 
+/// Nodes on car-drivable ways whose undirected component is large enough to
+/// count as a real network (not a pier-side stub).
+fn substantial_road_nodes(ways: &[BoardingWayRef<'_>], min_component_nodes: usize) -> HashSet<i64> {
+    let mut road_adj: HashMap<i64, Vec<i64>> = HashMap::new();
+    let mut all_road_nodes: HashSet<i64> = HashSet::new();
+
+    for w in ways {
+        if !is_car_drivable_road(w.tags) {
+            continue;
+        }
+        for &n in w.nodes {
+            all_road_nodes.insert(n);
+        }
+        for pair in w.nodes.windows(2) {
+            let (a, b) = (pair[0], pair[1]);
+            if a == b {
+                continue;
+            }
+            road_adj.entry(a).or_default().push(b);
+            road_adj.entry(b).or_default().push(a);
+        }
+    }
+
+    if all_road_nodes.is_empty() {
+        return HashSet::new();
+    }
+
+    let mut node_comp_size: HashMap<i64, usize> = HashMap::new();
+    let mut seen: HashSet<i64> = HashSet::new();
+    let mut max_comp = 0usize;
+
+    for &start in &all_road_nodes {
+        if seen.contains(&start) {
+            continue;
+        }
+        let mut comp: Vec<i64> = Vec::new();
+        let mut q = VecDeque::new();
+        q.push_back(start);
+        seen.insert(start);
+        while let Some(n) = q.pop_front() {
+            comp.push(n);
+            for &m in road_adj.get(&n).into_iter().flatten() {
+                if seen.insert(m) {
+                    q.push_back(m);
+                }
+            }
+        }
+        let sz = comp.len();
+        max_comp = max_comp.max(sz);
+        for n in comp {
+            node_comp_size.insert(n, sz);
+        }
+    }
+
+    // Tiny fixture extracts: fall back to the largest component so short
+    // legitimate chains still promote. Region-scale graphs keep the absolute
+    // stub threshold (50).
+    let threshold = min_component_nodes.min(max_comp).max(1);
+    all_road_nodes
+        .into_iter()
+        .filter(|n| node_comp_size.get(n).copied().unwrap_or(0) >= threshold)
+        .collect()
+}
+
 /// Returns the set of boarding-candidate way ids that lie on a bounded path
-/// from a car-ferry endpoint node to a car-drivable road node.
+/// from a car-ferry endpoint node to a car-drivable road node on a non-stub
+/// road component.
 pub fn promote_ferry_boarding_way_ids(
     ways: &[BoardingWayRef<'_>],
     coords: &HashMap<i64, (f64, f64)>,
     max_chain_m: f64,
 ) -> HashSet<i64> {
+    promote_ferry_boarding_way_ids_with_min_road(
+        ways,
+        coords,
+        max_chain_m,
+        FERRY_BOARDING_MIN_ROAD_COMPONENT_NODES,
+    )
+}
+
+/// Same as [`promote_ferry_boarding_way_ids`] with an explicit minimum road
+/// component size (for tests).
+pub fn promote_ferry_boarding_way_ids_with_min_road(
+    ways: &[BoardingWayRef<'_>],
+    coords: &HashMap<i64, (f64, f64)>,
+    max_chain_m: f64,
+    min_road_component_nodes: usize,
+) -> HashSet<i64> {
     let mut candidate_ids: HashSet<i64> = HashSet::new();
     let mut ferry_endpoint_nodes: HashSet<i64> = HashSet::new();
-    let mut road_nodes: HashSet<i64> = HashSet::new();
+    let road_nodes = substantial_road_nodes(ways, min_road_component_nodes);
 
     // undirected adjacency: node -> [(neighbor, way_id, segment_length_m)]
     let mut adj: HashMap<i64, Vec<(i64, i64, f64)>> = HashMap::new();
@@ -115,9 +207,6 @@ pub fn promote_ferry_boarding_way_ids(
             continue;
         }
         if is_car_drivable_road(w.tags) {
-            for &n in w.nodes {
-                road_nodes.insert(n);
-            }
             continue;
         }
         if !is_ferry_boarding_candidate(w.tags) {
@@ -141,7 +230,7 @@ pub fn promote_ferry_boarding_way_ids(
         }
     }
 
-    if ferry_endpoint_nodes.is_empty() || candidate_ids.is_empty() {
+    if ferry_endpoint_nodes.is_empty() || candidate_ids.is_empty() || road_nodes.is_empty() {
         return HashSet::new();
     }
 
@@ -316,5 +405,142 @@ mod tests {
         ];
         let promoted = promote_ferry_boarding_way_ids(&ways, &coords, FERRY_BOARDING_MAX_CHAIN_M);
         assert!(promoted.is_empty());
+    }
+
+    #[test]
+    fn does_not_promote_chain_that_only_reaches_road_stub() {
+        // Main network (nodes 1-2-3-4, size 4) far from the ferry.
+        // Stub service road (nodes 20-21, size 2) next to the pier.
+        // Ferry -- pier -- stub must NOT promote when a larger network exists.
+        let main = tags(&[("highway", "primary")]);
+        let stub = tags(&[("highway", "service")]);
+        let pier = tags(&[("man_made", "pier")]);
+        let ferry = tags(&[("route", "ferry"), ("motor_vehicle", "yes")]);
+
+        let coords: HashMap<i64, (f64, f64)> = [
+            (1, (60.1, 5.0)),
+            (2, (60.1, 5.0005)),
+            (3, (60.1, 5.0010)),
+            (4, (60.1, 5.0015)),
+            (20, (60.0, 5.0005)),
+            (21, (60.0, 5.0010)),
+            (22, (60.0, 5.0015)),
+            (23, (60.0, 5.0020)),
+        ]
+        .into_iter()
+        .collect();
+
+        let main_n = [1i64, 2, 3, 4];
+        let stub_n = [20i64, 21];
+        let pier_n = [21i64, 22];
+        let ferry_n = [22i64, 23];
+
+        let ways = [
+            BoardingWayRef {
+                id: 10,
+                nodes: &main_n,
+                tags: &main,
+            },
+            BoardingWayRef {
+                id: 20,
+                nodes: &stub_n,
+                tags: &stub,
+            },
+            BoardingWayRef {
+                id: 30,
+                nodes: &pier_n,
+                tags: &pier,
+            },
+            BoardingWayRef {
+                id: 40,
+                nodes: &ferry_n,
+                tags: &ferry,
+            },
+        ];
+
+        // Force absolute stub threshold (no fixture fallback): min=3 means
+        // only the size-4 main component is accepted.
+        let promoted = promote_ferry_boarding_way_ids_with_min_road(
+            &ways,
+            &coords,
+            FERRY_BOARDING_MAX_CHAIN_M,
+            3,
+        );
+        assert!(
+            promoted.is_empty(),
+            "must not promote boarding that only reaches a disconnected stub"
+        );
+
+        // With min=1 (the fixture fallback when max component is tiny), the
+        // stub alone would still promote — confirm the absolute gate is what
+        // rejects it here by also checking the public API with a synthetic
+        // main network large enough that threshold stays at 50 and both
+        // components are below 50: then both are rejected except largest.
+        // Build a 50-node main chain so threshold stays 50 and stub (2) loses.
+        // 51-node main road near the ferry berth (~50 m steps) so the
+        // absolute 50-node gate stays active and a short pier can reach it.
+        let big_nodes: Vec<i64> = (100..151).collect();
+        let mut big_coords = coords.clone();
+        for (i, &n) in big_nodes.iter().enumerate() {
+            big_coords.insert(n, (60.0, 4.990 + i as f64 * 0.0002));
+        }
+        // Node 150 is the eastern end of the main road, ~50 m west of berth 22.
+        big_coords.insert(150, (60.0, 5.0010));
+        let big_road = tags(&[("highway", "primary")]);
+        let ways_big = [
+            BoardingWayRef {
+                id: 10,
+                nodes: &big_nodes,
+                tags: &big_road,
+            },
+            BoardingWayRef {
+                id: 20,
+                nodes: &stub_n,
+                tags: &stub,
+            },
+            BoardingWayRef {
+                id: 30,
+                nodes: &pier_n,
+                tags: &pier,
+            },
+            BoardingWayRef {
+                id: 40,
+                nodes: &ferry_n,
+                tags: &ferry,
+            },
+        ];
+        let promoted_default =
+            promote_ferry_boarding_way_ids(&ways_big, &big_coords, FERRY_BOARDING_MAX_CHAIN_M);
+        assert!(
+            promoted_default.is_empty(),
+            "default 50-node gate must reject stub-only boarding"
+        );
+
+        // Sanity: short pier from berth 22 onto main-road node 150 must promote.
+        let pier_to_main = [150i64, 22];
+        let ferry2 = [22i64, 23];
+        let ways_ok = [
+            BoardingWayRef {
+                id: 10,
+                nodes: &big_nodes,
+                tags: &big_road,
+            },
+            BoardingWayRef {
+                id: 30,
+                nodes: &pier_to_main,
+                tags: &pier,
+            },
+            BoardingWayRef {
+                id: 40,
+                nodes: &ferry2,
+                tags: &ferry,
+            },
+        ];
+        let promoted_ok =
+            promote_ferry_boarding_way_ids(&ways_ok, &big_coords, FERRY_BOARDING_MAX_CHAIN_M);
+        assert!(
+            promoted_ok.contains(&30),
+            "boarding to the substantial network must still promote"
+        );
     }
 }
