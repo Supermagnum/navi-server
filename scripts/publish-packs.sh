@@ -383,6 +383,18 @@ for region in gen_man.get("regions", []):
         checksum_lines.append(f"{digest}  {path.name}")
 
     navi_manifest_name = region.get("manifest")
+    ferry_links = False
+    if navi_manifest_name:
+        navi_path = src / navi_manifest_name
+        if navi_path.is_file():
+            try:
+                ferry_links = bool(
+                    json.loads(navi_path.read_text(encoding="utf-8")).get(
+                        "ferry_links_baked"
+                    )
+                )
+            except Exception:
+                ferry_links = False
     client_manifest = {
         "schema": 1,
         "generation": gen_id,
@@ -394,6 +406,8 @@ for region in gen_man.get("regions", []):
         "navi_manifest": navi_manifest_name,
         "files": file_digests,
     }
+    if ferry_links:
+        client_manifest["ferry_links_baked"] = True
     def _atomic_write_text(path, text):
         partial = path.with_name(path.name + ".partial")
         partial.write_text(text, encoding="utf-8")

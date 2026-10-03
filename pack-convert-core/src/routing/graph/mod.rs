@@ -3,6 +3,7 @@
 mod bbox_build;
 mod bike_suitability;
 mod builder;
+mod ferry_boarding;
 mod reweight;
 mod surface_quality;
 
@@ -17,6 +18,10 @@ pub use builder::{
     profile_locks_avoid_motorways, GraphEdge, RouteGraph, RouteOptions, RoutingProfile, SnapTooFar,
     WetlandApplyStats, FERRY_CAR_BOARDING_PENALTY_MIN, FERRY_DRIVE_EQUIV_KMH,
     FERRY_FALLBACK_SPEED_KMH,
+};
+pub use ferry_boarding::{
+    is_car_capable_ferry, is_ferry_boarding_candidate, promote_ferry_boarding_way_ids,
+    BoardingWayRef, FERRY_BOARDING_MAX_CHAIN_M, FERRY_BOARDING_MIN_ROAD_COMPONENT_NODES,
 };
 pub use reweight::reweight_graph_for_eco;
 pub use surface_quality::{

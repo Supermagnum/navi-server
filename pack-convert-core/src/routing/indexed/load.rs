@@ -550,6 +550,7 @@ mod fingerprint_pbf_tests {
             has_delta_h: false,
             delta_h_missing_edges: 0,
             elev_dir: None,
+            ferry_links_baked: false,
         }
     }
 

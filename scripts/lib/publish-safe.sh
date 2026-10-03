@@ -86,14 +86,17 @@ mans = sorted(pub.glob("*.navi-manifest.json"))
 navi_man = mans[0].name if mans else None
 has_dh = False
 graph_fmt = None
+ferry_links = False
 if navi_man:
     try:
         navi_body = json.loads((pub / navi_man).read_text(encoding="utf-8"))
         has_dh = bool(navi_body.get("has_delta_h"))
         graph_fmt = navi_body.get("graph_format_version")
+        ferry_links = bool(navi_body.get("ferry_links_baked"))
     except Exception:
         has_dh = False
         graph_fmt = None
+        ferry_links = False
 
 man = {
     "schema": 1,
@@ -106,6 +109,8 @@ man = {
     "navi_manifest": navi_man,
     "files": files,
 }
+if ferry_links:
+    man["ferry_links_baked"] = True
 def _atomic_write_text(path, text):
     partial = path.with_name(path.name + ".partial")
     partial.write_text(text, encoding="utf-8")

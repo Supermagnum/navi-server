@@ -40,6 +40,10 @@ pub struct ConvertOptions {
     /// Profiles to emit. Default: car + foot (covers motor + hiking).
     pub profiles: Vec<RoutingProfile>,
     pub control: DownloadControl,
+    /// Promote bounded pier/footway/platform chains from car-capable ferry
+    /// endpoints into the car graph. Default off so weekly bakes stay
+    /// topology-stable until regions opt in.
+    pub ferry_links: bool,
 }
 
 impl ConvertOptions {
@@ -50,6 +54,7 @@ impl ConvertOptions {
             elev_dir: None,
             profiles: vec![RoutingProfile::Car, RoutingProfile::Foot],
             control: DownloadControl::default(),
+            ferry_links: false,
         }
     }
 }
@@ -651,6 +656,7 @@ pub fn convert_region_packs(opts: &ConvertOptions) -> anyhow::Result<ConvertRepo
                     0.05,
                     &opts.data_dir,
                     &skip_tiles,
+                    opts.ferry_links,
                     move |profile, row, col, logical, graph| {
                         let key_s = profile_key(profile).to_string();
                         max_nodes_cb.fetch_max(graph.nodes.len(), Ordering::Relaxed);
@@ -801,7 +807,12 @@ pub fn convert_region_packs(opts: &ConvertOptions) -> anyhow::Result<ConvertRepo
                     &format!("Building indexed maps: graph ({key})…"),
                 );
                 let t_graph = Instant::now();
-                let graph = RouteGraph::build_from_pbf_bbox(&opts.pbf, *profile, region_bbox)?;
+                let graph = RouteGraph::build_from_pbf_bbox_with_ferry_links(
+                    &opts.pbf,
+                    *profile,
+                    region_bbox,
+                    opts.ferry_links,
+                )?;
                 nodes = graph.nodes.len().max(nodes);
                 edges = graph.edges.len().max(edges);
                 graph_ms.insert(
@@ -1127,6 +1138,7 @@ pub fn convert_region_packs(opts: &ConvertOptions) -> anyhow::Result<ConvertRepo
         } else {
             None
         },
+        ferry_links_baked: opts.ferry_links,
     };
     let man_path = manifest_path(&opts.data_dir, &stem);
     manifest.save(&man_path)?;
