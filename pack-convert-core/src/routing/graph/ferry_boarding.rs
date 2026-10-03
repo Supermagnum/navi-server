@@ -42,9 +42,9 @@ fn car_highway_ok(highway: &str) -> bool {
 /// car-ferry endpoint to the first car-drivable road node.
 pub const FERRY_BOARDING_MAX_CHAIN_M: f64 = 500.0;
 
-/// Minimum car-drivable component size (node count) that counts as a real
-/// road network rather than a disconnected stub. Matches the ferry-terminal
-/// audit `tiny` band (<50 non-ferry nodes).
+/// Minimum car-drivable component size (**junction** node count) that counts as
+/// a real road network rather than a disconnected stub. Matches the
+/// ferry-terminal audit `tiny` band (<50 non-ferry graph nodes).
 ///
 /// When every car-road component in the extract is smaller than this (unit /
 /// fixture graphs), the threshold falls back to the largest component size so
@@ -105,16 +105,27 @@ pub struct BoardingWayRef<'a> {
 
 /// Nodes on car-drivable ways whose undirected component is large enough to
 /// count as a real network (not a pier-side stub).
+///
+/// Component size counts **junction nodes** (the same `uses > 1` rule as
+/// [`graph_from_raw_ways`]), not raw OSM shape nodes. A long single way has
+/// only two junctions; counting every shape node previously let island stubs
+/// pass the 50-node gate and then inflate the ferry-terminal audit `tiny`
+/// class after graph simplification.
 fn substantial_road_nodes(ways: &[BoardingWayRef<'_>], min_component_nodes: usize) -> HashSet<i64> {
     let mut road_adj: HashMap<i64, Vec<i64>> = HashMap::new();
     let mut all_road_nodes: HashSet<i64> = HashSet::new();
+    let mut uses: HashMap<i64, i32> = HashMap::new();
 
     for w in ways {
         if !is_car_drivable_road(w.tags) {
             continue;
         }
-        for &n in w.nodes {
-            all_road_nodes.insert(n);
+        let n = w.nodes.len();
+        for (i, &id) in w.nodes.iter().enumerate() {
+            all_road_nodes.insert(id);
+            // Match graph_from_raw_ways junction scoring: endpoints count as 2.
+            let add = if i == 0 || i + 1 == n { 2 } else { 1 };
+            *uses.entry(id).or_insert(0) += add;
         }
         for pair in w.nodes.windows(2) {
             let (a, b) = (pair[0], pair[1]);
@@ -129,6 +140,8 @@ fn substantial_road_nodes(ways: &[BoardingWayRef<'_>], min_component_nodes: usiz
     if all_road_nodes.is_empty() {
         return HashSet::new();
     }
+
+    let is_junction = |id: i64| uses.get(&id).copied().unwrap_or(0) > 1;
 
     let mut node_comp_size: HashMap<i64, usize> = HashMap::new();
     let mut seen: HashSet<i64> = HashSet::new();
@@ -150,7 +163,8 @@ fn substantial_road_nodes(ways: &[BoardingWayRef<'_>], min_component_nodes: usiz
                 }
             }
         }
-        let sz = comp.len();
+        // Junction count matches ferry_terminal_audit component sizing.
+        let sz = comp.iter().filter(|&&n| is_junction(n)).count();
         max_comp = max_comp.max(sz);
         for n in comp {
             node_comp_size.insert(n, sz);
@@ -409,19 +423,18 @@ mod tests {
 
     #[test]
     fn does_not_promote_chain_that_only_reaches_road_stub() {
-        // Main network (nodes 1-2-3-4, size 4) far from the ferry.
-        // Stub service road (nodes 20-21, size 2) next to the pier.
-        // Ferry -- pier -- stub must NOT promote when a larger network exists.
+        // Junction-rich main network far from the ferry, plus a 2-junction stub
+        // next to the pier. Ferry -- pier -- stub must NOT promote.
         let main = tags(&[("highway", "primary")]);
         let stub = tags(&[("highway", "service")]);
         let pier = tags(&[("man_made", "pier")]);
         let ferry = tags(&[("route", "ferry"), ("motor_vehicle", "yes")]);
 
-        let coords: HashMap<i64, (f64, f64)> = [
-            (1, (60.1, 5.0)),
-            (2, (60.1, 5.0005)),
-            (3, (60.1, 5.0010)),
-            (4, (60.1, 5.0015)),
+        let stub_n = [20i64, 21];
+        let pier_n = [21i64, 22];
+        let ferry_n = [22i64, 23];
+
+        let mut coords: HashMap<i64, (f64, f64)> = [
             (20, (60.0, 5.0005)),
             (21, (60.0, 5.0010)),
             (22, (60.0, 5.0015)),
@@ -430,36 +443,41 @@ mod tests {
         .into_iter()
         .collect();
 
-        let main_n = [1i64, 2, 3, 4];
-        let stub_n = [20i64, 21];
-        let pier_n = [21i64, 22];
-        let ferry_n = [22i64, 23];
-
-        let ways = [
-            BoardingWayRef {
-                id: 10,
-                nodes: &main_n,
+        // Distant hub+spokes: 6 junctions (hub + 5 leaves) so min=3 accepts
+        // main and rejects the 2-junction stub.
+        let hub_far = 10i64;
+        coords.insert(hub_far, (60.1, 5.0));
+        let mut far_spokes: Vec<Vec<i64>> = Vec::new();
+        for i in 0..5 {
+            let leaf = 11 + i;
+            coords.insert(leaf, (60.1 + i as f64 * 0.0001, 5.0));
+            far_spokes.push(vec![hub_far, leaf]);
+        }
+        let mut ways: Vec<BoardingWayRef<'_>> = far_spokes
+            .iter()
+            .enumerate()
+            .map(|(i, nodes)| BoardingWayRef {
+                id: 10 + i as i64,
+                nodes,
                 tags: &main,
-            },
-            BoardingWayRef {
-                id: 20,
-                nodes: &stub_n,
-                tags: &stub,
-            },
-            BoardingWayRef {
-                id: 30,
-                nodes: &pier_n,
-                tags: &pier,
-            },
-            BoardingWayRef {
-                id: 40,
-                nodes: &ferry_n,
-                tags: &ferry,
-            },
-        ];
+            })
+            .collect();
+        ways.push(BoardingWayRef {
+            id: 20,
+            nodes: &stub_n,
+            tags: &stub,
+        });
+        ways.push(BoardingWayRef {
+            id: 30,
+            nodes: &pier_n,
+            tags: &pier,
+        });
+        ways.push(BoardingWayRef {
+            id: 40,
+            nodes: &ferry_n,
+            tags: &ferry,
+        });
 
-        // Force absolute stub threshold (no fixture fallback): min=3 means
-        // only the size-4 main component is accepted.
         let promoted = promote_ferry_boarding_way_ids_with_min_road(
             &ways,
             &coords,
@@ -471,44 +489,41 @@ mod tests {
             "must not promote boarding that only reaches a disconnected stub"
         );
 
-        // With min=1 (the fixture fallback when max component is tiny), the
-        // stub alone would still promote — confirm the absolute gate is what
-        // rejects it here by also checking the public API with a synthetic
-        // main network large enough that threshold stays at 50 and both
-        // components are below 50: then both are rejected except largest.
-        // Build a 50-node main chain so threshold stays 50 and stub (2) loses.
-        // 51-node main road near the ferry berth (~50 m steps) so the
-        // absolute 50-node gate stays active and a short pier can reach it.
-        let big_nodes: Vec<i64> = (100..151).collect();
-        let mut big_coords = coords.clone();
-        for (i, &n) in big_nodes.iter().enumerate() {
-            big_coords.insert(n, (60.0, 4.990 + i as f64 * 0.0002));
-        }
-        // Node 150 is the eastern end of the main road, ~50 m west of berth 22.
-        big_coords.insert(150, (60.0, 5.0010));
+        // Same stub rejection with the default 50-junction gate and a 55-spoke hub.
         let big_road = tags(&[("highway", "primary")]);
-        let ways_big = [
-            BoardingWayRef {
-                id: 10,
-                nodes: &big_nodes,
+        let mut big_coords = coords.clone();
+        let hub = 1000i64;
+        big_coords.insert(hub, (60.0, 5.0010));
+        let mut spoke_node_lists: Vec<Vec<i64>> = Vec::new();
+        for i in 0..55 {
+            let leaf = 2000 + i;
+            big_coords.insert(leaf, (60.0 + i as f64 * 0.00005, 5.0010));
+            spoke_node_lists.push(vec![hub, leaf]);
+        }
+        let mut ways_big: Vec<BoardingWayRef<'_>> = spoke_node_lists
+            .iter()
+            .enumerate()
+            .map(|(i, nodes)| BoardingWayRef {
+                id: 100 + i as i64,
+                nodes,
                 tags: &big_road,
-            },
-            BoardingWayRef {
-                id: 20,
-                nodes: &stub_n,
-                tags: &stub,
-            },
-            BoardingWayRef {
-                id: 30,
-                nodes: &pier_n,
-                tags: &pier,
-            },
-            BoardingWayRef {
-                id: 40,
-                nodes: &ferry_n,
-                tags: &ferry,
-            },
-        ];
+            })
+            .collect();
+        ways_big.push(BoardingWayRef {
+            id: 20,
+            nodes: &stub_n,
+            tags: &stub,
+        });
+        ways_big.push(BoardingWayRef {
+            id: 30,
+            nodes: &pier_n,
+            tags: &pier,
+        });
+        ways_big.push(BoardingWayRef {
+            id: 40,
+            nodes: &ferry_n,
+            tags: &ferry,
+        });
         let promoted_default =
             promote_ferry_boarding_way_ids(&ways_big, &big_coords, FERRY_BOARDING_MAX_CHAIN_M);
         assert!(
@@ -516,26 +531,28 @@ mod tests {
             "default 50-node gate must reject stub-only boarding"
         );
 
-        // Sanity: short pier from berth 22 onto main-road node 150 must promote.
-        let pier_to_main = [150i64, 22];
+        // Sanity: short pier from berth 22 onto the hub must promote.
+        let pier_to_main = [hub, 22];
         let ferry2 = [22i64, 23];
-        let ways_ok = [
-            BoardingWayRef {
-                id: 10,
-                nodes: &big_nodes,
+        let mut ways_ok: Vec<BoardingWayRef<'_>> = spoke_node_lists
+            .iter()
+            .enumerate()
+            .map(|(i, nodes)| BoardingWayRef {
+                id: 100 + i as i64,
+                nodes,
                 tags: &big_road,
-            },
-            BoardingWayRef {
-                id: 30,
-                nodes: &pier_to_main,
-                tags: &pier,
-            },
-            BoardingWayRef {
-                id: 40,
-                nodes: &ferry2,
-                tags: &ferry,
-            },
-        ];
+            })
+            .collect();
+        ways_ok.push(BoardingWayRef {
+            id: 30,
+            nodes: &pier_to_main,
+            tags: &pier,
+        });
+        ways_ok.push(BoardingWayRef {
+            id: 40,
+            nodes: &ferry2,
+            tags: &ferry,
+        });
         let promoted_ok =
             promote_ferry_boarding_way_ids(&ways_ok, &big_coords, FERRY_BOARDING_MAX_CHAIN_M);
         assert!(

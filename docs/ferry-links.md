@@ -138,21 +138,25 @@ Scratch bake (normal user, after sudo PBF copy):
 convert_ms ≈ 79270 (wall ~1:20)
 peak_rss_mb ≈ 3406 (time -v Max RSS ≈ 3506540 kB ≈ 3.3 GiB)
 ferry_links_baked: true
-car_edges: 1066006 → 1066022 (+16)
+car_edges: 1066006 → 1066127 (+121)
 car tiles: 26 → 26
 car graph size: published 174 MiB → scratch 410 MiB
 pack dir: published 531 MiB → scratch 1.2 GiB
 ```
 
 Scratch includes wetland/poi/barrier and a fuller elevation encode; tile count is
-unchanged. The +16 car edges are the promoted boarding chains (bounded).
+unchanged. The +121 car edges are the promoted boarding chains (bounded).
 
 Refined audit after `--ferry-links`:
 
 | Class | Published | Scratch |
 |-------|----------:|--------:|
-| `no_road` | 63 | **58** (−5) |
-| `tiny` (&lt;50) | 11 | 14 |
+| `no_road` | 63 | **61** (−2) |
+| `tiny` (&lt;50) | 11 | **11** (unchanged) |
+
+The stub gate counts **junction** nodes (same `uses > 1` rule as graph build),
+so boarding chains that only reach a small island road network are not
+promoted and `tiny` does not increase.
 
 Remaining `no_road` / `tiny` are mostly passenger/Hurtigruten landings, foreign
 terminals (Hirtshals), or OSM geometry without a ≤500 m pier/footway/platform
