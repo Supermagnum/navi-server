@@ -57,7 +57,10 @@ struct RawWay {
 
 /// Tags needed by [`graph_from_raw_ways`] / access / boardwalk — drop the rest
 /// so Pass 1 does not retain every OSM key on every highway.
-fn keep_way_tag(key: &str) -> bool {
+///
+/// `man_made` is only kept when `ferry_links` is on (pier boarding candidates).
+/// Flag-off must match pre-ferry-links converters byte-for-byte on pack files.
+fn keep_way_tag(key: &str, ferry_links: bool) -> bool {
     matches!(
         key,
         "highway"
@@ -104,12 +107,13 @@ fn keep_way_tag(key: &str) -> bool {
             | "bicycle"
             | "motor_vehicle:conditional"
             | "access:conditional"
-            | "man_made"
-    )
+    ) || (ferry_links && key == "man_made")
 }
 
-fn filter_way_tags(tags: HashMap<String, String>) -> HashMap<String, String> {
-    tags.into_iter().filter(|(k, _)| keep_way_tag(k)).collect()
+fn filter_way_tags(tags: HashMap<String, String>, ferry_links: bool) -> HashMap<String, String> {
+    tags.into_iter()
+        .filter(|(k, _)| keep_way_tag(k, ferry_links))
+        .collect()
 }
 
 fn filter_barrier_tags(tags: HashMap<String, String>) -> HashMap<String, String> {
@@ -353,6 +357,7 @@ fn spill_tiled_highway_ways(
                             way.tags()
                                 .map(|(k, v)| (k.to_string(), v.to_string()))
                                 .collect(),
+                            ferry_links,
                         );
                         if !spill_keep_way(&tags, profiles, ferry_links) {
                             return;
@@ -572,6 +577,7 @@ impl RouteGraph {
                         way.tags()
                             .map(|(k, v)| (k.to_string(), v.to_string()))
                             .collect(),
+                        ferry_links,
                     );
                     if !spill_keep_way(&tags, &[profile], ferry_links) {
                         return;
