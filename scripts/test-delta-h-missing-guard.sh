@@ -219,6 +219,77 @@ else
   cat "$TMP/validate-first.out" || true
 fi
 
+# --- absent delta_h_missing_edges treated as 0 (old convert JSON) ---
+python3 - <<'PY'
+import json
+from pathlib import Path
+import os
+p = Path(os.environ["NAVI_CONVERT_DIR"]) / "fake_ok" / "fake_ok-latest.navi-manifest.json"
+man = json.loads(p.read_text())
+man.pop("delta_h_missing_edges", None)
+man["has_delta_h"] = True
+p.write_text(json.dumps(man, indent=2) + "\n")
+PY
+set +e
+NAVI_PUBLISHED_DIR="$PACK/published" \
+  "${SCRIPT_DIR}/validate-packs.sh" --from-convert --region fake_ok \
+  >"$TMP/validate-absent.out" 2>&1
+vrc=$?
+set -e
+if [[ "$vrc" -eq 0 ]] && ! rg -q 'delta_h_missing_edges absent' "$TMP/validate-absent.out"; then
+  ok "validate treats absent delta_h_missing_edges as 0"
+else
+  bad "absent delta_h_missing_edges should be 0 (rc=$vrc)"
+  cat "$TMP/validate-absent.out" || true
+fi
+
+# --- --region must not FAIL sibling catalog paths after omit ---
+GEN="$TMP/stage-gen"
+mkdir -p "$GEN/regions/keep_me" "$PACK/scratch/extracts"
+dd if=/dev/zero of="$PACK/scratch/extracts/keep_me-latest.osm.pbf" bs=1024 count=100 status=none
+python3 - "$GEN" <<'PY'
+import json, sys
+from pathlib import Path
+gen = Path(sys.argv[1])
+keep = gen / "regions" / "keep_me"
+man = {
+  "schema": 1,
+  "stem": "keep_me-latest",
+  "has_delta_h": True,
+  "graph_tiles": {"car": [{"file": "keep_me-latest.navi-graph-car.t0_0.rkyv"}]},
+  "poi_barrier_file": "keep_me-latest.navi-poi-barrier.rkyv",
+  "wetland_file": "keep_me-latest.navi-wetland.rkyv",
+}
+(keep / "keep_me-latest.navi-manifest.json").write_text(json.dumps(man, indent=2) + "\n")
+def write(name, magic):
+    p = keep / name
+    p.write_bytes(magic.to_bytes(4, "little") + (9).to_bytes(4, "little") + b"\0" * 256 * 1024)
+write("keep_me-latest.navi-graph-car.t0_0.rkyv", 0x4E56524B)
+write("keep_me-latest.navi-poi-barrier.rkyv", 0x4E565042)
+write("keep_me-latest.navi-wetland.rkyv", 0x4E56574C)
+payload = {
+  "schema": 1,
+  "generation": "20260101T000000Z-test",
+  "regions": [
+    {"region_id": "keep_me", "manifest": "keep_me-latest.navi-manifest.json"},
+    {"region_id": "omitted_sib", "manifest": "omitted_sib-latest.navi-manifest.json"},
+  ],
+}
+(gen / "generation-manifest.json").write_text(json.dumps(payload, indent=2) + "\n")
+PY
+set +e
+NAVI_PUBLISHED_DIR="$PACK/published" \
+  "${SCRIPT_DIR}/validate-packs.sh" --region keep_me "$GEN" \
+  >"$TMP/validate-region-omit.out" 2>&1
+vrc=$?
+set -e
+if [[ "$vrc" -eq 0 ]] && ! rg -q 'generation-manifest references missing' "$TMP/validate-region-omit.out"; then
+  ok "validate --region ignores omitted sibling catalog paths"
+else
+  bad "validate --region should not fail on omitted sibling (rc=$vrc)"
+  cat "$TMP/validate-region-omit.out" || true
+fi
+
 echo "----"
 echo "PASS=${PASS} FAIL=${FAIL}"
 [[ "$FAIL" -eq 0 ]]

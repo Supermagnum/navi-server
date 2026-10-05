@@ -55,9 +55,9 @@ pub struct NaviManifest {
     #[serde(default)]
     pub has_delta_h: bool,
     /// Edges whose `edge_delta_h_m` is the missing-DEM sentinel (`NaN`), summed
-    /// across all graph packs written for this convert. Absent / 0 when Δh is off
-    /// or every endpoint sampled successfully.
-    #[serde(default, skip_serializing_if = "is_zero_usize")]
+    /// across all graph packs written for this convert. 0 when Δh is off
+    /// or every endpoint sampled successfully. Always emitted (including 0).
+    #[serde(default)]
     pub delta_h_missing_edges: usize,
     #[serde(default)]
     pub elev_dir: Option<String>,
@@ -66,10 +66,6 @@ pub struct NaviManifest {
     /// clients keep their overlay for those regions.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ferry_links_baked: bool,
-}
-
-fn is_zero_usize(v: &usize) -> bool {
-    *v == 0
 }
 
 impl NaviManifest {
@@ -238,4 +234,41 @@ impl NaviManifest {
 #[must_use]
 pub fn bbox_intersects(a: [f64; 4], b: [f64; 4]) -> bool {
     a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1]
+}
+
+#[cfg(test)]
+mod serialize_tests {
+    use super::*;
+    use std::collections::BTreeMap;
+
+    fn stub_man(has_delta_h: bool, missing: usize) -> NaviManifest {
+        NaviManifest {
+            schema: NaviManifest::SCHEMA,
+            stem: "t".into(),
+            pbf_filename: "t.osm.pbf".into(),
+            pbf_size_bytes: 1,
+            pbf_modified_unix_secs: 1,
+            graph_files: BTreeMap::new(),
+            graph_tiles: BTreeMap::new(),
+            graph_format_version: GRAPH_FORMAT_VERSION,
+            poi_barrier_file: "t.navi-poi-barrier.rkyv".into(),
+            poi_barrier_format_version: POI_BARRIER_FORMAT_VERSION,
+            wetland_file: None,
+            wetland_tiles: Vec::new(),
+            wetland_format_version: 0,
+            has_delta_h,
+            delta_h_missing_edges: missing,
+            elev_dir: None,
+            ferry_links_baked: false,
+        }
+    }
+
+    #[test]
+    fn serializes_delta_h_missing_edges_zero() {
+        let text = serde_json::to_string(&stub_man(true, 0)).expect("ser");
+        assert!(
+            text.contains("\"delta_h_missing_edges\":0"),
+            "expected delta_h_missing_edges:0 in {text}"
+        );
+    }
 }

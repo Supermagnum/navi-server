@@ -198,8 +198,8 @@ def check_delta_h_missing_regression(rid: str, man: dict):
         return
     cur = man.get("delta_h_missing_edges")
     if cur is None:
-        flag(f"{rid}: has_delta_h=true but delta_h_missing_edges absent from manifest")
-        return
+        # Older convert omitted the key when the count was 0 (`skip_serializing_if`).
+        cur = 0
     try:
         cur_n = int(cur)
     except (TypeError, ValueError):
@@ -658,6 +658,10 @@ else:
         if gm.get("generation") != "convert-scratch":
             for entry in gm.get("regions", []):
                 rid = entry.get("region_id")
+                # Per-region validate (publish omit-continue) must not FAIL the
+                # remaining catalog after a sibling was already rm -rf'd.
+                if filter_region and rid != filter_region:
+                    continue
                 man_rel = entry.get("manifest")
                 if not rid or not man_rel:
                     fail(f"generation-manifest entry incomplete: {entry}")
