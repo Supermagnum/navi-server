@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="place-source-fixture">
+  <!-- named place node -->
+  <node id="1" version="1" lat="59.910000000" lon="10.750000000">
+    <tag k="name" v="Test Town"/>
+    <tag k="place" v="town"/>
+  </node>
+  <!-- amenity node -->
+  <node id="2" version="1" lat="59.911000000" lon="10.751000000">
+    <tag k="name" v="Cafe Test"/>
+    <tag k="amenity" v="cafe"/>
+  </node>
+  <!-- highway bus_stop node (kept) -->
+  <node id="3" version="1" lat="59.912000000" lon="10.752000000">
+    <tag k="name" v="Bus Stop A"/>
+    <tag k="highway" v="bus_stop"/>
+  </node>
+  <!-- unnamed node (ignored) -->
+  <node id="4" version="1" lat="59.913000000" lon="10.753000000">
+    <tag k="amenity" v="bench"/>
+  </node>
+  <!-- geometry for named building way -->
+  <node id="10" version="1" lat="59.920000000" lon="10.760000000"/>
+  <node id="11" version="1" lat="59.920100000" lon="10.760000000"/>
+  <node id="12" version="1" lat="59.920100000" lon="10.760100000"/>
+  <node id="13" version="1" lat="59.920000000" lon="10.760100000"/>
+  <!-- named building way (indexed as named) -->
+  <way id="100" version="1">
+    <nd ref="10"/><nd ref="11"/><nd ref="12"/><nd ref="13"/><nd ref="10"/>
+    <tag k="name" v="Named Hall"/>
+    <tag k="building" v="yes"/>
+  </way>
+  <!-- named highway way (skipped by index) -->
+  <way id="101" version="1">
+    <nd ref="10"/><nd ref="11"/>
+    <tag k="name" v="Main Street"/>
+    <tag k="highway" v="residential"/>
+  </way>
+  <!-- admin L7 polygon -->
+  <node id="20" version="1" lat="59.900000000" lon="10.700000000"/>
+  <node id="21" version="1" lat="59.930000000" lon="10.700000000"/>
+  <node id="22" version="1" lat="59.930000000" lon="10.800000000"/>
+  <node id="23" version="1" lat="59.900000000" lon="10.800000000"/>
+  <way id="200" version="1">
+    <nd ref="20"/><nd ref="21"/><nd ref="22"/><nd ref="23"/><nd ref="20"/>
+  </way>
+  <relation id="300" version="1">
+    <member type="way" ref="200" role="outer"/>
+    <tag k="type" v="boundary"/>
+    <tag k="boundary" v="administrative"/>
+    <tag k="admin_level" v="7"/>
+    <tag k="name" v="Test Municipality"/>
+  </relation>
+  <!-- named hiking route -->
+  <node id="30" version="1" lat="59.915000000" lon="10.755000000"/>
+  <node id="31" version="1" lat="59.916000000" lon="10.756000000"/>
+  <way id="210" version="1">
+    <nd ref="30"/><nd ref="31"/>
+    <tag k="highway" v="path"/>
+  </way>
+  <relation id="400" version="1">
+    <member type="way" ref="210" role=""/>
+    <tag k="type" v="route"/>
+    <tag k="route" v="hiking"/>
+    <tag k="network" v="lwn"/>
+    <tag k="name" v="Test Trail"/>
+  </relation>
+  <!-- addr:street node -->
+  <node id="5" version="1" lat="59.914000000" lon="10.754000000">
+    <tag k="addr:street" v="Sideveien"/>
+    <tag k="addr:housenumber" v="12"/>
+  </node>
+</osm>

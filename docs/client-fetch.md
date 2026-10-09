@@ -48,6 +48,7 @@ After a successful publish, the HTTP DocumentRoot contains only:
     <stem>.navi-graph-*.rkyv
     <stem>.navi-poi-barrier.rkyv
     <stem>.navi-wetland*.rkyv
+    <stem>.navi-place-source.osm.pbf   # optional; see below
     …                            # optional town-route files if baked
 ```
 
@@ -153,10 +154,35 @@ picker). Optional `bake_id` is the underscore id used under convert scratch.
     "asia_china_anhui-latest.navi-manifest.json": {"sha256": "…", "bytes": 1234},
     "asia_china_anhui-latest.navi-graph-car.rkyv": {"sha256": "…", "bytes": 567890},
     "asia_china_anhui-latest.navi-poi-barrier.rkyv": {"sha256": "…", "bytes": 89012},
-    "asia_china_anhui-latest.navi-wetland.rkyv": {"sha256": "…", "bytes": 34567}
+    "asia_china_anhui-latest.navi-wetland.rkyv": {"sha256": "…", "bytes": 34567},
+    "asia_china_anhui-latest.navi-place-source.osm.pbf": {"sha256": "…", "bytes": 1234567}
   }
 }
 ```
+
+### Optional `{stem}.navi-place-source.osm.pbf`
+
+**Optional.** Clients that do not know this key ignore it and keep using a full
+Geofabrik (or equivalent) extract for the on-device place index.
+
+| | |
+|---|---|
+| Key / filename | `{stem}.navi-place-source.osm.pbf` |
+| Purpose | Slim OSM PBF input for the app’s `NameIndex` / `ensure_place_index` |
+| Who builds the index | **The client**, on device. The server never publishes a place index. |
+| Contents (points variant) | One node (or way→single stub node) per object the app indexes; admin level 6–8 kept as polygon geometry for municipality context; named hike/cycle/pilgrim routes as relation → stub way → stub node. Ordinary `.osm.pbf` readable by the stock loader. |
+| Fetch | Same as any other pack file: GET/HEAD + verify `sha256` / `bytes` from `manifest.json` |
+| Absent | Fall back to the full region extract (unchanged) |
+
+**Filter source of truth:** the indexed-object list was taken from the Navi app
+at commit `458f65ec565e6b11663abdac247524b23ccbc082`
+(`core/src/search/mod.rs` `classify_named` / `NameIndex::load_from_pbf`,
+`core/src/search/place_context.rs`, `core/src/routing/graph/network_pref.rs`
+`load_named_route_entries`). **Re-review the filter when the app’s place index
+changes what it stores.**
+
+Server bake switch (default off): `NAVI_BAKE_PLACE_SOURCE=0` in `config.env`.
+With the switch off, convert/publish output is unchanged (no place-source file).
 
 No query strings are required or interpreted. Extra query strings, if any, must
 be ignored by the client and do nothing on the server (static files).
@@ -183,6 +209,8 @@ All steps are plain GET. **None of this is implemented in the Android app yet.**
    dir only after all required digests match.
 6. Optionally also fetch `<stem>.navi-manifest.json` if the runtime expects the
    on-device convert manifest shape.
+7. Optionally fetch `<stem>.navi-place-source.osm.pbf` when present and build the
+   place index on device from it; if missing, use the full extract as today.
 
 ### Fallback (unchanged from today)
 

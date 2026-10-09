@@ -3,8 +3,9 @@ resolver = "2"
 members = [
     "pack-convert-core",
     "navi-indexed-convert",
+    "place-source-points",
 ]
-default-members = ["pack-convert-core", "navi-indexed-convert"]
+default-members = ["pack-convert-core", "navi-indexed-convert", "place-source-points"]
 
 [workspace.package]
 version = "0.1.0"

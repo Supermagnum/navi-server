@@ -34,6 +34,9 @@ jobs:
           shared-key: navi-server-rust
           cache-targets: true
 
+      - name: Install osmium-tool (place-source points PBF)
+        run: sudo apt-get update && sudo apt-get install -y osmium-tool
+
       - name: Format (cargo fmt --check)
         run: cargo fmt --all -- --check
 
@@ -44,3 +47,8 @@ jobs:
         # Does not run #[ignore] integration tests that need large extracts
         # under target/integration-fixtures (e.g. ostlandet).
         run: cargo test --workspace
+
+      - name: Place-source shell tests (switch off + manifest staging)
+        run: |
+          cargo build -p place-source-points
+          ./scripts/test-place-source.sh

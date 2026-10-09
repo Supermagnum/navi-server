@@ -595,6 +595,7 @@ Produces under `data/scratch/convert/<region_id>/`:
 - `{stem}.navi-poi-barrier.rkyv`
 - `{stem}.navi-wetland.rkyv`
 - `{stem}.navi-manifest.json`
+- `{stem}.navi-place-source.osm.pbf` (optional; `NAVI_BAKE_PLACE_SOURCE=1`)
 
 Toggle Δh in `data/config.env` (default **on**):
 

@@ -16,6 +16,9 @@ load_config() {
   local _ovr_regions="${NAVI_REGIONS_CONF-}"
   local _ovr_elev="${NAVI_ELEV_DIR-}"
   local _ovr_delta="${NAVI_BAKE_DELTA_H-}"
+  local _ovr_place_source="${NAVI_BAKE_PLACE_SOURCE-}"
+  local _ovr_place_source_bin="${NAVI_PLACE_SOURCE_BIN-}"
+  local _ovr_place_source_regions="${NAVI_PLACE_SOURCE_REGIONS-}"
   local _ovr_pack_root="${NAVI_PACK_ROOT-}"
   if [[ -f "$cfg" ]]; then
     # shellcheck disable=SC1090
@@ -27,6 +30,9 @@ load_config() {
   [[ -n "${_ovr_regions}" ]] && NAVI_REGIONS_CONF="${_ovr_regions}"
   [[ -n "${_ovr_elev}" ]] && NAVI_ELEV_DIR="${_ovr_elev}"
   [[ -n "${_ovr_delta}" ]] && NAVI_BAKE_DELTA_H="${_ovr_delta}"
+  [[ -n "${_ovr_place_source}" ]] && NAVI_BAKE_PLACE_SOURCE="${_ovr_place_source}"
+  [[ -n "${_ovr_place_source_bin}" ]] && NAVI_PLACE_SOURCE_BIN="${_ovr_place_source_bin}"
+  [[ -n "${_ovr_place_source_regions}" ]] && NAVI_PLACE_SOURCE_REGIONS="${_ovr_place_source_regions}"
   : "${NAVI_PACK_ROOT:=${NAVI_SERVER_ROOT}/data}"
   : "${NAVI_REGIONS_CONF:=${NAVI_PACK_ROOT}/regions.conf}"
   : "${NAVI_SCRATCH_DIR:=${NAVI_PACK_ROOT}/scratch}"
@@ -54,6 +60,14 @@ load_config() {
   : "${NAVI_PREFETCH_DEM:=1}"
   : "${NAVI_BAKE_TOWN_ROUTES:=0}"
   : "${NAVI_TOWN_ROUTE_BIN:=}"
+  # Optional place-source points PBF for client NameIndex (default off).
+  # When 1, convert writes {stem}.navi-place-source.osm.pbf (soft-fail).
+  # NAVI_PLACE_SOURCE_REGIONS=id1,id2,... limits to an allowlist when set.
+  # NAVI_PLACE_SOURCE_PARALLEL caps concurrent region jobs (default 2, max 2).
+  : "${NAVI_BAKE_PLACE_SOURCE:=0}"
+  : "${NAVI_PLACE_SOURCE_REGIONS:=}"
+  : "${NAVI_PLACE_SOURCE_PARALLEL:=2}"
+  : "${NAVI_PLACE_SOURCE_BIN:=}"
   : "${NAVI_KEEP_GENERATIONS:=2}"
   : "${NAVI_QUOTA_WARN_PCT:=85}"
   : "${NAVI_QUOTA_FAIL_PCT:=95}"

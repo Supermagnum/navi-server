@@ -62,6 +62,7 @@ assemble_one() {
   # Copy packs + manifest; leave scratch convert tree intact for debugging.
   find "$src" -maxdepth 1 -type f \( \
       -name '*.rkyv' -o -name '*.navi-manifest.json' -o -name '.convert-meta.json' \
+      -o -name '*.navi-place-source.osm.pbf' \
     \) -exec cp -a {} "$dst"/ \;
   log_info "staged region=${region_id} -> ${dst}"
   return 0

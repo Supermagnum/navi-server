@@ -32,8 +32,10 @@ publish_single_region_safe() {
   : >"$marker"
   rm -rf "${final}/regions/${rid}"
   mkdir -p "${final}/regions/${rid}"
-  find "$src" -maxdepth 1 -type f \( -name '*.rkyv' -o -name '*.navi-manifest.json' \) \
-    -exec cp -a {} "${final}/regions/${rid}/" \;
+  find "$src" -maxdepth 1 -type f \( \
+      -name '*.rkyv' -o -name '*.navi-manifest.json' \
+      -o -name '*.navi-place-source.osm.pbf' \
+    \) -exec cp -a {} "${final}/regions/${rid}/" \;
 
   mkdir -p "$(dirname "$lock")"
   # Serialize publish finalize across concurrent workers.

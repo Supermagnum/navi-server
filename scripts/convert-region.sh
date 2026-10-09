@@ -200,6 +200,17 @@ PY
     return 1
   fi
   log_info "convert OK region=${region_id} out=${out}"
+
+  # Place-source (points variant): optional slim .osm.pbf for client NameIndex.
+  # Default off (NAVI_BAKE_PLACE_SOURCE=0). Soft-fail: never fail the pack bake.
+  if [[ "${NAVI_BAKE_PLACE_SOURCE:-0}" == "1" ]]; then
+    "${SCRIPT_DIR}/build-place-source.sh" --region "$region_id"
+    ps_rc=$?
+    if [[ "$ps_rc" -ne 0 ]]; then
+      log_warn "place-source wrapper rc=${ps_rc} region=${region_id} — packs continue"
+    fi
+  fi
+
   return 0
 }
 

@@ -1,0 +1,21 @@
+[package]
+name = "place-source-points"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Build slim navi-place-source.osm.pbf (points variant) for client NameIndex"
+
+[lib]
+name = "place_source_points"
+path = "src/lib.rs"
+
+[[bin]]
+name = "place-source-points"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+osmpbf = "0.3"
+
+[dev-dependencies]
+tempfile = "3"

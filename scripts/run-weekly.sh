@@ -114,8 +114,10 @@ fi
 # 2. Convert — per-region Copernicus prefetch of PBF road-cells into
 # NAVI_ELEV_DIR (standing weekly cache; never --evict). Planet-leaves must use
 # NAVI_ELEV_PLANET_DIR instead. Requires held PBFs from step 1.
+# When NAVI_BAKE_PLACE_SOURCE=1, convert-region.sh also builds
+# {stem}.navi-place-source.osm.pbf into the convert out dir (soft-fail).
 if [[ "$SKIP_CONVERT" -eq 0 ]]; then
-  log_info "elev_dir=${NAVI_ELEV_DIR} elev_planet_dir=${NAVI_ELEV_PLANET_DIR} prefetch_dem=${NAVI_PREFETCH_DEM:-1}"
+  log_info "elev_dir=${NAVI_ELEV_DIR} elev_planet_dir=${NAVI_ELEV_PLANET_DIR} prefetch_dem=${NAVI_PREFETCH_DEM:-1} place_source=${NAVI_BAKE_PLACE_SOURCE:-0}"
   if [[ "$NAVI_BAKE_DELTA_H" == "1" && ! -f "${NAVI_REGIONS_CONF}.bboxes.json" ]]; then
     log_warn "missing ${NAVI_REGIONS_CONF}.bboxes.json (sun-order / legacy bbox fallback); continuing with road-cell lists"
   fi
