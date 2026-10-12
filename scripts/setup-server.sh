@@ -12,12 +12,14 @@
 #   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-ddns
 #   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-datex
 #   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-repeaterbook
+#   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-radioid
 #   /media/navi/navi-server/scripts/setup-server.sh --check
 #   /media/navi/navi-server/scripts/setup-server.sh --dry-run
 # Uninstall helpers:
 #   sudo /media/navi/navi-server/scripts/uninstall-ddns.sh [--purge]
 #   sudo /media/navi/navi-server/scripts/uninstall-datex-npra.sh [--purge]
 #   sudo /media/navi/navi-server/scripts/uninstall-repeaterbook.sh [--purge]
+#   sudo /media/navi/navi-server/scripts/uninstall-radioid.sh [--purge]
 
 set -euo pipefail
 
@@ -45,6 +47,7 @@ DATEX_SECRETS="${DATA}/secrets/datex_npra.env"
 RB_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navi-repeaterbook.service"
 RB_TIMER_SRC="${NAVI_SERVER_ROOT}/systemd/navi-repeaterbook.timer"
 RB_SECRETS="${DATA}/secrets/repeaterbook.env"
+RID_SECRETS="${DATA}/secrets/radioid.env"
 SYSTEMD_DIR="/etc/systemd/system"
 
 APPLY_APACHE=0
@@ -52,6 +55,7 @@ APPLY_SERVICE=0
 APPLY_DDNS=0
 APPLY_DATEX=0
 APPLY_REPEATERBOOK=0
+APPLY_RADIOID=0
 CHECK_ONLY=0
 DRY_RUN=0
 while [[ $# -gt 0 ]]; do
@@ -61,6 +65,7 @@ while [[ $# -gt 0 ]]; do
     --apply-ddns) APPLY_DDNS=1; shift ;;
     --apply-datex) APPLY_DATEX=1; shift ;;
     --apply-repeaterbook) APPLY_REPEATERBOOK=1; shift ;;
+    --apply-radioid) APPLY_RADIOID=1; shift ;;
     --check) CHECK_ONLY=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help)
@@ -133,6 +138,7 @@ Current flags that would apply if not --dry-run:
   APPLY_APACHE=${APPLY_APACHE} APPLY_SERVICE=${APPLY_SERVICE}
   APPLY_DDNS=${APPLY_DDNS} APPLY_DATEX=${APPLY_DATEX}
   APPLY_REPEATERBOOK=${APPLY_REPEATERBOOK}
+  APPLY_RADIOID=${APPLY_RADIOID}
 EOF
   exit 0
 fi
@@ -536,6 +542,103 @@ path.write_text(
   log "uninstall: sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-repeaterbook.sh [--purge]"
 }
 
+
+# Interactive RadioID mirror enable. Does NOT set RADIOID_PERMISSION_CONFIRMED.
+radioid_apply() {
+  require_root "RadioID setup"
+  command -v python3 >/dev/null 2>&1 || fail "python3 not found"
+  command -v zstd >/dev/null 2>&1 || fail "zstd not found (apt install zstd)"
+  [[ -f "$RB_UNIT_SRC" ]] || fail "missing ${RB_UNIT_SRC}"
+  [[ -f "$RB_TIMER_SRC" ]] || fail "missing ${RB_TIMER_SRC}"
+  [[ -x "${NAVI_SERVER_ROOT}/scripts/radioid-mirror.sh" ]] \
+    || fail "missing executable ${NAVI_SERVER_ROOT}/scripts/radioid-mirror.sh"
+  [[ -x "${NAVI_SERVER_ROOT}/scripts/repeater-mirror-all.sh" ]] \
+    || fail "missing executable ${NAVI_SERVER_ROOT}/scripts/repeater-mirror-all.sh"
+  [[ -t 0 ]] || fail "RadioID setup requires an interactive TTY"
+
+  echo "=== RadioID mirror (optional) ==="
+  echo "Requires written permission from RadioID before any fetch."
+  echo "Optional X-API-Token may be stored; anonymous works if no token given."
+  echo "RADIOID_PERMISSION_CONFIRMED stays 0 until you set it yourself."
+  local ans want=0
+  while true; do
+    read -r -p "Do you want to set up the RadioID mirror? [yes/no]: " ans
+    case "${ans,,}" in
+      y|yes) want=1; break ;;
+      n|no) want=0; break ;;
+      *) echo "Please answer yes or no." ;;
+    esac
+  done
+  if [[ "$want" -eq 0 ]]; then
+    log "RadioID mirror skipped (left disabled)"
+    return 0
+  fi
+
+  local app_name app_ver contact countries token token2
+  read -r -p "App name for User-Agent [navi-server-radioid]: " app_name
+  app_name="${app_name:-navi-server-radioid}"
+  read -r -p "App version [0.1]: " app_ver
+  app_ver="${app_ver:-0.1}"
+  read -r -p "Contact email: " contact
+  [[ -n "$contact" ]] || fail "contact email required"
+  read -r -p "Countries (comma-separated) [Norway]: " countries
+  countries="${countries:-Norway}"
+
+  set +o history
+  read -r -s -p "Optional RadioID X-API-Token (Enter to skip): " token
+  echo
+  set -o history
+
+  mkdir -p "${DATA}/secrets" "${DATA}/radioid/cache" "${DATA}/radioid/state" \
+    "${DATA}/published/repeaters"
+  if [[ -n "${token}" ]]; then
+    printf '%s' "$token" | python3 -c '
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+token = sys.stdin.read().strip()
+path.write_text(
+    "# Written by setup-server.sh RadioID setup — mode 0600. Do not commit.\\n"
+    f"RADIOID_API_TOKEN={token}\\n",
+    encoding="utf-8",
+)
+' "$RID_SECRETS"
+    chown "${SERVICE_USER}:${SERVICE_USER}" "$RID_SECRETS"
+    chmod 600 "$RID_SECRETS"
+    log "wrote optional RadioID secrets file"
+  else
+    log "no RadioID token provided — will run anonymously when permission confirmed"
+  fi
+
+  _rid_set_config() {
+    local key="$1" val="$2" cfg="${DATA}/config.env"
+    touch "$cfg"
+    if grep -q "^${key}=" "$cfg" 2>/dev/null; then
+      sed -i "s|^${key}=.*|${key}=${val}|" "$cfg"
+    else
+      printf '%s=%s\\n' "$key" "$val" >>"$cfg"
+    fi
+  }
+  _rid_set_config NAVI_RADIOID_ENABLED 1
+  _rid_set_config RADIOID_PERMISSION_CONFIRMED 0
+  _rid_set_config NAVI_RADIOID_COUNTRIES "$countries"
+  _rid_set_config NAVI_RADIOID_APP_NAME "$app_name"
+  _rid_set_config NAVI_RADIOID_APP_VERSION "$app_ver"
+  _rid_set_config NAVI_RADIOID_CONTACT "$contact"
+  _rid_set_config NAVI_RADIOID_SECRETS_FILE "$RID_SECRETS"
+
+  chown -R "${SERVICE_USER}:${SERVICE_USER}" "${DATA}/secrets" "${DATA}/radioid" \
+    "${DATA}/published/repeaters" 2>/dev/null || true
+  chmod 700 "${DATA}/secrets" "${DATA}/radioid"
+
+  install -m 0644 "$RB_UNIT_SRC" "${SYSTEMD_DIR}/navi-repeaterbook.service"
+  install -m 0644 "$RB_TIMER_SRC" "${SYSTEMD_DIR}/navi-repeaterbook.timer"
+  systemctl daemon-reload
+  systemctl enable --now navi-repeaterbook.timer
+  log "installed/enabled navi-repeaterbook.timer (runs both sources; each gates itself)"
+  log "RADIOID_PERMISSION_CONFIRMED remains 0 — set to 1 only after written permission"
+  log "uninstall: sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-radioid.sh [--purge]"
+}
+
 if [[ "$CHECK_ONLY" -eq 1 ]]; then
   echo "== navi-server setup check =="
   echo "root: ${NAVI_SERVER_ROOT}"
@@ -751,10 +854,14 @@ if [[ "$APPLY_REPEATERBOOK" -eq 1 ]]; then
   repeaterbook_apply
 fi
 
+if [[ "$APPLY_RADIOID" -eq 1 ]]; then
+  radioid_apply
+fi
+
 if [[ "$APPLY_APACHE" -eq 1 ]]; then
   require_root "--apply-apache"
   apache_apply
-elif [[ "$(id -u)" -eq 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 && "$APPLY_REPEATERBOOK" -eq 0 ]]; then
+elif [[ "$(id -u)" -eq 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 && "$APPLY_REPEATERBOOK" -eq 0 && "$APPLY_RADIOID" -eq 0 ]]; then
   # Full sudo run without flags: configure Apache + service user, then offer DATEX.
   apache_apply
   navit_server_apply
@@ -763,7 +870,7 @@ elif [[ "$(id -u)" -eq 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$A
   else
     log "DATEX left disabled (non-interactive; re-run with --apply-datex on a TTY to enable)"
   fi
-elif [[ "$(id -u)" -ne 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_APACHE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 && "$APPLY_REPEATERBOOK" -eq 0 ]]; then
+elif [[ "$(id -u)" -ne 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_APACHE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 && "$APPLY_REPEATERBOOK" -eq 0 && "$APPLY_RADIOID" -eq 0 ]]; then
   cat <<EOF
 
 Apache / dedicated service user / optional plugins are not configured by this non-root run. Apply with:
@@ -779,6 +886,9 @@ Apache / dedicated service user / optional plugins are not configured by this no
   # Optional RepeaterBook mirror (asks for app_ token; permission flag stays 0):
   sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-repeaterbook
   sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-repeaterbook.sh [--purge]
+  # Optional RadioID mirror (optional token; permission flag stays 0):
+  sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-radioid
+  sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-radioid.sh [--purge]
 
 Or full sudo setup (Apache + service + DATEX yes/no prompt):
 

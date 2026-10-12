@@ -114,29 +114,27 @@ this path. A **404** means the feature is off or no successful poll has run yet.
 
 ---
 
-## RepeaterBook mirror (optional)
+## Repeater mirrors (optional)
 
-When the operator has written permission from RepeaterBook, has set
-`REPEATERBOOK_PERMISSION_CONFIRMED=1`, and has enabled the mirror, clients may
-fetch a **normalized** repeater database from the same DocumentRoot. This is
-**not** part of the pack bake pipeline and is **off by default**.
+When the operator has written permission and has enabled a source, clients may
+fetch **normalized** repeater databases from the same DocumentRoot. This is
+**not** part of the pack bake pipeline and is **off by default** per source.
 
-Operator docs: [repeaterbook-mirror.md](repeaterbook-mirror.md).
+Operator docs: [repeater-mirror.md](repeater-mirror.md).
 
 | URL | Meaning |
 |---|---|
-| `GET /repeaters/current.json` | Countries, generation, counts, attribution, schema |
-| `GET /repeaters/<slug>/<generation>/manifest.json` | Per-country file list + sha256 + attribution |
-| `GET /repeaters/<slug>/<generation>/repeaters.json.zst` | zstd JSON payload (`schema`, `repeaters` array) |
-| `GET /repeaters/<slug>/<generation>/checksums.sha256` | Checksums |
+| `GET /repeaters/current.json` | `sources[]` with per-source countries, counts, attribution, licence |
+| `GET /repeaters/<source>/<slug>/<generation>/manifest.json` | File list + sha256 + attribution (`source` = `repeaterbook` \| `radioid`) |
+| `GET /repeaters/<source>/<slug>/<generation>/repeaters.json.zst` | zstd JSON (`schema`, `source`, `repeaters[]`) |
+| `GET /repeaters/<source>/<slug>/<generation>/checksums.sha256` | Checksums |
 
-Attribution (also embedded in `current.json` and every manifest):  
-“Data courtesy of RepeaterBook.com” — https://www.repeaterbook.com/
+Each record includes a `source` field. Attribution is embedded per source in
+`current.json` and every manifest (RepeaterBook: “Data courtesy of
+RepeaterBook.com”; RadioID provisional: “Data courtesy of RadioID.net”).
 
-Clients must **not** hold a RepeaterBook API token or call repeaterbook.com for
-this path. Cache with normal conditional GET/ETag behaviour as for other static
-files; re-check `/repeaters/current.json` on a long interval (daily is enough;
-server refresh is weekly).
+Clients must **not** hold upstream API tokens. Re-check `/repeaters/current.json`
+on a long interval (daily is enough; server refresh is weekly).
 
 ```bash
 curl -fsS "http://<host>/repeaters/current.json"

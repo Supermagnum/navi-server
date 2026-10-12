@@ -5,6 +5,12 @@ Off by default. Never contacts RepeaterBook without both
 Credentials stay on the server; clients only GET published files.
 """
 
-SCHEMA_VERSION = 1
+from plugins.repeater_mirror import SCHEMA_VERSION
+
+SOURCE_ID = "repeaterbook"
 ATTRIBUTION_TEXT = "Data courtesy of RepeaterBook.com"
 ATTRIBUTION_URL = "https://www.repeaterbook.com/"
+LICENCE_NOTE = (
+    "Use subject to RepeaterBook written permission for this host; "
+    "see docs/repeater-mirror.md."
+)

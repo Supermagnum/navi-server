@@ -1,0 +1,56 @@
+{
+  "_comment": "SYNTHETIC RadioID API-shaped fixture — not from RadioID.net.",
+  "page": 1,
+  "pages": 1,
+  "count": 3,
+  "per_page": 200,
+  "results": [
+    {
+      "callsign": "LD9SYN",
+      "city": "Tromso",
+      "color_code": 1,
+      "country": "Norway",
+      "frequency": "434.88750",
+      "identity_id": 9001,
+      "ipsc_network": "BM",
+      "locator": 242901,
+      "offset": "-2.000",
+      "state": "Troms",
+      "status": "on-air",
+      "talkgroups": [
+        {"talkgroup": 242, "description": "Norway", "timeslot": 1, "discovery": 0}
+      ],
+      "trustee": ["LA0SYN"]
+    },
+    {
+      "callsign": "LD9OFF",
+      "city": "Bergen",
+      "color_code": 2,
+      "country": "Norway",
+      "frequency": "145.575",
+      "identity_id": 9002,
+      "locator": 242902,
+      "offset": "-0.600",
+      "state": "Vestland",
+      "status": "off-air",
+      "talkgroups": [],
+      "trustee": []
+    },
+    {
+      "callsign": "LD9NOPOS",
+      "city": "Oslo",
+      "color_code": 3,
+      "country": "Norway",
+      "frequency": "433.400",
+      "identity_id": 9003,
+      "locator": 242903,
+      "offset": "+1.600",
+      "state": "Oslo",
+      "status": "ACTIVE",
+      "talkgroups": [
+        {"talkgroup": 2421, "description": "East", "timeslot": 2, "discovery": 0}
+      ],
+      "trustee": ["LA1X"]
+    }
+  ]
+}

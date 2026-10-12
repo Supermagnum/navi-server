@@ -79,6 +79,16 @@ def _parse_secrets_file(path: Path) -> Optional[str]:
     return None
 
 
+def assert_secrets_mode(path: Path) -> None:
+    """Refuse world/group-readable secrets files."""
+    mode = path.stat().st_mode & 0o777
+    if mode & 0o077:
+        raise AuthError(
+            f"RepeaterBook: secrets file {path} mode is {mode:04o}; "
+            "refuse to load (require 0600, no group/other access)."
+        )
+
+
 def load_app_token(
     *,
     environ: Mapping[str, str] | None = None,
@@ -88,6 +98,7 @@ def load_app_token(
     env = environ if environ is not None else os.environ
     raw = (env.get("REPEATERBOOK_APP_TOKEN") or env.get("NAVI_REPEATERBOOK_APP_TOKEN") or "").strip()
     if not raw and secrets_file is not None and secrets_file.is_file():
+        assert_secrets_mode(secrets_file)
         file_tok = _parse_secrets_file(secrets_file)
         raw = (file_tok or "").strip()
     return AppToken(token=validate_app_token(raw))

@@ -8,19 +8,22 @@ import logging
 import os
 import sys
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional
 
+from . import LICENCE_NOTE, SOURCE_ID
 from .client import FetchOutcome, UrlOpener, fetch_country
 from .config import Config, is_enabled, load_config, permission_confirmed
-from .normalize import envelope, normalize_rows
+from .normalize import attribution_block, envelope, normalize_rows
 from .publish import (
     PublishError,
-    build_current_json,
     country_meta_from_manifest,
+    load_current,
     new_generation_id,
     promote_generation,
     stage_and_validate,
+    upsert_source,
     write_current_json,
 )
 from .secrets import AuthError, load_app_token, redact_secrets
@@ -46,17 +49,14 @@ def run_mirror(
     now_unix: Optional[int] = None,
     generation: Optional[str] = None,
 ) -> int:
-    """Run one mirror cycle. Returns process exit code.
-
-    ``fixture_rows`` maps country name → raw export rows and skips the network
-    (dry-run / tests). Gates still apply unless fixtures are provided *and*
-    ``NAVI_REPEATERBOOK_DRY_RUN=1`` (tests set environ accordingly).
-    """
     env = dict(environ) if environ is not None else dict(os.environ)
+    dry = env.get("NAVI_REPEATERBOOK_DRY_RUN", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
-    dry = env.get("NAVI_REPEATERBOOK_DRY_RUN", "").strip() in ("1", "true", "yes", "on")
-
-    # HARD GATE — first behavioural check (skipped only for explicit dry-run fixtures).
     if not dry:
         if not is_enabled(env):
             LOG.info(
@@ -103,6 +103,7 @@ def run_mirror(
 
     countries_meta: List[Dict[str, Any]] = []
     any_failure = False
+    attr = attribution_block()
 
     for country in cfg.countries:
         slug = cfg.country_slugs.get(country, country.lower())
@@ -139,24 +140,30 @@ def run_mirror(
         try:
             stage_dir, manifest = stage_and_validate(
                 cfg.publish_root,
+                source=SOURCE_ID,
                 country=country,
                 country_slug=slug,
                 generation=gen,
                 fetched_unix=fetched_unix,
                 envelope=env_doc,
                 stage_root=stage_root,
+                attribution=attr,
+                licence=LICENCE_NOTE,
                 ratio_min=cfg.count_ratio_min,
                 ratio_max=cfg.count_ratio_max,
             )
             promote_generation(
                 cfg.publish_root,
+                SOURCE_ID,
                 slug,
                 gen,
                 stage_dir,
                 keep_generations=cfg.keep_generations,
             )
             countries_meta.append(
-                country_meta_from_manifest(manifest, country_slug=slug, generation=gen)
+                country_meta_from_manifest(
+                    manifest, source=SOURCE_ID, country_slug=slug, generation=gen
+                )
             )
             LOG.info(
                 "country=%s slug=%s published generation=%s records=%s",
@@ -175,34 +182,24 @@ def run_mirror(
 
     if not countries_meta:
         LOG.error("no countries published this run; current.json left unchanged")
-        return 1 if any_failure else 1
+        return 1
 
-    # Merge with previously published countries not updated this run.
-    prev_path = cfg.publish_root / "current.json"
-    merged: Dict[str, Dict[str, Any]] = {}
-    if prev_path.is_file():
-        try:
-            prev = json.loads(prev_path.read_text(encoding="utf-8"))
-            for c in prev.get("countries") or []:
-                slug = c.get("country_slug")
-                if slug:
-                    merged[str(slug)] = c
-        except (OSError, json.JSONDecodeError):
-            pass
-    for c in countries_meta:
-        merged[str(c["country_slug"])] = c
-
-    doc = build_current_json(
-        cfg.publish_root,
-        countries_meta=list(merged.values()),
+    doc = load_current(cfg.publish_root)
+    doc = upsert_source(
+        doc,
+        source=SOURCE_ID,
+        attribution=attr,
+        licence=LICENCE_NOTE,
+        countries=countries_meta,
         generation=gen,
         fetched_unix=fetched_unix,
     )
     write_current_json(cfg.publish_root, doc)
     LOG.info(
-        "wrote current.json generation=%s countries=%s",
+        "wrote current.json generation=%s source=%s countries=%s",
         gen,
-        len(merged),
+        SOURCE_ID,
+        len(countries_meta),
     )
     return 1 if any_failure else 0
 
@@ -210,22 +207,12 @@ def run_mirror(
 def main(argv: Optional[List[str]] = None) -> int:
     _configure_logging()
     p = argparse.ArgumentParser(description="Navi RepeaterBook mirror job")
-    p.add_argument(
-        "--dry-run-fixtures",
-        metavar="DIR",
-        help="Run against fixture JSON files in DIR (no network). Sets dry-run gates.",
-    )
-    p.add_argument(
-        "--publish-root",
-        metavar="DIR",
-        help="Override publish root (default from NAVI_PACK_ROOT/published/repeaters)",
-    )
+    p.add_argument("--dry-run-fixtures", metavar="DIR")
+    p.add_argument("--publish-root", metavar="DIR")
     args = p.parse_args(argv)
 
     env = dict(os.environ)
     if args.dry_run_fixtures:
-        from dataclasses import replace
-
         from .client import parse_export_payload
 
         env["NAVI_REPEATERBOOK_DRY_RUN"] = "1"

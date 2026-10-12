@@ -1,6 +1,6 @@
 [Unit]
 Description=Weekly Navi RepeaterBook mirror (offset from Monday pack bake)
-Documentation=file:///media/navi/navi-server/docs/repeaterbook-mirror.md
+Documentation=file:///media/navi/navi-server/docs/repeater-mirror.md
 
 [Timer]
 # Wednesday 03:30 UTC — away from Monday 00:00 pack bake.

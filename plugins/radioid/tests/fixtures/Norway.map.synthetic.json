@@ -1,0 +1,46 @@
+{
+  "_comment": "SYNTHETIC RadioID map.json-shaped fixture — not from RadioID.net.",
+  "count": 4,
+  "markers": [
+    {
+      "locator": 242901,
+      "id": 242901,
+      "callsign": "LD9SYN",
+      "city": "Tromso",
+      "country": "Norway",
+      "lat": "69.6492",
+      "lng": "18.9553",
+      "status": "ACTIVE"
+    },
+    {
+      "locator": 242902,
+      "id": 242902,
+      "callsign": "LD9OFF",
+      "city": "Bergen",
+      "country": "Norway",
+      "lat": "60.3913",
+      "lng": "5.3221",
+      "status": "INACTIVE"
+    },
+    {
+      "locator": 242903,
+      "id": 242903,
+      "callsign": "LD9NOPOS",
+      "city": "Oslo",
+      "country": "Norway",
+      "lat": null,
+      "lng": null,
+      "status": "ACTIVE"
+    },
+    {
+      "locator": 242999,
+      "id": 242999,
+      "callsign": "LD9MAPONLY",
+      "city": "Trondheim",
+      "country": "Norway",
+      "lat": "63.4305",
+      "lng": "10.3951",
+      "status": "ACTIVE"
+    }
+  ]
+}

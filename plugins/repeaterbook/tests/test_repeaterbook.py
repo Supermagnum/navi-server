@@ -101,9 +101,18 @@ class SecretsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / "repeaterbook.env"
             p.write_text("REPEATERBOOK_APP_TOKEN=app_filetokenvalue01\n", encoding="utf-8")
+            p.chmod(0o600)
             t = load_app_token(environ={}, secrets_file=p)
             self.assertEqual(t.token, "app_filetokenvalue01")
             self.assertIn(TOKEN_REDACT, repr(t))
+
+    def test_wrong_permissions_refused(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            p = Path(td) / "repeaterbook.env"
+            p.write_text("REPEATERBOOK_APP_TOKEN=app_filetokenvalue01\n", encoding="utf-8")
+            p.chmod(0o644)
+            with self.assertRaises(AuthError):
+                load_app_token(environ={}, secrets_file=p)
 
 
 class NormalizeTests(unittest.TestCase):
@@ -243,7 +252,8 @@ class PublishGuardTests(unittest.TestCase):
             )
             self.assertEqual(rc, 0)
             cur1 = json.loads((pub / "current.json").read_text(encoding="utf-8"))
-            self.assertEqual(cur1["countries"][0]["record_count"], 4)
+            src = {s["source"]: s for s in cur1["sources"]}["repeaterbook"]
+            self.assertEqual(src["countries"][0]["record_count"], 4)
             # Second run fails (empty) — must not clobber
             rc2 = run_mirror(
                 cfg,
@@ -254,9 +264,10 @@ class PublishGuardTests(unittest.TestCase):
             )
             self.assertNotEqual(rc2, 0)
             cur2 = json.loads((pub / "current.json").read_text(encoding="utf-8"))
-            self.assertEqual(cur2["generation"], "20260101T000000Z")
-            self.assertTrue((pub / "no" / "20260101T000000Z" / "repeaters.json.zst").is_file())
-            self.assertFalse((pub / "no" / "20260108T000000Z").exists())
+            src = {s["source"]: s for s in cur2["sources"]}["repeaterbook"]
+            self.assertEqual(src["countries"][0]["generation"], "20260101T000000Z")
+            self.assertTrue((pub / "repeaterbook" / "no" / "20260101T000000Z" / "repeaters.json.zst").is_file())
+            self.assertFalse((pub / "repeaterbook" / "no" / "20260108T000000Z").exists())
 
     def test_attribution_in_current_and_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -279,17 +290,19 @@ class PublishGuardTests(unittest.TestCase):
                     encoding="utf-8"
                 )
             )
+            src = {s["source"]: s for s in cur["sources"]}["repeaterbook"]
             self.assertEqual(
-                cur["attribution"]["text"], "Data courtesy of RepeaterBook.com"
+                src["attribution"]["text"], "Data courtesy of RepeaterBook.com"
             )
             self.assertEqual(
-                cur["attribution"]["url"], "https://www.repeaterbook.com/"
+                src["attribution"]["url"], "https://www.repeaterbook.com/"
             )
             man = json.loads(
                 (
                     root
                     / "published"
                     / "repeaters"
+                    / "repeaterbook"
                     / "no"
                     / "20260101T000000Z"
                     / "manifest.json"

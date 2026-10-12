@@ -8,7 +8,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 
-from . import ATTRIBUTION_TEXT, ATTRIBUTION_URL, SCHEMA_VERSION
+from . import ATTRIBUTION_TEXT, ATTRIBUTION_URL, SCHEMA_VERSION, SOURCE_ID
 
 _MHZ_RE = re.compile(r"^\s*(-?\d+(?:[.,]\d+)?)\s*(?:MHz|mhz|MHZ)?\s*$")
 _HZ_RE = re.compile(r"^\s*(-?\d+(?:[.,]\d+)?)\s*(?:Hz|hz|HZ)\s*$")
@@ -205,6 +205,7 @@ def normalize_row(row: Mapping[str, Any]) -> Dict[str, Any]:
             network[label] = val
 
     out: Dict[str, Any] = {
+        "source": SOURCE_ID,
         "callsign": None if callsign in (None, "") else str(callsign),
         "lat": lat,
         "lon": lon,
@@ -228,6 +229,7 @@ def normalize_row(row: Mapping[str, Any]) -> Dict[str, Any]:
     }
     # Drop keys that are entirely missing (None) except booleans / required shape.
     keep_always = {
+        "source",
         "callsign",
         "lat",
         "lon",
@@ -261,6 +263,7 @@ def envelope(
 ) -> Dict[str, Any]:
     return {
         "schema": SCHEMA_VERSION,
+        "source": SOURCE_ID,
         "country": country,
         "country_slug": country_slug,
         "generation": generation,
