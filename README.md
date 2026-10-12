@@ -17,6 +17,7 @@ unconditional fallback and is untouched by this tree.
   - [Docker / Linux containers](#docker--linux-containers)
   - [Dynamic DNS (optional)](#dynamic-dns-optional)
   - [DATEX NPRA redistribution (optional — off by default)](#datex-npra-redistribution-optional--off-by-default)
+  - [RepeaterBook mirror (optional — off by default)](#repeaterbook-mirror-optional--off-by-default)
   - [Adding other DATEX countries (Germany, Denmark, …)](#adding-other-datex-countries-germany-denmark-)
 - [Independently testable steps](#independently-testable-steps)
   - [0. Disk space](#0-disk-space)
@@ -87,6 +88,7 @@ unconditional fallback and is untouched by this tree.
 | [`docs/pack-formats.md`](docs/pack-formats.md) | Binary and JSON pack formats, what they contain, and how to read them |
 | [`docs/client-fetch.md`](docs/client-fetch.md) | Future client HTTP GET contract and exposure surface |
 | [`docs/datex-npra.md`](docs/datex-npra.md) | Optional DATEX NPRA redistribution (**off by default**) |
+| [`docs/repeaterbook-mirror.md`](docs/repeaterbook-mirror.md) | Optional RepeaterBook mirror for CAT (**off by default**) |
 | [`docs/datex-open-feeds.md`](docs/datex-open-feeds.md) | Survey of open DATEX II feeds that need **no registration** |
 | [`docs/datex-adding-sources.md`](docs/datex-adding-sources.md) | How to add another DATEX provider plugin |
 | [`docs/incremental-geofabrik.md`](docs/incremental-geofabrik.md) | Geofabrik `.osc.gz` incremental extract updates (**wired into `run-weekly.sh` for all conf regions**; planet-leaves unchanged) |
@@ -435,6 +437,31 @@ and [`docs/client-fetch.md`](docs/client-fetch.md#datex-npra-optional).
 curl -fsS "http://<host>/datex/npra/source.json"
 curl -fsS -o situations.xml "http://<host>/datex/npra/GetSituation.xml"
 ```
+
+### RepeaterBook mirror (optional — off by default)
+
+**Role:** navi-server holds the RepeaterBook server/backend `app_` token and
+publishes a normalized repeater DB for the Navi CAT plugin. Clients never see
+the token and never call RepeaterBook.
+
+Requires **written permission** from RepeaterBook before any fetch. Full docs,
+draft application text, and rollout commands:
+[`docs/repeaterbook-mirror.md`](docs/repeaterbook-mirror.md).
+
+```bash
+# Interactive setup (token + identity; leaves REPEATERBOOK_PERMISSION_CONFIRMED=0):
+sudo /media/navi/navi-server/scripts/setup-server.sh --apply-repeaterbook
+
+# Fixture dry-run (no network):
+./scripts/test-repeaterbook-mirror.sh
+
+# Uninstall:
+sudo /media/navi/navi-server/scripts/uninstall-repeaterbook.sh [--purge]
+```
+
+Client paths: `GET /repeaters/current.json` and per-country
+`/repeaters/<slug>/<generation>/repeaters.json.zst` — see
+[`docs/client-fetch.md`](docs/client-fetch.md#repeaterbook-mirror-optional).
 
 ### Adding other DATEX countries (Germany, Denmark, …)
 
@@ -1065,3 +1092,7 @@ Navi-repo extrapolation.
   you answer **yes** to the DATEX provider prompt and supply credentials
   (`setup-server.sh` full interactive run or `--apply-datex`) — see
   [`docs/datex-npra.md`](docs/datex-npra.md)
+- Optional RepeaterBook mirror is **off by default** and must not contact
+  RepeaterBook or publish data unless `NAVI_REPEATERBOOK_ENABLED=1` **and**
+  `REPEATERBOOK_PERMISSION_CONFIRMED=1` (set the latter only after written
+  permission) — see [`docs/repeaterbook-mirror.md`](docs/repeaterbook-mirror.md)

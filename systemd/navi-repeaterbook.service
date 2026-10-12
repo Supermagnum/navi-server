@@ -1,0 +1,22 @@
+[Unit]
+Description=Navi RepeaterBook mirror (optional redistribution)
+Documentation=file:///media/navi/navi-server/docs/repeaterbook-mirror.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=navit-server
+Group=navit-server
+WorkingDirectory=/media/navi/navi-server
+Environment=NAVI_PACK_CONFIG=/media/navi/navi-server/data/config.env
+# Job re-checks ENABLED + REPEATERBOOK_PERMISSION_CONFIRMED and exits inert if off.
+ExecStart=/media/navi/navi-server/scripts/repeaterbook-mirror.sh
+SuccessExitStatus=0
+ReadWritePaths=/media/navi/navi-server/data
+ReadOnlyPaths=/media/navi/navi-server/scripts /media/navi/navi-server/plugins /media/navi/navi-server/docs
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

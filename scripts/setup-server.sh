@@ -11,11 +11,13 @@
 #   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-service
 #   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-ddns
 #   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-datex
+#   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-repeaterbook
 #   /media/navi/navi-server/scripts/setup-server.sh --check
 #   /media/navi/navi-server/scripts/setup-server.sh --dry-run
 # Uninstall helpers:
 #   sudo /media/navi/navi-server/scripts/uninstall-ddns.sh [--purge]
 #   sudo /media/navi/navi-server/scripts/uninstall-datex-npra.sh [--purge]
+#   sudo /media/navi/navi-server/scripts/uninstall-repeaterbook.sh [--purge]
 
 set -euo pipefail
 
@@ -40,12 +42,16 @@ DDNS_ENV="${DATA}/ddns.env"
 DATEX_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navi-datex-npra.service"
 DATEX_TIMER_SRC="${NAVI_SERVER_ROOT}/systemd/navi-datex-npra.timer"
 DATEX_SECRETS="${DATA}/secrets/datex_npra.env"
+RB_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navi-repeaterbook.service"
+RB_TIMER_SRC="${NAVI_SERVER_ROOT}/systemd/navi-repeaterbook.timer"
+RB_SECRETS="${DATA}/secrets/repeaterbook.env"
 SYSTEMD_DIR="/etc/systemd/system"
 
 APPLY_APACHE=0
 APPLY_SERVICE=0
 APPLY_DDNS=0
 APPLY_DATEX=0
+APPLY_REPEATERBOOK=0
 CHECK_ONLY=0
 DRY_RUN=0
 while [[ $# -gt 0 ]]; do
@@ -54,10 +60,11 @@ while [[ $# -gt 0 ]]; do
     --apply-service) APPLY_SERVICE=1; shift ;;
     --apply-ddns) APPLY_DDNS=1; shift ;;
     --apply-datex) APPLY_DATEX=1; shift ;;
+    --apply-repeaterbook) APPLY_REPEATERBOOK=1; shift ;;
     --check) CHECK_ONLY=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help)
-      sed -n '2,20p' "$0"
+      sed -n '2,22p' "$0"
       exit 0
       ;;
     *) echo "unknown arg: $1" >&2; exit 1 ;;
@@ -112,13 +119,20 @@ Full interactive sudo run would:
 
 --apply-datex alone would run only step 3 (same prompts).
 
+--apply-repeaterbook would:
+  Prompt for server/backend app_ token (hidden), app name, contact, countries
+  Write:  ${RB_SECRETS} (mode 0600; REPEATERBOOK_APP_TOKEN)
+  Set:    NAVI_REPEATERBOOK_ENABLED=1 (does NOT set REPEATERBOOK_PERMISSION_CONFIRMED)
+  Install/enable: navi-repeaterbook.timer (Wed 03:30 UTC)
+  Reminder: set REPEATERBOOK_PERMISSION_CONFIRMED=1 only after written permission
+
 File edit instead of prompts (no interactive setup required):
-  See README.md "DATEX NPRA" — create ${DATEX_SECRETS} and set
-  NAVI_DATEX_NPRA_ENABLED=1 in ${DATA}/config.env, then enable the timer.
+  See README.md "DATEX NPRA" / docs/repeaterbook-mirror.md.
 
 Current flags that would apply if not --dry-run:
   APPLY_APACHE=${APPLY_APACHE} APPLY_SERVICE=${APPLY_SERVICE}
   APPLY_DDNS=${APPLY_DDNS} APPLY_DATEX=${APPLY_DATEX}
+  APPLY_REPEATERBOOK=${APPLY_REPEATERBOOK}
 EOF
   exit 0
 fi
@@ -427,6 +441,101 @@ path.chmod(0o600)
   log "uninstall: sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-datex-npra.sh [--purge]"
 }
 
+# Interactive RepeaterBook mirror enable. Does NOT set REPEATERBOOK_PERMISSION_CONFIRMED.
+repeaterbook_apply() {
+  require_root "RepeaterBook setup"
+  command -v python3 >/dev/null 2>&1 || fail "python3 not found"
+  command -v zstd >/dev/null 2>&1 || fail "zstd not found (apt install zstd)"
+  [[ -f "$RB_UNIT_SRC" ]] || fail "missing ${RB_UNIT_SRC}"
+  [[ -f "$RB_TIMER_SRC" ]] || fail "missing ${RB_TIMER_SRC}"
+  [[ -x "${NAVI_SERVER_ROOT}/scripts/repeaterbook-mirror.sh" ]] \
+    || fail "missing executable ${NAVI_SERVER_ROOT}/scripts/repeaterbook-mirror.sh"
+  [[ -t 0 ]] || fail "RepeaterBook setup requires an interactive TTY (token + identity prompts)"
+
+  echo "=== RepeaterBook mirror (optional) ==="
+  echo "Requires written permission from RepeaterBook before any fetch."
+  echo "This setup writes the app_ token and enables the timer, but leaves"
+  echo "REPEATERBOOK_PERMISSION_CONFIRMED=0 until you set it yourself."
+  local ans want=0
+  while true; do
+    read -r -p "Do you want to set up the RepeaterBook mirror? [yes/no]: " ans
+    case "${ans,,}" in
+      y|yes) want=1; break ;;
+      n|no) want=0; break ;;
+      *) echo "Please answer yes or no." ;;
+    esac
+  done
+  if [[ "$want" -eq 0 ]]; then
+    log "RepeaterBook mirror skipped (left disabled)"
+    return 0
+  fi
+
+  local app_name app_ver contact countries token token2
+  read -r -p "App name (must match RepeaterBook approval) [navi-server-repeaterbook]: " app_name
+  app_name="${app_name:-navi-server-repeaterbook}"
+  read -r -p "App version [0.1]: " app_ver
+  app_ver="${app_ver:-0.1}"
+  read -r -p "Contact email (must match approval): " contact
+  [[ -n "$contact" ]] || fail "contact email required"
+  read -r -p "Countries (comma-separated RepeaterBook names) [Norway]: " countries
+  countries="${countries:-Norway}"
+
+  set +o history
+  read -r -s -p "Server/backend app_ token: " token
+  echo
+  read -r -s -p "Confirm app_ token: " token2
+  echo
+  set -o history
+  [[ "$token" == "$token2" ]] || fail "token mismatch"
+  [[ "$token" == app_* ]] || fail "token must start with app_ (server/backend token only; not rbuapp_)"
+  [[ "$token" != rbuapp_* ]] || fail "rbuapp_ tokens are not allowed"
+
+  mkdir -p "${DATA}/secrets" "${DATA}/repeaterbook/staging" "${DATA}/published/repeaters"
+  printf '%s' "$token" | python3 -c '
+import pathlib, sys
+path = pathlib.Path(sys.argv[1])
+token = sys.stdin.read()
+path.write_text(
+    "# Written by setup-server.sh RepeaterBook setup — mode 0600. Do not commit.\n"
+    f"REPEATERBOOK_APP_TOKEN={token}\n",
+    encoding="utf-8",
+)
+' "$RB_SECRETS"
+  chown "${SERVICE_USER}:${SERVICE_USER}" "$RB_SECRETS"
+  chmod 600 "$RB_SECRETS"
+
+  _rb_set_config() {
+    local key="$1" val="$2" cfg="${DATA}/config.env"
+    touch "$cfg"
+    if grep -q "^${key}=" "$cfg" 2>/dev/null; then
+      sed -i "s|^${key}=.*|${key}=${val}|" "$cfg"
+    else
+      printf '%s=%s\n' "$key" "$val" >>"$cfg"
+    fi
+  }
+  _rb_set_config NAVI_REPEATERBOOK_ENABLED 1
+  _rb_set_config REPEATERBOOK_PERMISSION_CONFIRMED 0
+  _rb_set_config NAVI_REPEATERBOOK_BASE_URL "https://www.repeaterbook.com/api"
+  _rb_set_config NAVI_REPEATERBOOK_COUNTRIES "$countries"
+  _rb_set_config NAVI_REPEATERBOOK_APP_NAME "$app_name"
+  _rb_set_config NAVI_REPEATERBOOK_APP_VERSION "$app_ver"
+  _rb_set_config NAVI_REPEATERBOOK_CONTACT "$contact"
+  _rb_set_config NAVI_REPEATERBOOK_SECRETS_FILE "$RB_SECRETS"
+
+  chown -R "${SERVICE_USER}:${SERVICE_USER}" "${DATA}/secrets" "${DATA}/repeaterbook" \
+    "${DATA}/published/repeaters"
+  chmod 700 "${DATA}/secrets" "${DATA}/repeaterbook"
+
+  install -m 0644 "$RB_UNIT_SRC" "${SYSTEMD_DIR}/navi-repeaterbook.service"
+  install -m 0644 "$RB_TIMER_SRC" "${SYSTEMD_DIR}/navi-repeaterbook.timer"
+  systemctl daemon-reload
+  systemctl enable --now navi-repeaterbook.timer
+  log "installed navi-repeaterbook.timer (Wed 03:30 UTC)"
+  log "REPEATERBOOK_PERMISSION_CONFIRMED remains 0 — set to 1 in ${DATA}/config.env only after written permission"
+  log "manual run (after permission flag): sudo -u ${SERVICE_USER} ${NAVI_SERVER_ROOT}/scripts/repeaterbook-mirror.sh"
+  log "uninstall: sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-repeaterbook.sh [--purge]"
+}
+
 if [[ "$CHECK_ONLY" -eq 1 ]]; then
   echo "== navi-server setup check =="
   echo "root: ${NAVI_SERVER_ROOT}"
@@ -498,6 +607,21 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
     echo "OK DATEX feature flag ENABLED in config.env"
   else
     echo "OK DATEX feature flag off/absent (inert default)"
+  fi
+  if [[ -f "${SYSTEMD_DIR}/navi-repeaterbook.timer" ]]; then
+    echo "OK repeaterbook units installed (enabled=$(systemctl is-enabled navi-repeaterbook.timer 2>/dev/null || echo no))"
+  else
+    echo "RepeaterBook units not installed (optional/off-by-default: sudo $0 --apply-repeaterbook)"
+  fi
+  if [[ -f "${DATA}/config.env" ]] && grep -q '^NAVI_REPEATERBOOK_ENABLED=1' "${DATA}/config.env" 2>/dev/null; then
+    echo "OK RepeaterBook feature flag ENABLED in config.env"
+  else
+    echo "OK RepeaterBook feature flag off/absent (inert default)"
+  fi
+  if [[ -f "${DATA}/config.env" ]] && grep -q '^REPEATERBOOK_PERMISSION_CONFIRMED=1' "${DATA}/config.env" 2>/dev/null; then
+    echo "OK REPEATERBOOK_PERMISSION_CONFIRMED=1"
+  else
+    echo "OK REPEATERBOOK_PERMISSION_CONFIRMED off/absent (no upstream fetch)"
   fi
   if command -v apache2ctl >/dev/null 2>&1; then
     apache2ctl -S 2>&1 | grep -E 'navi-packs|\*:80' || true
@@ -623,10 +747,14 @@ if [[ "$APPLY_DATEX" -eq 1 ]]; then
   datex_apply
 fi
 
+if [[ "$APPLY_REPEATERBOOK" -eq 1 ]]; then
+  repeaterbook_apply
+fi
+
 if [[ "$APPLY_APACHE" -eq 1 ]]; then
   require_root "--apply-apache"
   apache_apply
-elif [[ "$(id -u)" -eq 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 ]]; then
+elif [[ "$(id -u)" -eq 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 && "$APPLY_REPEATERBOOK" -eq 0 ]]; then
   # Full sudo run without flags: configure Apache + service user, then offer DATEX.
   apache_apply
   navit_server_apply
@@ -635,7 +763,7 @@ elif [[ "$(id -u)" -eq 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$A
   else
     log "DATEX left disabled (non-interactive; re-run with --apply-datex on a TTY to enable)"
   fi
-elif [[ "$(id -u)" -ne 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_APACHE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 ]]; then
+elif [[ "$(id -u)" -ne 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_APACHE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 && "$APPLY_REPEATERBOOK" -eq 0 ]]; then
   cat <<EOF
 
 Apache / dedicated service user / optional plugins are not configured by this non-root run. Apply with:
@@ -648,6 +776,9 @@ Apache / dedicated service user / optional plugins are not configured by this no
   # Optional DATEX (asks yes/no, then username + password):
   sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-datex
   sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-datex-npra.sh [--purge]
+  # Optional RepeaterBook mirror (asks for app_ token; permission flag stays 0):
+  sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-repeaterbook
+  sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-repeaterbook.sh [--purge]
 
 Or full sudo setup (Apache + service + DATEX yes/no prompt):
 

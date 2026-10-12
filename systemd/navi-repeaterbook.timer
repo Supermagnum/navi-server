@@ -1,0 +1,14 @@
+[Unit]
+Description=Weekly Navi RepeaterBook mirror (offset from Monday pack bake)
+Documentation=file:///media/navi/navi-server/docs/repeaterbook-mirror.md
+
+[Timer]
+# Wednesday 03:30 UTC — away from Monday 00:00 pack bake.
+OnCalendar=Wed *-*-* 03:30:00 UTC
+AccuracySec=5min
+RandomizedDelaySec=900
+Persistent=true
+Unit=navi-repeaterbook.service
+
+[Install]
+WantedBy=timers.target
