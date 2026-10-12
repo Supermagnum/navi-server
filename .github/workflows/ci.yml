@@ -74,3 +74,6 @@ jobs:
 
       - name: Repeater mirror fixture dry-run (both sources)
         run: ./scripts/test-repeater-mirror.sh
+
+      - name: Server migrate smoke (local-dest)
+        run: ./scripts/test-migrate-server.sh

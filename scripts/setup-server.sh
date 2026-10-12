@@ -511,13 +511,15 @@ path.write_text(
   chmod 600 "$RB_SECRETS"
 
   _rb_set_config() {
-    local key="$1" val="$2" cfg="${DATA}/config.env"
+    local key="$1" val="$2" cfg="${DATA}/config.env" line
     touch "$cfg"
+    # %q so values with spaces (country lists) source cleanly.
+    printf -v line '%s=%q' "$key" "$val"
     if grep -q "^${key}=" "$cfg" 2>/dev/null; then
-      sed -i "s|^${key}=.*|${key}=${val}|" "$cfg"
-    else
-      printf '%s=%s\n' "$key" "$val" >>"$cfg"
+      grep -v "^${key}=" "$cfg" >"${cfg}.tmp"
+      mv "${cfg}.tmp" "$cfg"
     fi
+    printf '%s\n' "$line" >>"$cfg"
   }
   _rb_set_config NAVI_REPEATERBOOK_ENABLED 1
   _rb_set_config REPEATERBOOK_PERMISSION_CONFIRMED 0
@@ -610,13 +612,15 @@ path.write_text(
   fi
 
   _rid_set_config() {
-    local key="$1" val="$2" cfg="${DATA}/config.env"
+    local key="$1" val="$2" cfg="${DATA}/config.env" line
     touch "$cfg"
+    # %q so values with spaces (country lists) source cleanly.
+    printf -v line '%s=%q' "$key" "$val"
     if grep -q "^${key}=" "$cfg" 2>/dev/null; then
-      sed -i "s|^${key}=.*|${key}=${val}|" "$cfg"
-    else
-      printf '%s=%s\\n' "$key" "$val" >>"$cfg"
+      grep -v "^${key}=" "$cfg" >"${cfg}.tmp"
+      mv "${cfg}.tmp" "$cfg"
     fi
+    printf '%s\n' "$line" >>"$cfg"
   }
   _rid_set_config NAVI_RADIOID_ENABLED 1
   _rid_set_config RADIOID_PERMISSION_CONFIRMED 0

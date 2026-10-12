@@ -70,6 +70,7 @@ unconditional fallback and is untouched by this tree.
 | `scripts/*.sh` | Fetch / convert / validate / publish / scrub / weekly + planet-leaf orchestrators |
 | `scripts/lib/published_tree.py` | Nested `packs/` catalog rebuild (`current.json`) |
 | `scripts/migrate-published-to-geofabrik-paths.sh` | One-shot flat → Geofabrik-path published layout |
+| `scripts/migrate-server.sh` | SSH/rsync migrate packs + jobs + secrets to another host; verify working order |
 | `scripts/run-planet-leaves-batched.sh` | Preferred full-leaf bake (batch, pause on fail) |
 | `scripts/start-planet-leaves-screen.sh` | Detached screen launcher (safe wrapper; `--resume`) |
 | `scripts/watch-planet-leaves.sh` | Alert-only orchestrator watchdog (no auto-resume) |
@@ -92,6 +93,7 @@ unconditional fallback and is untouched by this tree.
 | [`docs/datex-open-feeds.md`](docs/datex-open-feeds.md) | Survey of open DATEX II feeds that need **no registration** |
 | [`docs/datex-adding-sources.md`](docs/datex-adding-sources.md) | How to add another DATEX provider plugin |
 | [`docs/incremental-geofabrik.md`](docs/incremental-geofabrik.md) | Geofabrik `.osc.gz` incremental extract updates (**wired into `run-weekly.sh` for all conf regions**; planet-leaves unchanged) |
+| [`docs/server-migrate.md`](docs/server-migrate.md) | SSH migrate packs / jobs / secrets to another host |
 
 Data root detail:
 
