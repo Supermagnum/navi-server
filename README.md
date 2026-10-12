@@ -18,6 +18,7 @@ unconditional fallback and is untouched by this tree.
   - [Dynamic DNS (optional)](#dynamic-dns-optional)
   - [DATEX NPRA redistribution (optional — off by default)](#datex-npra-redistribution-optional--off-by-default)
   - [Repeater mirrors (optional — off by default)](#repeater-mirrors-optional--off-by-default)
+  - [Migrate to another host (SSH)](#migrate-to-another-host-ssh)
   - [Adding other DATEX countries (Germany, Denmark, …)](#adding-other-datex-countries-germany-denmark-)
 - [Independently testable steps](#independently-testable-steps)
   - [0. Disk space](#0-disk-space)
@@ -52,8 +53,11 @@ unconditional fallback and is untouched by this tree.
   docs/datex-npra.md        # optional NPRA DATEX poller (off by default)
   docs/datex-open-feeds.md  # open DATEX feeds (no registration)
   docs/datex-adding-sources.md  # how to add a DATEX provider plugin
+  docs/repeater-mirror.md   # optional RepeaterBook + RadioID mirrors (off by default)
+  docs/server-migrate.md    # SSH migrate packs / jobs / secrets to another host
   scripts/                  # independently runnable pipeline steps
     lib/common.sh
+    migrate-server.sh       # SSH/rsync packs + jobs + secrets; verify dest
     config.example.env
     regions.example.conf
   data/                     # scratch, state, generations, logs, live/previous
@@ -70,6 +74,8 @@ unconditional fallback and is untouched by this tree.
 | `scripts/*.sh` | Fetch / convert / validate / publish / scrub / weekly + planet-leaf orchestrators |
 | `scripts/lib/published_tree.py` | Nested `packs/` catalog rebuild (`current.json`) |
 | `scripts/migrate-published-to-geofabrik-paths.sh` | One-shot flat → Geofabrik-path published layout |
+| `scripts/migrate-server.sh` | SSH/rsync migrate packs + jobs + secrets to another host; verify working order |
+| `scripts/test-migrate-server.sh` | Smoke test for migrate-server (`--local-dest`; no network) |
 | `scripts/run-planet-leaves-batched.sh` | Preferred full-leaf bake (batch, pause on fail) |
 | `scripts/start-planet-leaves-screen.sh` | Detached screen launcher (safe wrapper; `--resume`) |
 | `scripts/watch-planet-leaves.sh` | Alert-only orchestrator watchdog (no auto-resume) |
@@ -92,6 +98,7 @@ unconditional fallback and is untouched by this tree.
 | [`docs/datex-open-feeds.md`](docs/datex-open-feeds.md) | Survey of open DATEX II feeds that need **no registration** |
 | [`docs/datex-adding-sources.md`](docs/datex-adding-sources.md) | How to add another DATEX provider plugin |
 | [`docs/incremental-geofabrik.md`](docs/incremental-geofabrik.md) | Geofabrik `.osc.gz` incremental extract updates (**wired into `run-weekly.sh` for all conf regions**; planet-leaves unchanged) |
+| [`docs/server-migrate.md`](docs/server-migrate.md) | SSH migrate packs / jobs / secrets to another host |
 
 Data root detail:
 
@@ -108,15 +115,17 @@ Data root detail:
   generations/<generation>/  # immutable published trees (internal)
   published/                 # HTTP DocumentRoot — index.html landing + packs + current.json
                              # packs/<geofabrik-path>/<generation>/ (matches app picker)
-                             # (+ optional datex/ snapshots when DATEX enabled)
-  live -> generations/...    # current (internal)
+                             # (+ optional datex/ + repeaters/ when those mirrors enabled)
+  live -> generations/...    # current (internal) — do not rsync absolute links to a new host
   previous -> generations/...
   state/regions/<id>/        # ETag / Last-Modified (never served)
+  state/migrate-jobs-inventory.json  # written by migrate-server.sh (timer snapshot)
   logs/planet-leaves/        # batched planet bake plan / progress / PAUSED
   logs/weekly-*.log          # atomic: .partial until success
   logs/scrub-*.log
-  secrets/                   # optional DATEX creds (0600; never served)
+  secrets/                   # DATEX / DDNS / repeater tokens (0600; never served)
   datex_npra/                # optional DATEX poller state (never served)
+  radioid/ repeaterbook/     # optional repeater mirror work dirs (never served)
 ```
 
 The tree is self-maintaining: daily scrub prunes outdated generations, convert
@@ -458,6 +467,27 @@ sudo /media/navi/navi-server/scripts/uninstall-radioid.sh [--purge]
 Client paths: `GET /repeaters/current.json` and
 `/repeaters/<source>/<slug>/<generation>/repeaters.json.zst` — see
 [`docs/client-fetch.md`](docs/client-fetch.md#repeater-mirrors-optional).
+
+### Migrate to another host (SSH)
+
+To seed a new server with **packs**, **jobs** (state + config + systemd timer
+inventory), and **secrets** over SSH, then confirm working order:
+
+```bash
+# On the source host (navi-server checkout):
+./scripts/migrate-server.sh --dest deploy@new-host
+./scripts/migrate-server.sh --dest deploy@new-host:/media/navi/navi-server --dry-run
+./scripts/migrate-server.sh --dest deploy@new-host --verify-only
+
+# Smoke (no network; uses --local-dest):
+./scripts/test-migrate-server.sh
+```
+
+Does **not** copy `scratch/`, `staging/`, `generations/`, DEM trees (unless
+`--with-elevation`), or absolute `data/live` / `data/previous` symlinks
+(those break publish on the destination — see
+[`docs/vps-prelaunch-checklist.md`](docs/vps-prelaunch-checklist.md)).
+Full procedure: [`docs/server-migrate.md`](docs/server-migrate.md).
 
 ### Adding other DATEX countries (Germany, Denmark, …)
 
@@ -972,9 +1002,10 @@ Unit tests use checked-in mini PBFs under `pack-convert-core/tests/fixtures/`.
 `#[ignore]` tests that need large extracts (e.g. ostlandet under
 `target/integration-fixtures`) stay local-only.
 
-GitHub Actions (`.github/workflows/ci.yml`) runs fmt, clippy, and
-`cargo test --workspace` on every push/PR to `main`. No Navi checkout is
-required in CI.
+GitHub Actions (`.github/workflows/ci.yml`) runs fmt, clippy,
+`cargo test --workspace`, DATEX/repeater Python unit tests,
+`./scripts/test-repeater-mirror.sh`, and `./scripts/test-migrate-server.sh`
+on every push/PR to `main`. No Navi checkout is required in CI.
 
 `scripts/lib/common.sh` `resolve_convert_bin()` always builds/uses
 `${NAVI_SERVER_ROOT}/target/release/navi-indexed-convert` (no `NAVI_ROOT` /
@@ -1018,7 +1049,9 @@ Continent-scale single leaves and a full first bake on 8c/16 GiB remain
 By design, the **minimum supported** weekly-incremental host is the
 **netcup VPS 2000 G12** class: **8 dedicated vCores, 16 GiB RAM, 512 GB
 NVMe**. Larger hardware is fine for full-planet bakes; going **below** this
-envelope is untested and unsupported.
+envelope is untested and unsupported. When seeding that host from another
+machine, prefer [`scripts/migrate-server.sh`](docs/server-migrate.md) over ad-hoc
+rsync (avoids dangling `live`/`previous` symlinks and enforces secret modes).
 
 Validated for the **weekly incremental path only** in a matching libvirt/KVM
 guest (8 vCPU / 16 GiB / 512 GiB sparse qcow2 / **ext4, no ZFS** / Ubuntu

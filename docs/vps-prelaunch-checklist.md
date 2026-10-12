@@ -54,8 +54,9 @@ what the 512 GB math allows without re-checking free space.
       state
 - [ ] Confirm `data/config.env` on the VPS does not export
       `NAVI_TILE_BUILD_CONCURRENCY` (weekly logs a WARN if it is set)
-- [ ] When seeding from another host: do **not** copy absolute `data/live` /
-      `data/previous` symlinks (media→VPS rsync left a dangling
+- [ ] When seeding from another host: use `scripts/migrate-server.sh`
+      ([`docs/server-migrate.md`](server-migrate.md)) — do **not** copy absolute
+      `data/live` / `data/previous` symlinks (media→VPS rsync left a dangling
       `/media/navi/...` link that aborted publish under `set -e` + `readlink -f`)
 - [x] 8c/16GiB KVM envelope sim completed 2026-09-10 — see
       `/media/navi/vps-sim/REPORT.md` (RAM clean; disk fixed via held-PBF
