@@ -52,3 +52,25 @@ jobs:
         run: |
           cargo build -p place-source-points
           ./scripts/test-place-source.sh
+
+  python:
+    name: python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install zstd (repeaterbook publish)
+        run: sudo apt-get update && sudo apt-get install -y zstd
+
+      - name: DATEX + repeater mirror unit tests
+        run: |
+          python3 -m unittest \
+            plugins.datex_common.tests.test_datex_common \
+            plugins.datex_common.tests.test_apache_rewrite_snippet \
+            plugins.datex_npra.tests.test_datex_npra \
+            plugins.repeaterbook.tests.test_repeaterbook \
+            plugins.radioid.tests.test_radioid \
+            -v
+
+      - name: Repeater mirror fixture dry-run (both sources)
+        run: ./scripts/test-repeater-mirror.sh

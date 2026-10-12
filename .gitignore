@@ -26,6 +26,12 @@
 /data/secrets/datex_npra.env
 /data/datex_npra/
 /data/published/datex/
+# Repeater mirrors secrets / work / published (also covered by /data/secrets/)
+/data/secrets/repeaterbook.env
+/data/secrets/radioid.env
+/data/repeaterbook/
+/data/radioid/
+/data/published/repeaters/
 
 # DEM tiles (keep directory structure via README + .gitkeep)
 /data/elevation/copernicus/**
