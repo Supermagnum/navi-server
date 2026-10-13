@@ -31,6 +31,7 @@
 /data/secrets/radioid.env
 /data/repeaterbook/
 /data/radioid/
+/data/osm_repeaters/
 /data/published/repeaters/
 
 # DEM tiles (keep directory structure via README + .gitkeep)

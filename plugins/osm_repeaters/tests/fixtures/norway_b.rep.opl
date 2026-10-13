@@ -1,0 +1,2 @@
+n3001 v5 dV c1 t2026-02-01T12:00:00Z i1 u Tcommunication:amateur_radio:repeater=yes,communication:amateur_radio:callsign=LA7DUP,communication:amateur_radio:repeater:frequency_out=145.650%20%MHz,communication:amateur_radio:repeater:shift=-0.6%20%MHz x10.71 y59.91
+n3002 v1 dV c1 t2026-02-02T12:00:00Z i1 u Tcommunication:amateur_radio:repeater=yes,communication:amateur_radio:callsign=LA8VEST,communication:amateur_radio:repeater:frequency_out=145.675%20%MHz x5.3 y60.1

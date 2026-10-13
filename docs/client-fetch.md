@@ -125,13 +125,26 @@ Operator docs: [repeater-mirror.md](repeater-mirror.md).
 | URL | Meaning |
 |---|---|
 | `GET /repeaters/current.json` | `sources[]` with per-source countries, counts, attribution, licence |
-| `GET /repeaters/<source>/<slug>/<generation>/manifest.json` | File list + sha256 + attribution (`source` = `repeaterbook` \| `radioid`) |
-| `GET /repeaters/<source>/<slug>/<generation>/repeaters.json.zst` | zstd JSON (`schema`, `source`, `repeaters[]`) |
+| `GET /repeaters/<source>/<slug>/<generation>/manifest.json` | File list + sha256 + attribution (`source` = `repeaterbook` \| `radioid` \| `osm`) |
+| `GET /repeaters/<source>/<slug>/<generation>/repeaters.json.zst` | zstd JSON (`schema`, `source`, `repeaters[]`, OSM also `networks[]`) |
 | `GET /repeaters/<source>/<slug>/<generation>/checksums.sha256` | Checksums |
 
 Each record includes a `source` field. Attribution is embedded per source in
 `current.json` and every manifest (RepeaterBook: “Data courtesy of
-RepeaterBook.com”; RadioID provisional: “Data courtesy of RadioID.net”).
+RepeaterBook.com”; RadioID provisional: “Data courtesy of RadioID.net”; OSM:
+“© OpenStreetMap contributors”, ODbL-1.0).
+
+**OSM records** add `osm_type`, `osm_id`, `osm_version`, `osm_timestamp`,
+`updated_at` (= osm_timestamp), optional `modes` / `emission_designators`, and
+`network.relations[]`. The envelope may include `networks[]` (type=network
+relations). Border-buffered extracts can duplicate the same OSM id across
+country trees — clients dedupe by `(osm_type, osm_id)`.
+
+**Client merge precedence** (server does not merge sources):
+
+1. Missing in OSM → add from RepeaterBook / RadioID.
+2. Frequency, CTCSS, or shift conflict → newer `updated_at` wins; else keep OSM
+   and flag the conflict for the user.
 
 Clients must **not** hold upstream API tokens. Re-check `/repeaters/current.json`
 on a long interval (daily is enough; server refresh is weekly).

@@ -13,6 +13,7 @@
 #   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-datex
 #   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-repeaterbook
 #   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-radioid
+#   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-osm-repeaters
 #   /media/navi/navi-server/scripts/setup-server.sh --check
 #   /media/navi/navi-server/scripts/setup-server.sh --dry-run
 # Uninstall helpers:
@@ -20,6 +21,7 @@
 #   sudo /media/navi/navi-server/scripts/uninstall-datex-npra.sh [--purge]
 #   sudo /media/navi/navi-server/scripts/uninstall-repeaterbook.sh [--purge]
 #   sudo /media/navi/navi-server/scripts/uninstall-radioid.sh [--purge]
+#   sudo /media/navi/navi-server/scripts/uninstall-osm-repeaters.sh [--purge]
 
 set -euo pipefail
 
@@ -56,6 +58,7 @@ APPLY_DDNS=0
 APPLY_DATEX=0
 APPLY_REPEATERBOOK=0
 APPLY_RADIOID=0
+APPLY_OSM_REPEATERS=0
 CHECK_ONLY=0
 DRY_RUN=0
 while [[ $# -gt 0 ]]; do
@@ -66,10 +69,11 @@ while [[ $# -gt 0 ]]; do
     --apply-datex) APPLY_DATEX=1; shift ;;
     --apply-repeaterbook) APPLY_REPEATERBOOK=1; shift ;;
     --apply-radioid) APPLY_RADIOID=1; shift ;;
+    --apply-osm-repeaters) APPLY_OSM_REPEATERS=1; shift ;;
     --check) CHECK_ONLY=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help)
-      sed -n '2,22p' "$0"
+      sed -n '2,24p' "$0"
       exit 0
       ;;
     *) echo "unknown arg: $1" >&2; exit 1 ;;
@@ -139,6 +143,11 @@ Current flags that would apply if not --dry-run:
   APPLY_DDNS=${APPLY_DDNS} APPLY_DATEX=${APPLY_DATEX}
   APPLY_REPEATERBOOK=${APPLY_REPEATERBOOK}
   APPLY_RADIOID=${APPLY_RADIOID}
+  APPLY_OSM_REPEATERS=${APPLY_OSM_REPEATERS}
+
+--apply-osm-repeaters would (non-interactive):
+  Require osmium + zstd; set NAVI_OSM_REPEATERS_ENABLED=1
+  Create data/osm_repeaters + published/repeaters (no secrets; ODbL)
 EOF
   exit 0
 fi
@@ -643,6 +652,30 @@ path.write_text(
   log "uninstall: sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-radioid.sh [--purge]"
 }
 
+# Non-interactive OSM repeaters enable (ODbL — no permission flag / secrets).
+osm_repeaters_apply() {
+  require_root "OSM repeaters setup"
+  command -v python3 >/dev/null 2>&1 || fail "python3 not found"
+  command -v zstd >/dev/null 2>&1 || fail "zstd not found (apt install zstd)"
+  command -v osmium >/dev/null 2>&1 || fail "osmium not found (apt install osmium-tool)"
+  [[ -x "${NAVI_SERVER_ROOT}/scripts/osm-repeaters.sh" ]] \
+    || fail "missing executable ${NAVI_SERVER_ROOT}/scripts/osm-repeaters.sh"
+
+  mkdir -p "${DATA}/osm_repeaters/staging" "${DATA}/published/repeaters"
+  touch "${DATA}/config.env"
+  if grep -q '^NAVI_OSM_REPEATERS_ENABLED=' "${DATA}/config.env" 2>/dev/null; then
+    sed -i 's/^NAVI_OSM_REPEATERS_ENABLED=.*/NAVI_OSM_REPEATERS_ENABLED=1/' "${DATA}/config.env"
+  else
+    printf '%s\n' 'NAVI_OSM_REPEATERS_ENABLED=1' >>"${DATA}/config.env"
+  fi
+  chown -R "${SERVICE_USER}:${SERVICE_USER}" "${DATA}/osm_repeaters" \
+    "${DATA}/published/repeaters" 2>/dev/null || true
+  chmod 700 "${DATA}/osm_repeaters"
+  log "NAVI_OSM_REPEATERS_ENABLED=1 (runs from weekly bake after publish; soft-fail)"
+  log "manual run: sudo -u ${SERVICE_USER} ${NAVI_SERVER_ROOT}/scripts/osm-repeaters.sh"
+  log "uninstall: sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-osm-repeaters.sh [--purge]"
+}
+
 if [[ "$CHECK_ONLY" -eq 1 ]]; then
   echo "== navi-server setup check =="
   echo "root: ${NAVI_SERVER_ROOT}"
@@ -729,6 +762,16 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
     echo "OK REPEATERBOOK_PERMISSION_CONFIRMED=1"
   else
     echo "OK REPEATERBOOK_PERMISSION_CONFIRMED off/absent (no upstream fetch)"
+  fi
+  if [[ -f "${DATA}/config.env" ]] && grep -q '^NAVI_OSM_REPEATERS_ENABLED=1' "${DATA}/config.env" 2>/dev/null; then
+    echo "OK OSM repeaters feature flag ENABLED in config.env"
+  else
+    echo "OK OSM repeaters feature flag off/absent (inert default)"
+  fi
+  if command -v osmium >/dev/null 2>&1; then
+    echo "OK osmium ($(osmium --version 2>/dev/null | head -1))"
+  else
+    echo "MISSING osmium (needed for --apply-osm-repeaters / weekly extract)"
   fi
   if command -v apache2ctl >/dev/null 2>&1; then
     apache2ctl -S 2>&1 | grep -E 'navi-packs|\*:80' || true
@@ -862,10 +905,14 @@ if [[ "$APPLY_RADIOID" -eq 1 ]]; then
   radioid_apply
 fi
 
+if [[ "$APPLY_OSM_REPEATERS" -eq 1 ]]; then
+  osm_repeaters_apply
+fi
+
 if [[ "$APPLY_APACHE" -eq 1 ]]; then
   require_root "--apply-apache"
   apache_apply
-elif [[ "$(id -u)" -eq 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 && "$APPLY_REPEATERBOOK" -eq 0 && "$APPLY_RADIOID" -eq 0 ]]; then
+elif [[ "$(id -u)" -eq 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 && "$APPLY_REPEATERBOOK" -eq 0 && "$APPLY_RADIOID" -eq 0 && "$APPLY_OSM_REPEATERS" -eq 0 ]]; then
   # Full sudo run without flags: configure Apache + service user, then offer DATEX.
   apache_apply
   navit_server_apply
@@ -874,7 +921,7 @@ elif [[ "$(id -u)" -eq 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$A
   else
     log "DATEX left disabled (non-interactive; re-run with --apply-datex on a TTY to enable)"
   fi
-elif [[ "$(id -u)" -ne 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_APACHE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 && "$APPLY_REPEATERBOOK" -eq 0 && "$APPLY_RADIOID" -eq 0 ]]; then
+elif [[ "$(id -u)" -ne 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_APACHE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 && "$APPLY_REPEATERBOOK" -eq 0 && "$APPLY_RADIOID" -eq 0 && "$APPLY_OSM_REPEATERS" -eq 0 ]]; then
   cat <<EOF
 
 Apache / dedicated service user / optional plugins are not configured by this non-root run. Apply with:
@@ -893,6 +940,9 @@ Apache / dedicated service user / optional plugins are not configured by this no
   # Optional RadioID mirror (optional token; permission flag stays 0):
   sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-radioid
   sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-radioid.sh [--purge]
+  # Optional OSM amateur-radio extract (ODbL; no secrets; weekly soft-fail):
+  sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-osm-repeaters
+  sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-osm-repeaters.sh [--purge]
 
 Or full sudo setup (Apache + service + DATEX yes/no prompt):
 
