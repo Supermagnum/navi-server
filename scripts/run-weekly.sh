@@ -145,6 +145,22 @@ else
   log_info "skip publish"
 fi
 
+# 3b. OSM amateur-radio repeaters (optional; soft-fail). Runs before cleanup so
+# held PBFs are still present (cleanup may drop oversize extracts).
+if [[ -x "${SCRIPT_DIR}/osm-repeaters.sh" ]]; then
+  set +e
+  "${SCRIPT_DIR}/osm-repeaters.sh"
+  osm_rc=$?
+  set -e
+  if [[ "$osm_rc" -ne 0 ]]; then
+    log_warn "osm-repeaters soft-fail rc=${osm_rc} (bake continues)"
+  else
+    log_info "osm-repeaters step ok"
+  fi
+else
+  log_info "osm-repeaters.sh absent — skip"
+fi
+
 # 4. Cleanup / disk report (self-maintaining scrub).
 # Skip age-based extract prune (--no-extracts) so held PBFs survive for
 # Geofabrik incremental. cleanup.sh still enforces NAVI_HELD_PBF_BUDGET_GIB /

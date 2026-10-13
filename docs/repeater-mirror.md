@@ -1,10 +1,13 @@
-# Repeater mirrors (RepeaterBook + RadioID)
+# Repeater mirrors (RepeaterBook + RadioID + OSM)
 
-**Status:** implemented, **off by default**. Not part of the pack-bake pipeline.
+**Status:** implemented, **off by default**. RepeaterBook/RadioID are not part
+of the pack-bake pipeline. OSM extract runs from held weekly PBFs when enabled
+(soft-fail inside `run-weekly.sh`).
 
 Navi clients never hold upstream keys and never call RepeaterBook or RadioID.
-When enabled + permission-confirmed per source, this host fetches, normalizes,
-and publishes read-only HTTPS trees under `/repeaters/<source>/…`.
+When enabled + permission-confirmed per commercial source, this host fetches,
+normalizes, and publishes read-only HTTPS trees under `/repeaters/<source>/…`.
+OSM uses ODbL only (no permission flag / secrets).
 
 ---
 
@@ -15,12 +18,12 @@ GET /repeaters/current.json
 GET /repeaters/<source>/<slug>/<generation>/manifest.json
 GET /repeaters/<source>/<slug>/<generation>/repeaters.json.zst
 GET /repeaters/<source>/<slug>/<generation>/checksums.sha256
-# source = repeaterbook | radioid
+# source = repeaterbook | radioid | osm
 ```
 
 `current.json` lists **sources**; each source has `attribution`, optional
 `licence`, and a `countries[]` array (`manifest_url`, `data_url`, counts,
-generation). Each record includes `"source": "repeaterbook"|"radioid"`.
+generation). Each record includes `"source": "repeaterbook"|"radioid"|"osm"`.
 
 Payload: zstd JSON (not SQLite) — small country extracts, no SQL dependency.
 
@@ -32,6 +35,7 @@ Payload: zstd JSON (not SQLite) — small country extracts, no SQL dependency.
 |---|---|---|
 | RepeaterBook | `REPEATERBOOK_PERMISSION_CONFIRMED=1` | no fetch, no publish |
 | RadioID | `RADIOID_PERMISSION_CONFIRMED=1` | no fetch, no publish |
+| OSM | `NAVI_OSM_REPEATERS_ENABLED=1` only (ODbL) | inert exit |
 
 Set each flag only after **written permission** covering caching, redistribution
 to Navi users, and offline use on devices.
@@ -183,6 +187,41 @@ sudo -u navit-server bash -c 'sed -i "s/^RADIOID_PERMISSION_CONFIRMED=.*/RADIOID
 | HTTP 429 | Backoff exhausted; last good data kept |
 | Wrong permissions on key file | File readable by group/other — refused |
 | RadioID records without lat/lon | Normal when map has null coords; `position_null: true` |
+| OSM inert exit | `NAVI_OSM_REPEATERS_ENABLED!=1` |
+| OSM country skipped, others OK | Missing held PBF for that country; last good kept |
+| Many `entry_kind=aprs` | Expected — ~280 APRS digipeaters in Norway tagged `20K0F2D` / 144.800 |
+
+---
+
+## OSM amateur-radio extract
+
+**Source of truth:** held Geofabrik / OSM.fr extracts already used by the weekly
+bake (`NAVI_EXTRACTS_DIR/<region_id>-latest.osm.pbf`). No planet download, no
+pack re-bake.
+
+**Tags:** elements with `communication:amateur_radio:repeater` (plus related
+frequency/shift/CTCSS/modulation tags) and `type=network` relations that group
+them. Output under `/repeaters/osm/<iso-slug>/` (one tree per country the weekly
+regions cover). Override with `NAVI_OSM_REPEATERS_COUNTRIES=no=europe/norway,…`.
+
+**Schema extras:** `osm_type` / `osm_id` / `osm_version` / `osm_timestamp` /
+`updated_at`, `networks[]` on the envelope, `emission_designators`, APRS
+classification (`entry_kind=aprs`, `exclude_recommended=true`). Attribution:
+© OpenStreetMap contributors, licence ODbL-1.0.
+
+**APRS note:** a large share of amateur_radio=repeater objects are digipeaters
+(`20K0F2D` / 144.800 MHz). Clients should honour `exclude_recommended`.
+
+**Border buffers:** Geofabrik extracts overlap borders; the same OSM id can
+appear in two country trees. Clients dedupe by `(osm_type, osm_id)`.
+
+```bash
+sudo /media/navi/navi-server/scripts/setup-server.sh --apply-osm-repeaters
+sudo -u navit-server /media/navi/navi-server/scripts/osm-repeaters.sh
+sudo /media/navi/navi-server/scripts/uninstall-osm-repeaters.sh [--purge]
+```
+
+Weekly wiring: after publish, before cleanup, soft-fail.
 
 ---
 
@@ -191,10 +230,11 @@ sudo -u navit-server bash -c 'sed -i "s/^RADIOID_PERMISSION_CONFIRMED=.*/RADIOID
 ```bash
 sudo /media/navi/navi-server/scripts/setup-server.sh --apply-repeaterbook
 sudo /media/navi/navi-server/scripts/setup-server.sh --apply-radioid
+sudo /media/navi/navi-server/scripts/setup-server.sh --apply-osm-repeaters
 ```
 
 Shared timer **Wed 03:30 UTC**: `navi-repeaterbook.timer` → `repeater-mirror-all.sh`
-(RepeaterBook then RadioID; failure isolation).
+(RepeaterBook then RadioID; failure isolation). OSM runs from `run-weekly.sh`.
 
 ### Live tree update after merge
 
@@ -208,6 +248,7 @@ sudo apache2ctl configtest && sudo systemctl reload apache2
 ### Tests / dry-run
 
 ```bash
-python3 -m unittest plugins.repeaterbook.tests.test_repeaterbook plugins.radioid.tests.test_radioid -v
+python3 -m unittest plugins.repeaterbook.tests.test_repeaterbook plugins.radioid.tests.test_radioid plugins.osm_repeaters.tests.test_osm_repeaters -v
 ./scripts/test-repeater-mirror.sh
+./scripts/test-osm-repeaters.sh
 ```

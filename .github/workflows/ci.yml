@@ -59,8 +59,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install zstd (repeaterbook publish)
-        run: sudo apt-get update && sudo apt-get install -y zstd
+      - name: Install zstd + osmium-tool (repeater / OSM publish)
+        run: sudo apt-get update && sudo apt-get install -y zstd osmium-tool
 
       - name: DATEX + repeater mirror unit tests
         run: |
@@ -70,10 +70,14 @@ jobs:
             plugins.datex_npra.tests.test_datex_npra \
             plugins.repeaterbook.tests.test_repeaterbook \
             plugins.radioid.tests.test_radioid \
+            plugins.osm_repeaters.tests.test_osm_repeaters \
             -v
 
       - name: Repeater mirror fixture dry-run (both sources)
         run: ./scripts/test-repeater-mirror.sh
+
+      - name: OSM repeaters fixture dry-run (+ RB/RadioID)
+        run: ./scripts/test-osm-repeaters.sh
 
       - name: Server migrate smoke (local-dest)
         run: ./scripts/test-migrate-server.sh

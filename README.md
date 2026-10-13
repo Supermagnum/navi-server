@@ -459,13 +459,18 @@ flag before any fetch. Full docs:
 ```bash
 sudo /media/navi/navi-server/scripts/setup-server.sh --apply-repeaterbook
 sudo /media/navi/navi-server/scripts/setup-server.sh --apply-radioid
+sudo /media/navi/navi-server/scripts/setup-server.sh --apply-osm-repeaters
 ./scripts/test-repeater-mirror.sh
+./scripts/test-osm-repeaters.sh
 sudo /media/navi/navi-server/scripts/uninstall-repeaterbook.sh [--purge]
 sudo /media/navi/navi-server/scripts/uninstall-radioid.sh [--purge]
+sudo /media/navi/navi-server/scripts/uninstall-osm-repeaters.sh [--purge]
 ```
 
+OSM extract reads held weekly PBFs only (ODbL; soft-fail in `run-weekly.sh`).
 Client paths: `GET /repeaters/current.json` and
-`/repeaters/<source>/<slug>/<generation>/repeaters.json.zst` — see
+`/repeaters/<source>/<slug>/<generation>/repeaters.json.zst` (`source` =
+`repeaterbook` \| `radioid` \| `osm`) — see
 [`docs/client-fetch.md`](docs/client-fetch.md#repeater-mirrors-optional).
 
 ### Migrate to another host (SSH)

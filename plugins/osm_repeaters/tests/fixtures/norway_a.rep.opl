@@ -1,0 +1,9 @@
+n1001 v3 dV c1 t2026-01-01T10:00:00Z i1 u Tcommunication:amateur_radio:repeater=yes,communication:amateur_radio:callsign=LA1FM,communication:amateur_radio:repeater:frequency_out=145.625%20%MHz,communication:amateur_radio:repeater:shift=-0.6%20%Mhz,communication:amateur_radio:repeater:ctcss=88.5hz,name=Test%20%FM x10.69 y60.79
+n1002 v1 dV c1 t2026-01-02T10:00:00Z i1 u Tcommunication:amateur_radio:repeater=yes,communication:amateur_radio:callsign=LA2MM,communication:amateur_radio:repeater:frequency_out=434.825%20%MHz,communication:amateur_radio:repeater:modulation=11K2F3E;7K60FXE x10.7 y60.8
+n1003 v1 dV c1 t2026-01-03T10:00:00Z i1 u Tcommunication:amateur_radio:repeater=yes,communication:amateur_radio:callsign=LA3APRS,communication:amateur_radio:repeater:frequency_out=144.800%20%MHz,communication:amateur_radio:repeater:modulation=20K0F2D x10.71 y60.81
+n1004 v1 dV c1 t2026-01-04T10:00:00Z i1 u Tcommunication:amateur_radio:repeater=no,communication:amateur_radio:callsign=LA4NO x10.72 y60.82
+n1005 v1 dV c1 t2026-01-05T10:00:00Z i1 u Tcommunication:amateur_radio:repeater=LA5VAL,communication:amateur_radio:repeater:frequency_out=145.600000 x10.73 y60.83
+n1010 v1 dV c1 t2026-01-01T00:00:00Z i1 u x10.74 y60.84
+n1011 v1 dV c1 t2026-01-01T00:00:00Z i1 u x10.741 y60.841
+w2001 v2 dV c1 t2026-01-06T10:00:00Z i1 u Tcommunication:amateur_radio:repeater=yes,communication:amateur_radio:callsign=LA6WAY,communication:amateur_radio:repeater:frequency_out=145.700%20%MHz,communication:amateur_radio:repeater:shift=-0.6%20%MHz Nn1010,n1011
+n3001 v1 dV c1 t2026-01-01T12:00:00Z i1 u Tcommunication:amateur_radio:repeater=yes,communication:amateur_radio:callsign=LA7DUP,communication:amateur_radio:repeater:frequency_out=145.650%20%MHz x10.7 y59.9
