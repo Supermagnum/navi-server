@@ -233,17 +233,21 @@ impl LatLonSamples {
     }
 
     /// `[min_lat, min_lon, max_lat, max_lon]` at the given sorted percentiles.
-    fn percentile_bbox(&mut self, low: f64, high: f64) -> [f64; 4] {
-        self.lats
-            .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        self.lons
-            .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        [
-            percentile_sorted(&self.lats, low),
-            percentile_sorted(&self.lons, low),
-            percentile_sorted(&self.lats, high),
-            percentile_sorted(&self.lons, high),
-        ]
+    ///
+    /// Sorts latitude and longitude independently (order statistics only).
+    fn percentile_bbox(&self, low: f64, high: f64) -> [f64; 4] {
+        region_bbox_from_samples(&self.lats, &self.lons, low, high, 0.0)
+    }
+
+    /// Percentile core plus near-tail expansion for convert tiling.
+    ///
+    /// `expand_deg == 0` is pure percentiles. Non-zero expands each edge to the
+    /// min/max of sampled nodes that still lie inside the core box grown by
+    /// `expand_deg`, so sparse coastal islands just outside the 0.5/99.5 cut
+    /// (Fehmarn / Puttgarden) stay in-region while continent-scale garbage
+    /// coordinates stay out.
+    fn region_bbox(&self, low: f64, high: f64, expand_deg: f64) -> [f64; 4] {
+        region_bbox_from_samples(&self.lats, &self.lons, low, high, expand_deg)
     }
 }
 
@@ -251,6 +255,58 @@ fn percentile_sorted(v: &[f64], p: f64) -> f64 {
     let idx = ((v.len() as f64 - 1.0) * p).round() as usize;
     v[idx.min(v.len().saturating_sub(1))]
 }
+
+/// Pure bbox helper (kept free of `self` mutability so unit tests can feed
+/// synthetic paired samples without building a PBF).
+fn region_bbox_from_samples(
+    lats: &[f64],
+    lons: &[f64],
+    low: f64,
+    high: f64,
+    expand_deg: f64,
+) -> [f64; 4] {
+    debug_assert_eq!(lats.len(), lons.len());
+    let mut sorted_lats: Vec<f64> = lats.to_vec();
+    let mut sorted_lons: Vec<f64> = lons.to_vec();
+    sorted_lats.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    sorted_lons.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let mut out = [
+        percentile_sorted(&sorted_lats, low),
+        percentile_sorted(&sorted_lons, low),
+        percentile_sorted(&sorted_lats, high),
+        percentile_sorted(&sorted_lons, high),
+    ];
+    if expand_deg <= 0.0 || lats.is_empty() {
+        return out;
+    }
+    let h_lat0 = out[0] - expand_deg;
+    let h_lon0 = out[1] - expand_deg;
+    let h_lat1 = out[2] + expand_deg;
+    let h_lon1 = out[3] + expand_deg;
+    for (&lat, &lon) in lats.iter().zip(lons.iter()) {
+        if lat < h_lat0 || lat > h_lat1 || lon < h_lon0 || lon > h_lon1 {
+            continue;
+        }
+        if lat < out[0] {
+            out[0] = lat;
+        }
+        if lon < out[1] {
+            out[1] = lon;
+        }
+        if lat > out[2] {
+            out[2] = lat;
+        }
+        if lon > out[3] {
+            out[3] = lon;
+        }
+    }
+    out
+}
+
+/// Halo around the 0.5/99.5 percentile core when deriving convert tile grids.
+/// Large enough for Fehmarn/Helgoland-class fringe islands; small enough that
+/// cross-continent garbage nodes still fall outside.
+const REGION_BBOX_EXPAND_DEG: f64 = 2.0;
 
 fn scan_blob_latlon_samples(
     acc: &mut LatLonSamples,
@@ -280,17 +336,9 @@ fn scan_blob_latlon_samples(
     }
 }
 
-/// Order-independent node bounding box with percentile trim.
-///
-/// Parallel blob fold/reduce keeps a **content-hash thinned** subset of
-/// coordinates (~1/{[`BBOX_SAMPLE_PERIOD`]}), merges worker samples, sorts
-/// once, and takes exact percentiles. Same 0.5/99.5 semantics as a full
-/// collect for region tiling, without materializing tens of millions of
-/// floats. Membership does not depend on arrival order (unlike reservoir
-/// sampling). Cooperative yield matches [`for_each_pbf_elements`].
-pub fn pbf_latlon_percentile_bounds(path: &Path, low: f64, high: f64) -> anyhow::Result<[f64; 4]> {
+fn sample_pbf_latlon(path: &Path) -> anyhow::Result<LatLonSamples> {
     let yield_to_plan = BACKGROUND_INDEXER.with(|c| c.get());
-    let mut samples = BlobReader::from_path(path)?
+    let samples = BlobReader::from_path(path)?
         .par_bridge()
         .try_fold(
             LatLonSamples::empty,
@@ -308,7 +356,27 @@ pub fn pbf_latlon_percentile_bounds(path: &Path, low: f64, high: f64) -> anyhow:
         "CONVERT_PHASE bbox samples kept={} (period={BBOX_SAMPLE_PERIOD})",
         samples.lats.len()
     );
+    Ok(samples)
+}
+
+/// Order-independent node bounding box with percentile trim.
+///
+/// Parallel blob fold/reduce keeps a **content-hash thinned** subset of
+/// coordinates (~1/{[`BBOX_SAMPLE_PERIOD`]}), merges worker samples, sorts
+/// once, and takes exact percentiles. Same 0.5/99.5 semantics as a full
+/// collect for region tiling, without materializing tens of millions of
+/// floats. Membership does not depend on arrival order (unlike reservoir
+/// sampling). Cooperative yield matches [`for_each_pbf_elements`].
+pub fn pbf_latlon_percentile_bounds(path: &Path, low: f64, high: f64) -> anyhow::Result<[f64; 4]> {
+    let samples = sample_pbf_latlon(path)?;
     Ok(samples.percentile_bbox(low, high))
+}
+
+/// Convert tiling bounds: 0.5/99.5 percentile core plus a
+/// [`REGION_BBOX_EXPAND_DEG`] near-tail halo (see [`LatLonSamples::region_bbox`]).
+pub fn pbf_latlon_region_bounds(path: &Path) -> anyhow::Result<[f64; 4]> {
+    let samples = sample_pbf_latlon(path)?;
+    Ok(samples.region_bbox(0.005, 0.995, REGION_BBOX_EXPAND_DEG))
 }
 
 /// Parallel blob-decode PBF scan.
@@ -435,6 +503,50 @@ mod tests {
         let _g = lock_bbox_build();
         assert!(!INSIDE.load(Ordering::SeqCst));
         h.join().unwrap();
+    }
+
+    #[test]
+    fn region_bbox_keeps_fehmarn_fringe_rejects_far_garbage() {
+        // Dense SH mainland cluster (drives 0.5/99.5), sparse Fehmarn tip, and a
+        // continent-away garbage node (must not inflate tiling).
+        let mut lats = Vec::new();
+        let mut lons = Vec::new();
+        for i in 0..10_000 {
+            lats.push(54.0 + (i as f64) * 1e-5);
+            lons.push(9.0 + (i as f64) * 1e-4); // ~9.0 .. 10.0
+        }
+        // Puttgarden-class fringe (~0.06° past a percentile cut near 10.0).
+        lats.push(54.50255);
+        lons.push(11.22802);
+        // Far garbage (Helsinki-scale ferry endpoint / bad OSM coord).
+        lats.push(60.17);
+        lons.push(24.94);
+
+        let core = region_bbox_from_samples(&lats, &lons, 0.005, 0.995, 0.0);
+        assert!(
+            core[3] < 11.0,
+            "percentile-only east should exclude Fehmarn fringe: {core:?}"
+        );
+
+        let expanded = region_bbox_from_samples(&lats, &lons, 0.005, 0.995, REGION_BBOX_EXPAND_DEG);
+        assert!(
+            expanded[3] >= 11.22802 - 1e-9,
+            "halo must include Puttgarden lon: {expanded:?}"
+        );
+        assert!(
+            expanded[3] < 20.0,
+            "halo must not include far garbage lon: {expanded:?}"
+        );
+        assert!(
+            expanded[2] < 60.0,
+            "halo must not include far garbage lat: {expanded:?}"
+        );
+        // Near-tail recovery may also pull in the dense cluster's own
+        // percentile-trimmed fringe; that is intentional.
+        assert!(expanded[0] <= core[0]);
+        assert!(expanded[1] <= core[1]);
+        assert!(expanded[2] >= core[2]);
+        assert!(expanded[3] >= core[3]);
     }
 
     #[test]
