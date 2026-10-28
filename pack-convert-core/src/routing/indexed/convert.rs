@@ -317,11 +317,12 @@ fn stem_of(pbf: &Path) -> String {
 
 /// Scan PBF node extents so we can use the memory-safe bbox builder.
 ///
-/// Uses 0.5–99.5 percentiles over all node coordinates (parallel merge-sort,
-/// order-independent) so a few garbage OSM coordinates do not inflate tiling
-/// into hundreds of empty cells.
+/// Uses a 0.5–99.5 percentile core (rejects continent-scale garbage OSM
+/// coordinates) then expands to sampled nodes within 2° of that core so
+/// sparse fringe islands just outside the percentile cut stay inside the
+/// tile grid (Schleswig-Holstein / Fehmarn / Puttgarden).
 fn pbf_node_bbox(pbf: &Path) -> anyhow::Result<[f64; 4]> {
-    let raw = crate::download::pbf_priority::pbf_latlon_percentile_bounds(pbf, 0.005, 0.995)?;
+    let raw = crate::download::pbf_priority::pbf_latlon_region_bounds(pbf)?;
     // Small pad so boundary ways are not clipped away.
     Ok([raw[0] - 0.02, raw[1] - 0.02, raw[2] + 0.02, raw[3] + 0.02])
 }
