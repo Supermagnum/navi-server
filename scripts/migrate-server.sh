@@ -23,6 +23,11 @@
 # Env overrides (tests / wrappers):
 #   MIGRATE_SSH_CMD   default: ssh
 #   MIGRATE_RSYNC     default: rsync
+#   MIGRATE_SKIP_APT  set to 1 to skip apt install (check-only)
+#
+# Auto-installs missing host deps via apt when possible:
+#   local:  rsync, python3, and openssh-client (when using --dest)
+#   remote: rsync, python3
 #
 # Never prints secret file contents.
 
@@ -36,6 +41,7 @@ SSH_CMD="${MIGRATE_SSH_CMD:-ssh}"
 RSYNC_BIN="${MIGRATE_RSYNC:-rsync}"
 DEFAULT_REMOTE_ROOT="/media/navi/navi-server"
 SERVICE_USER="${NAVI_SERVICE_USER:-navit-server}"
+SKIP_APT="${MIGRATE_SKIP_APT:-0}"
 
 DEST_SPEC=""
 LOCAL_DEST=""
@@ -46,11 +52,95 @@ COMPONENTS="packs,jobs,secrets"
 SSH_OPTS=(-o BatchMode=yes -o StrictHostKeyChecking=accept-new)
 
 usage() {
-  sed -n '2,30p' "$0"
+  sed -n '2,35p' "$0"
   exit "${1:-0}"
 }
 
 log() { echo "[migrate] $*"; }
+
+apt_install_local() {
+  local -a pkgs=("$@")
+  [[ "${#pkgs[@]}" -eq 0 ]] && return 0
+  if [[ "${SKIP_APT}" == "1" ]]; then
+    die "missing apt packages (MIGRATE_SKIP_APT=1): ${pkgs[*]} — install with: sudo apt-get install -y ${pkgs[*]}"
+  fi
+  log "installing local apt packages: ${pkgs[*]}"
+  if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+    DEBIAN_FRONTEND=noninteractive apt-get install -y "${pkgs[@]}"
+  elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y "${pkgs[@]}"
+  else
+    die "missing packages: ${pkgs[*]} — install with: sudo apt-get install -y ${pkgs[*]}"
+  fi
+}
+
+# Ensure migrate host tools exist; apt-install by role when the command is missing.
+# Args: pairs of <command> <apt-package> (package may be empty to mean check-only).
+ensure_local_cmds() {
+  local -a need_pkgs=()
+  local -a need_cmds=()
+  local cmd pkg
+  while [[ $# -gt 0 ]]; do
+    cmd="$1"
+    pkg="${2:-}"
+    shift 2 || die "ensure_local_cmds: odd number of args (want cmd pkg pairs)"
+    need_cmds+=("$cmd")
+    if command -v "$cmd" >/dev/null 2>&1; then
+      continue
+    fi
+    if [[ -n "$pkg" ]]; then
+      need_pkgs+=("$pkg")
+    fi
+  done
+  if [[ "${#need_pkgs[@]}" -gt 0 ]]; then
+    local -A seen=()
+    local -a uniq=()
+    local p
+    for p in "${need_pkgs[@]}"; do
+      [[ -n "${seen[$p]:-}" ]] && continue
+      seen[$p]=1
+      uniq+=("$p")
+    done
+    apt_install_local "${uniq[@]}"
+  fi
+  require_cmd "${need_cmds[@]}"
+}
+
+ensure_remote_cmds() {
+  # Install rsync + python3 on the destination when missing (apt; passwordless sudo ok).
+  if [[ "${SKIP_APT}" == "1" ]]; then
+    remote_cmd "command -v rsync >/dev/null && command -v python3 >/dev/null" \
+      || die "remote needs rsync + python3 (MIGRATE_SKIP_APT=1)"
+    return 0
+  fi
+  local status
+  set +e
+  remote_cmd "$(cat <<'EOS'
+set -euo pipefail
+need=()
+command -v rsync >/dev/null 2>&1 || need+=(rsync)
+command -v python3 >/dev/null 2>&1 || need+=(python3)
+if [[ ${#need[@]} -eq 0 ]]; then
+  exit 0
+fi
+echo "[migrate] remote missing: ${need[*]}"
+if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+  DEBIAN_FRONTEND=noninteractive apt-get install -y "${need[@]}"
+elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+  sudo -n env DEBIAN_FRONTEND=noninteractive apt-get install -y "${need[@]}"
+else
+  echo "[migrate] remote needs: sudo apt-get install -y ${need[*]}"
+  exit 2
+fi
+command -v rsync >/dev/null && command -v python3 >/dev/null
+EOS
+)"
+  status=$?
+  set -e
+  if [[ "$status" -ne 0 ]]; then
+    die "remote needs rsync + python3 — on dest: sudo apt-get install -y rsync python3"
+  fi
+}
 
 parse_dest() {
   local spec="$1"
@@ -149,14 +239,13 @@ if [[ -n "$LOCAL_DEST" ]]; then
   DEST_HOST="local"
   DEST_ROOT="$(cd "$LOCAL_DEST" 2>/dev/null && pwd || true)"
   [[ -n "$DEST_ROOT" ]] || { mkdir -p "$LOCAL_DEST"; DEST_ROOT="$(cd "$LOCAL_DEST" && pwd)"; }
+  ensure_local_cmds "$RSYNC_BIN" rsync python3 python3
 elif [[ -n "$DEST_SPEC" ]]; then
   parse_dest "$DEST_SPEC"
-  require_cmd "$SSH_CMD"
+  ensure_local_cmds "$SSH_CMD" openssh-client "$RSYNC_BIN" rsync python3 python3
 else
   die "required: --dest user@host[/path] or --local-dest /path"
 fi
-
-require_cmd "$RSYNC_BIN" python3
 
 SRC_ROOT="${NAVI_SERVER_ROOT}"
 SRC_DATA="${SRC_ROOT}/data"
@@ -185,8 +274,7 @@ else
     || die "remote root missing: ${DEST_ROOT}"
   remote_cmd "test -d $(printf '%q' "${DEST_ROOT}/scripts")" \
     || die "remote missing scripts/ (install navi-server checkout first)"
-  remote_cmd "command -v rsync >/dev/null && command -v python3 >/dev/null" \
-    || die "remote needs rsync + python3"
+  ensure_remote_cmds
 fi
 
 INVENTORY_DIR="$(mktemp -d "${TMPDIR:-/tmp}/navi-migrate.XXXXXX")"

@@ -9,7 +9,12 @@ destination is in working order.
 1. Destination has a full **git checkout** of navi-server (scripts/systemd present).
 2. SSH key auth to `user@dest` (BatchMode). Prefer a user that can write
    `data/` (or run the script as root so rsync can preserve ownership).
-3. On dest, create the service user / units when ready:
+3. Host tools: `rsync`, `python3`, and (for `--dest`) `ssh` / `openssh-client`.
+   `migrate-server.sh` apt-installs these on the source and destination when
+   missing if root or passwordless `sudo` is available; otherwise it prints the
+   exact `sudo apt-get install -y …` command. Set `MIGRATE_SKIP_APT=1` to
+   check-only.
+4. On dest, create the service user / units when ready:
    `sudo ./scripts/setup-server.sh --apply-service` (and optional
    `--apply-datex` / `--apply-ddns` / `--apply-repeaterbook` / `--apply-radioid`).
 
