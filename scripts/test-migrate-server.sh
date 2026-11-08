@@ -93,13 +93,14 @@ echo "=== help mentions ssh ==="
 help_out="$("$SRC/scripts/migrate-server.sh" --help || true)"
 assert_contains "$help_out" "SSH" "help mentions SSH"
 assert_contains "$help_out" "--dest" "help mentions --dest"
+assert_contains "$help_out" "apt" "help mentions apt deps"
 
 echo "=== dry-run local ==="
-"$SRC/scripts/migrate-server.sh" --local-dest "$DST" --dry-run
+MIGRATE_SKIP_APT=1 "$SRC/scripts/migrate-server.sh" --local-dest "$DST" --dry-run
 assert_eq "0" "0" "dry-run completed"
 
 echo "=== migrate local ==="
-"$SRC/scripts/migrate-server.sh" --local-dest "$DST"
+MIGRATE_SKIP_APT=1 "$SRC/scripts/migrate-server.sh" --local-dest "$DST"
 assert_file "$DST/data/published/current.json" "packs current.json"
 assert_file "$DST/data/secrets/radioid.env" "secrets file"
 assert_mode "$DST/data/secrets/radioid.env" "600" "secret mode 0600"
@@ -127,8 +128,19 @@ else
 fi
 
 echo "=== verify-only ==="
-"$SRC/scripts/migrate-server.sh" --local-dest "$DST" --verify-only
+MIGRATE_SKIP_APT=1 "$SRC/scripts/migrate-server.sh" --local-dest "$DST" --verify-only
 assert_eq "$?" "0" "verify-only exit (captured above via set -e)"
+
+echo "=== skip-apt missing cmd message ==="
+set +e
+MIGRATE_SKIP_APT=1 MIGRATE_RSYNC=/usr/bin/definitely-missing-rsync-for-test \
+  "$SRC/scripts/migrate-server.sh" --local-dest "$DST" --dry-run \
+  >/tmp/migrate-skip-apt.out 2>&1
+rc=$?
+set -e
+assert_eq "$rc" "1" "missing rsync exits 1 under MIGRATE_SKIP_APT"
+assert_contains "$(cat /tmp/migrate-skip-apt.out)" "apt-get install -y rsync" \
+  "skip-apt prints apt install for rsync"
 
 echo "=== refuses missing --dest ==="
 set +e
