@@ -69,6 +69,12 @@ load_config() {
   : "${NAVI_PLACE_SOURCE_PARALLEL:=2}"
   : "${NAVI_PLACE_SOURCE_BIN:=}"
   : "${NAVI_KEEP_GENERATIONS:=2}"
+  # Published pack retention (cleanup.sh / pack_retention.py).
+  # count = keep newest NAVI_KEEP_GENERATIONS per region (default; prior behaviour).
+  # grace = keep current.json gen forever; non-current until NAVI_GRACE_DAYS after
+  #         superseded (publish stamp of the newer gen); KEEP still caps count.
+  : "${NAVI_RETENTION_MODE:=count}"
+  : "${NAVI_GRACE_DAYS:=7}"
   : "${NAVI_QUOTA_WARN_PCT:=85}"
   : "${NAVI_QUOTA_FAIL_PCT:=95}"
   # Optional ZFS dataset name for quota reporting; empty / missing → df on pack root.

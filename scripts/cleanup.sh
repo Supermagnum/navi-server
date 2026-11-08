@@ -20,6 +20,14 @@
 #   ./cleanup.sh --no-extracts   # skip age-delete (same as default); still budget
 #   ./cleanup.sh --prune-extracts  # age-delete extracts (opt-in); then budget
 #   ./cleanup.sh --report-only   # disk report only, no deletes
+#   ./cleanup.sh --dry-run       # pack retention plan only; no deletes anywhere
+#
+# Published pack retention (per region under published/packs/):
+#   NAVI_RETENTION_MODE=count|grace (default count)
+#   NAVI_GRACE_DAYS=7             (grace mode: days after superseded)
+#   NAVI_KEEP_GENERATIONS         (upper cap in both modes)
+# Superseded = publish UTC stamp of the next-newer gen for that region
+# (see scripts/lib/pack_retention.py).
 #
 # Installed as a daily systemd timer by setup-server.sh --apply-service
 # (navi-pack-scrub.timer; ExecStart passes --no-extracts). Also runs at the
@@ -39,7 +47,10 @@ case "${NAVI_SCRUB_PRUNE_EXTRACTS:-0}" in
 esac
 
 KEEP="${NAVI_KEEP_GENERATIONS}"
+RETENTION_MODE="${NAVI_RETENTION_MODE:-count}"
+GRACE_DAYS="${NAVI_GRACE_DAYS:-7}"
 REPORT_ONLY=0
+DRY_RUN=0
 SKIP_QUOTA_GATE=0
 
 while [[ $# -gt 0 ]]; do
@@ -47,10 +58,13 @@ while [[ $# -gt 0 ]]; do
     --prune-extracts) PRUNE_EXTRACTS=1; shift ;;
     --no-extracts) PRUNE_EXTRACTS=0; shift ;;
     --keep) KEEP="$2"; shift 2 ;;
+    --retention-mode) RETENTION_MODE="$2"; shift 2 ;;
+    --grace-days) GRACE_DAYS="$2"; shift 2 ;;
     --report-only) REPORT_ONLY=1; shift ;;
+    --dry-run) DRY_RUN=1; shift ;;
     --skip-quota-gate) SKIP_QUOTA_GATE=1; shift ;;
     -h|--help)
-      sed -n '2,22p' "$0"
+      sed -n '2,30p' "$0"
       exit 0
       ;;
     *) die "unknown arg: $1" ;;
@@ -58,6 +72,11 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ "$KEEP" -ge 2 ]] || die "NAVI_KEEP_GENERATIONS/keep must be >= 2 (live + previous)"
+case "${RETENTION_MODE}" in
+  count|grace) ;;
+  *) die "NAVI_RETENTION_MODE/retention-mode must be count|grace (got ${RETENTION_MODE})" ;;
+esac
+[[ "$GRACE_DAYS" =~ ^[0-9]+$ ]] || die "NAVI_GRACE_DAYS/grace-days must be a non-negative integer"
 
 LOG_KEEP_DAYS="${NAVI_LOG_KEEP_DAYS:-14}"
 CONVERT_KEEP_DAYS="${NAVI_CONVERT_SCRATCH_KEEP_DAYS:-7}"
@@ -68,7 +87,7 @@ RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 SCRUB_LOG="${NAVI_LOG_DIR}/scrub-${RUN_ID}.log"
 mkdir -p "$NAVI_LOG_DIR"
 
-if [[ "$REPORT_ONLY" -eq 0 ]]; then
+if [[ "$REPORT_ONLY" -eq 0 && "$DRY_RUN" -eq 0 ]]; then
   atomic_log_begin "$SCRUB_LOG"
 fi
 
@@ -81,11 +100,34 @@ scrub_fail() {
 }
 trap scrub_fail EXIT
 
-log_info "==== scrub start run_id=${RUN_ID} keep_gens=${KEEP} log_days=${LOG_KEEP_DAYS} convert_days=${CONVERT_KEEP_DAYS} extract_days=${EXTRACT_KEEP_DAYS} ===="
+log_info "==== scrub start run_id=${RUN_ID} keep_gens=${KEEP} retention_mode=${RETENTION_MODE} grace_days=${GRACE_DAYS} log_days=${LOG_KEEP_DAYS} convert_days=${CONVERT_KEEP_DAYS} extract_days=${EXTRACT_KEEP_DAYS} dry_run=${DRY_RUN} ===="
 
 if [[ "$REPORT_ONLY" -eq 1 ]]; then
   "${SCRIPT_DIR}/check-disk-quota.sh" --report-only
   log_info "report-only; nothing pruned"
+  trap - EXIT
+  exit 0
+fi
+
+run_pack_retention() {
+  local apply_flag=()
+  if [[ "$DRY_RUN" -eq 0 ]]; then
+    apply_flag=(--apply)
+  else
+    apply_flag=(--dry-run)
+  fi
+  python3 "${SCRIPT_DIR}/lib/pack_retention.py" \
+    --published "$NAVI_PUBLISHED_DIR" \
+    --mode "$RETENTION_MODE" \
+    --keep "$KEEP" \
+    --grace-days "$GRACE_DAYS" \
+    "${apply_flag[@]}"
+}
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  log_info "dry-run: pack retention only (no deletes)"
+  run_pack_retention
+  log_info "dry-run complete"
   trap - EXIT
   exit 0
 fi
@@ -129,6 +171,12 @@ for g in "${gens[@]}"; do
     done
   fi
 done
+
+# Per-region published pack retention (count or grace). Never deletes the
+# generation named in current.json; aborts all pack deletes if current.json
+# is missing/invalid. See scripts/lib/pack_retention.py.
+log_info "published pack retention mode=${RETENTION_MODE} keep=${KEEP} grace_days=${GRACE_DAYS}"
+run_pack_retention
 
 # Staging leftovers from crashed runs.
 if [[ -d "$NAVI_STAGING_DIR" ]]; then

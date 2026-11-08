@@ -180,6 +180,19 @@ curl -fsS "http://<host>/repeaters/current.json"
 `region_id` is the Geofabrik path (same string family as the app’s download
 picker). Optional `bake_id` is the underscore id used under convert scratch.
 
+### Previous generation fetchability (grace retention)
+
+When the operator enables scrub mode `NAVI_RETENTION_MODE=grace`, a region’s
+previous pack generation remains HTTP-fetchable for at least `NAVI_GRACE_DAYS`
+(default **7**) after it is superseded (replaced by a newer published
+generation for that region). Clients holding a stale `current.json` or resuming
+an interrupted download can keep using the old `/packs/<path>/<generation>/…`
+URLs during that window. After the grace period the scrub may delete the old
+generation; only the generation named in live `current.json` is guaranteed to
+remain. With the default `NAVI_RETENTION_MODE=count`, retention is count-based
+(`NAVI_KEEP_GENERATIONS`) instead of time-based — see README scrub section and
+`scripts/lib/pack_retention.py`.
+
 ### Per-region `manifest.json` (shape)
 
 ```json

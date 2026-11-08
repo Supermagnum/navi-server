@@ -850,18 +850,37 @@ Pack binary/JSON formats: [`docs/pack-formats.md`](docs/pack-formats.md).
 ./cleanup.sh --no-extracts
 ./cleanup.sh --prune-extracts
 ./cleanup.sh --report-only
+./cleanup.sh --dry-run
 ```
 
-Prunes old generations beyond `NAVI_KEEP_GENERATIONS` (min 2), aged convert
-scratch / staging, abandoned `*.partial` logs, and reports disk space.
+Prunes old blue-green generations beyond `NAVI_KEEP_GENERATIONS` (min 2),
+per-region published packs under `published/packs/` (see retention mode
+below), aged convert scratch / staging, abandoned `*.partial` logs, and
+reports disk space.
+
+**Published pack retention** (`NAVI_RETENTION_MODE`, default `count`):
+
+| Mode | Behaviour |
+|---|---|
+| `count` | Keep newest `NAVI_KEEP_GENERATIONS` complete gens per region |
+| `grace` | Never delete the gen named in `current.json`; keep non-current gens until `NAVI_GRACE_DAYS` (default 7) after superseded; `NAVI_KEEP_GENERATIONS` still caps count inside the window |
+
+Superseded = publish UTC stamp of the next-newer generation directory name
+(same prefix as `generation_id`). Dry-run (`--dry-run`) lists planned
+deletes with sizes and makes no changes. Deletes rename each gen dir to a
+`.deleting-*` sibling then remove it. If `current.json` is missing/invalid,
+or a region’s current manifest/checksums are missing, that region (or all
+pack deletes) is skipped. Orphans / retired regions are reported only.
+
 **Extracts are not age-deleted by default** (held PBFs for Geofabrik
 incremental). Age-prune extracts only with `--prune-extracts` or
 `NAVI_SCRUB_PRUNE_EXTRACTS=1`. Independently, `NAVI_HELD_PBF_MAX_MIB` /
 `NAVI_HELD_PBF_BUDGET_GIB` (defaults 512 MiB / 40 GiB) cap held-PBF disk use
 for the 512 GB weekly host. Retention knobs: `NAVI_LOG_KEEP_DAYS`,
 `NAVI_CONVERT_SCRATCH_KEEP_DAYS`, `NAVI_EXTRACT_KEEP_DAYS` (when age-prune
-enabled), `NAVI_STAGING_KEEP_DAYS`. Installed as `navi-pack-scrub.timer` by
-setup (unit passes `--no-extracts`); also runs at the end of each weekly bake.
+enabled), `NAVI_STAGING_KEEP_DAYS`, `NAVI_RETENTION_MODE`, `NAVI_GRACE_DAYS`.
+Installed as `navi-pack-scrub.timer` by setup (unit passes `--no-extracts`);
+also runs at the end of each weekly bake.
 
 ### Full smoke test (Hedmark)
 
