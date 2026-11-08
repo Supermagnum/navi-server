@@ -82,7 +82,8 @@ jobs:
       - name: Server migrate smoke (local-dest)
         run: ./scripts/test-migrate-server.sh
 
-      - name: Scrub held-PBF default + grace retention
+      - name: Scrub held-PBF default + grace retention + pipeline lock
         run: |
           ./scripts/test-scrub-held-pbf-default.sh
           ./scripts/test-grace-retention.sh
+          ./scripts/test-pack-pipeline-lock.sh

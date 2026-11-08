@@ -18,6 +18,12 @@ DRY_RUN=0
 PACKS="${NAVI_PUBLISHED_DIR}/packs"
 [[ -d "$PACKS" ]] || die "missing ${PACKS}"
 
+# Rewrites published/packs layout + current.json — exclude scrub/bake.
+if [[ "$DRY_RUN" -eq 0 ]]; then
+  pack_pipeline_lock_acquire_wait "migrate-published"
+  trap 'pack_pipeline_lock_release || true' EXIT
+fi
+
 python3 - "$PACKS" "$NAVI_PACK_ROOT" "$DRY_RUN" "${SCRIPT_DIR}/lib" <<'PY'
 import json, os, shutil, sys
 from pathlib import Path

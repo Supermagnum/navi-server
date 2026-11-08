@@ -44,6 +44,16 @@ FINAL="${NAVI_GENERATIONS_DIR}/${GEN_ID}"
 
 log_info "publish generation=${GEN_ID}"
 
+# Mutual exclusion vs daily scrub. Nested under run-weekly (lock already held)
+# is a no-op. Manual/standalone publish waits for scrub to finish.
+publish_lock_cleanup() {
+  pack_pipeline_lock_release || true
+}
+if [[ "$DRY_RUN" -eq 0 ]]; then
+  pack_pipeline_lock_acquire_wait "publish"
+  trap publish_lock_cleanup EXIT
+fi
+
 mkdir -p "${STAGE}/regions"
 
 assemble_one() {

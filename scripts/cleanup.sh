@@ -32,6 +32,10 @@
 # Installed as a daily systemd timer by setup-server.sh --apply-service
 # (navi-pack-scrub.timer; ExecStart passes --no-extracts). Also runs at the
 # end of each weekly bake with --no-extracts.
+#
+# Mutual exclusion: takes data/state/pack-pipeline.lock (non-blocking). If bake
+# or publish holds it, logs "skipped: bake in progress" and exits 0. Nested
+# under bake (NAVI_PACK_PIPELINE_LOCK_HELD=1) does not re-acquire.
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -93,6 +97,7 @@ fi
 
 scrub_fail() {
   local rc=$?
+  pack_pipeline_lock_release || true
   if [[ $rc -ne 0 ]]; then
     log_fail "scrub FAILED exit=${rc}"
     atomic_log_abort
@@ -107,6 +112,18 @@ if [[ "$REPORT_ONLY" -eq 1 ]]; then
   log_info "report-only; nothing pruned"
   trap - EXIT
   exit 0
+fi
+
+# Destructive scrub takes pack-pipeline.lock non-blocking. If bake/publish
+# holds it, skip cleanly (exit 0) — next daily timer catches up. Nested scrub
+# under bake already holds the lock (NAVI_PACK_PIPELINE_LOCK_HELD=1).
+# Dry-run is read-only planning and does not take the lock.
+if [[ "$DRY_RUN" -eq 0 ]]; then
+  if ! pack_pipeline_lock_try "scrub"; then
+    atomic_log_abort || true
+    trap - EXIT
+    exit 0
+  fi
 fi
 
 run_pack_retention() {
@@ -311,5 +328,6 @@ du -sh "$NAVI_PACK_ROOT"/* 2>/dev/null || true
 
 log_info "scrub complete"
 atomic_log_commit
+pack_pipeline_lock_release || true
 trap - EXIT
 exit 0

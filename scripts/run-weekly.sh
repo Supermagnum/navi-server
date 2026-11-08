@@ -17,6 +17,10 @@
 # sequentially and does not set NAVI_TILE_BUILD_CONCURRENCY or any second
 # job-count mechanism — suitable for the small-VPS profile (8c / 16 GiB).
 #
+# Mutual exclusion: holds data/state/pack-pipeline.lock for the whole run
+# (fetch/convert/publish/end-scrub) so daily scrub cannot delete mid-publish.
+# Waits up to NAVI_PACK_PIPELINE_LOCK_WAIT_SECS (default 1800) if scrub holds it.
+#
 # Usage:
 #   ./run-weekly.sh                     # all regions in regions.conf
 #   ./run-weekly.sh --region hedmark    # single-region smoke test
@@ -67,6 +71,10 @@ log_info "sun_order=${NAVI_BAKE_SUN_ORDER:-1} (local-night terminator; see sun-o
 export NAVI_BAKE_START_UNIX="${NAVI_BAKE_START_UNIX:-$(date -u +%s)}"
 log_info "bake_start_unix=${NAVI_BAKE_START_UNIX}"
 
+# Hold pack-pipeline.lock for the whole bake (convert + publish + end scrub)
+# so daily scrub never deletes generations mid-publish. Waits if scrub holds it.
+pack_pipeline_lock_acquire_wait "bake"
+
 # Resource profile (informational). Convert sizing is owned solely by
 # WorkerPoolPlan inside navi-indexed-convert — do not set job counts here.
 _host_cores="$(nproc 2>/dev/null || echo unknown)"
@@ -80,6 +88,7 @@ unset _host_cores _host_mem_gib
 
 cleanup_on_fail() {
   local rc=$?
+  pack_pipeline_lock_release || true
   if [[ $rc -ne 0 ]]; then
     log_fail "navi pack bake FAILED run_id=${RUN_ID} exit=${rc} — see ${LOG_FILE}.partial"
     atomic_log_abort
@@ -172,6 +181,7 @@ else
   log_info "skip cleanup"
 fi
 
+pack_pipeline_lock_release || true
 trap - EXIT
 log_info "==== navi pack bake OK run_id=${RUN_ID} ===="
 log_info "FAILED marker absent — success. log=${LOG_FILE}"

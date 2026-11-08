@@ -138,6 +138,93 @@ die() {
   exit 1
 }
 
+# ---------------------------------------------------------------------------
+# Pack pipeline mutual exclusion (bake / scrub / manual publish).
+#
+# One flock on ${NAVI_STATE_DIR}/pack-pipeline.lock (open FD; released on
+# process exit including SIGKILL — no stale pidfiles).
+#
+#   - Bake / publish: wait (NAVI_PACK_PIPELINE_LOCK_WAIT_SECS, default 1800).
+#   - Standalone scrub: non-blocking; if busy, log "skipped: bake in progress"
+#     and exit 0 so the next daily run catches up.
+#   - Nested callers (bake → publish / end-of-bake scrub) see
+#     NAVI_PACK_PIPELINE_LOCK_HELD=1 and must not touch the FD.
+# ---------------------------------------------------------------------------
+: "${NAVI_PACK_PIPELINE_LOCK_FD:=200}"
+: "${NAVI_PACK_PIPELINE_LOCK_WAIT_SECS:=1800}"
+
+pack_pipeline_lock_path() {
+  printf '%s\n' "${NAVI_STATE_DIR}/pack-pipeline.lock"
+}
+
+# True when this shell acquired the lock (not merely inherited HELD=1).
+# Intentionally unexported so child processes never release the parent's FD.
+NAVI_PACK_PIPELINE_LOCK_ACQUIRED_HERE="${NAVI_PACK_PIPELINE_LOCK_ACQUIRED_HERE:-0}"
+
+_pack_pipeline_lock_open_fd() {
+  local path
+  path="$(pack_pipeline_lock_path)"
+  mkdir -p "$NAVI_STATE_DIR"
+  # Open/create the lock file on a stable FD for the life of this process.
+  eval "exec ${NAVI_PACK_PIPELINE_LOCK_FD}>\"\${path}\""
+}
+
+# Wait for exclusive lock. No-op if NAVI_PACK_PIPELINE_LOCK_HELD is already set
+# (nested under an outer bake/publish that holds the FD).
+pack_pipeline_lock_acquire_wait() {
+  local reason="${1:-pipeline}"
+  local wait_secs="${NAVI_PACK_PIPELINE_LOCK_WAIT_SECS:-1800}"
+  if [[ "${NAVI_PACK_PIPELINE_LOCK_HELD:-0}" == "1" ]]; then
+    log_info "pack-pipeline.lock: already held (nested) reason=${reason}"
+    return 0
+  fi
+  _pack_pipeline_lock_open_fd
+  log_info "pack-pipeline.lock: waiting (timeout=${wait_secs}s) reason=${reason}"
+  if ! flock -w "${wait_secs}" "${NAVI_PACK_PIPELINE_LOCK_FD}"; then
+    # Close the unused FD so we do not leak it after a timeout.
+    eval "exec ${NAVI_PACK_PIPELINE_LOCK_FD}>&-"
+    die "pack-pipeline.lock: timed out after ${wait_secs}s reason=${reason}"
+  fi
+  export NAVI_PACK_PIPELINE_LOCK_HELD=1
+  NAVI_PACK_PIPELINE_LOCK_ACQUIRED_HERE=1
+  log_info "pack-pipeline.lock: acquired reason=${reason}"
+}
+
+# Non-blocking acquire for standalone scrub.
+# Returns 0 if acquired (or already nested-held), 1 if lock is busy.
+pack_pipeline_lock_try() {
+  local reason="${1:-scrub}"
+  if [[ "${NAVI_PACK_PIPELINE_LOCK_HELD:-0}" == "1" ]]; then
+    log_info "pack-pipeline.lock: already held (nested) reason=${reason}"
+    return 0
+  fi
+  _pack_pipeline_lock_open_fd
+  if ! flock -n "${NAVI_PACK_PIPELINE_LOCK_FD}"; then
+    log_info "skipped: bake in progress"
+    eval "exec ${NAVI_PACK_PIPELINE_LOCK_FD}>&-"
+    return 1
+  fi
+  export NAVI_PACK_PIPELINE_LOCK_HELD=1
+  NAVI_PACK_PIPELINE_LOCK_ACQUIRED_HERE=1
+  log_info "pack-pipeline.lock: acquired reason=${reason}"
+  return 0
+}
+
+# Release only if this shell acquired the lock. Nested children must no-op so
+# they never close the parent's inherited FD (which would drop the lock).
+pack_pipeline_lock_release() {
+  if [[ "${NAVI_PACK_PIPELINE_LOCK_ACQUIRED_HERE:-0}" != "1" ]]; then
+    return 0
+  fi
+  if flock -u "${NAVI_PACK_PIPELINE_LOCK_FD}" 2>/dev/null; then
+    :
+  fi
+  eval "exec ${NAVI_PACK_PIPELINE_LOCK_FD}>&-" || true
+  NAVI_PACK_PIPELINE_LOCK_ACQUIRED_HERE=0
+  unset NAVI_PACK_PIPELINE_LOCK_HELD
+  log_info "pack-pipeline.lock: released"
+}
+
 # Atomic log capture: stream to ${path}.partial, rename into place on success.
 # Stale *.partial files are scrubbed by cleanup.sh. Callers:
 #   atomic_log_begin /path/to/run.log

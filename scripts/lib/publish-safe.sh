@@ -28,6 +28,12 @@ publish_single_region_safe() {
   [[ -d "$src" ]] || return 1
   "${SCRIPT_DIR}/validate-packs.sh" --from-convert --region "$rid" || return 1
 
+  # Exclude daily scrub while this region publishes into published/ + current.json.
+  # Nested under an outer holder is a no-op; release is also a no-op unless we
+  # acquired in this shell. Clear RETURN trap after firing so it does not leak.
+  pack_pipeline_lock_acquire_wait "publish-safe"
+  trap 'pack_pipeline_lock_release || true; trap - RETURN' RETURN
+
   mkdir -p "$final/regions"
   : >"$marker"
   rm -rf "${final}/regions/${rid}"
