@@ -497,9 +497,8 @@ Full procedure: [`docs/server-migrate.md`](docs/server-migrate.md).
 ### Adding other DATEX countries (Germany, Denmark, …)
 
 Only **Norway NPRA** ships as an implemented poller today. Other National Access
-Points (Germany Mobilithek, Denmark, NDW, Digitraffic, TIPI, …) need a separate
-plugin under `plugins/datex_<id>/`, publish under `data/published/datex/<id>/`,
-and serve clients at `/datex/<id>/`. Every extra provider stays **off by default**.
+Points (Germany Mobilithek, Denmark, NDW, Digitraffic, TIPI, …) need to be added to the existing plugin under `plugins/datex_<id>/`, publish under `data/published/datex/<id>/`,
+and serve clients at `/datex/<id>/`. Off by default.
 
 Do **not** reuse `NAVI_DATEX_NPRA_*` (or NPRA secrets) for another NAP — each
 provider gets its own enable flag, endpoints, and optional secrets file.
