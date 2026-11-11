@@ -1,0 +1,22 @@
+[Unit]
+Description=Navi MWM Nordic bake (generator + sidecars + validate + publish)
+Documentation=file:docs/client-fetch-mwm.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Off until operator enables Environment NAVI_MWM_ENABLED=1
+Environment=NAVI_MWM_ENABLED=0
+EnvironmentFile=-/etc/navi/mwm.env
+WorkingDirectory=/opt/navi/navi-server
+ExecStart=/opt/navi/navi-server/scripts/mwm/run-mwm-bake.sh
+# Honour MemoryMax when started via systemd; AllowedCPUs may need taskset
+# (spike3: AllowedCPUs alone did not shrink multiprocessing.cpu_count).
+MemoryMax=14G
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=multi-user.target

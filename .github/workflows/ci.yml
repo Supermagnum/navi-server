@@ -73,6 +73,10 @@ jobs:
             plugins.osm_repeaters.tests.test_osm_repeaters \
             -v
 
+      - name: MWM leafset / HGT / retain unit tests
+        run: |
+          python3 -m unittest discover -s scripts/mwm/tests -p 'test_*.py' -v
+
       - name: Repeater mirror fixture dry-run (both sources)
         run: ./scripts/test-repeater-mirror.sh
 

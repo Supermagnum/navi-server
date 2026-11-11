@@ -1,0 +1,11 @@
+[Unit]
+Description=Biweekly Navi Nordic MWM bake timer (disabled until installed+enabled)
+
+[Timer]
+# Every other Sunday 03:00 local — adjust in /etc after review
+OnCalendar=Sun *-*-1/14 03:00:00
+Persistent=true
+Unit=navi-mwm-bake.service
+
+[Install]
+WantedBy=timers.target

@@ -4,8 +4,14 @@ members = [
     "pack-convert-core",
     "navi-indexed-convert",
     "place-source-points",
+    "crates/navi-mwm-sidecar",
 ]
-default-members = ["pack-convert-core", "navi-indexed-convert", "place-source-points"]
+default-members = [
+    "pack-convert-core",
+    "navi-indexed-convert",
+    "place-source-points",
+    "crates/navi-mwm-sidecar",
+]
 
 [workspace.package]
 version = "0.1.0"

@@ -1,0 +1,645 @@
+{
+  "version": 1,
+  "pilot": "nordic",
+  "limitation": "Cross-border routing out of the Nordic leaf set is not supported in the pilot.",
+  "navi_region_to_comaps_leaves": {
+    "europe_norway_nord_norge": {
+      "union_coverage_pct": 64.91,
+      "comaps_leaves": [
+        {
+          "leaf": "Norway_Northern",
+          "coverage_of_region_pct": 31.0,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Norway_Nordland",
+          "coverage_of_region_pct": 23.38,
+          "shared_with_navi_regions": [
+            "europe_norway_trondelag"
+          ],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Norway_Svalbard",
+          "coverage_of_region_pct": 10.53,
+          "shared_with_navi_regions": [
+            "europe_norway_svalbard_janmayen"
+          ],
+          "leaf_mostly_outside_region": true
+        }
+      ],
+      "notes": "Union <100% often = ocean/fjord in Navi poly vs land CoMaps borders; add neighbour leaves for cross-MWM exits."
+    },
+    "europe_norway_ostlandet": {
+      "union_coverage_pct": 99.0,
+      "comaps_leaves": [
+        {
+          "leaf": "Norway_Hedmark",
+          "coverage_of_region_pct": 28.12,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Norway_Oppland",
+          "coverage_of_region_pct": 25.82,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Norway_Southern",
+          "coverage_of_region_pct": 24.53,
+          "shared_with_navi_regions": [
+            "europe_norway_sorlandet"
+          ],
+          "leaf_mostly_outside_region": true
+        },
+        {
+          "leaf": "Norway_Central",
+          "coverage_of_region_pct": 20.37,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Norway_Western",
+          "coverage_of_region_pct": 0.16,
+          "shared_with_navi_regions": [
+            "europe_norway_trondelag",
+            "europe_norway_vestlandet"
+          ],
+          "leaf_mostly_outside_region": true
+        }
+      ],
+      "notes": "Union <100% often = ocean/fjord in Navi poly vs land CoMaps borders; add neighbour leaves for cross-MWM exits."
+    },
+    "europe_norway_sorlandet": {
+      "union_coverage_pct": 80.08,
+      "comaps_leaves": [
+        {
+          "leaf": "Norway_Southern",
+          "coverage_of_region_pct": 79.61,
+          "shared_with_navi_regions": [
+            "europe_norway_ostlandet"
+          ],
+          "leaf_mostly_outside_region": true
+        },
+        {
+          "leaf": "Norway_Rogaland",
+          "coverage_of_region_pct": 0.47,
+          "shared_with_navi_regions": [
+            "europe_norway_vestlandet"
+          ],
+          "leaf_mostly_outside_region": true
+        }
+      ],
+      "notes": "Union <100% often = ocean/fjord in Navi poly vs land CoMaps borders; add neighbour leaves for cross-MWM exits."
+    },
+    "europe_norway_svalbard_janmayen": {
+      "union_coverage_pct": 67.37,
+      "comaps_leaves": [
+        {
+          "leaf": "Norway_Svalbard",
+          "coverage_of_region_pct": 66.98,
+          "shared_with_navi_regions": [
+            "europe_norway_nord_norge"
+          ],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Norway_Jan Mayen",
+          "coverage_of_region_pct": 0.39,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Union <100% often = ocean/fjord in Navi poly vs land CoMaps borders; add neighbour leaves for cross-MWM exits."
+    },
+    "europe_norway_trondelag": {
+      "union_coverage_pct": 72.85,
+      "comaps_leaves": [
+        {
+          "leaf": "Norway_North Trondelag",
+          "coverage_of_region_pct": 44.44,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Norway_South Trondelag",
+          "coverage_of_region_pct": 26.51,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Norway_Western",
+          "coverage_of_region_pct": 1.68,
+          "shared_with_navi_regions": [
+            "europe_norway_ostlandet",
+            "europe_norway_vestlandet"
+          ],
+          "leaf_mostly_outside_region": true
+        },
+        {
+          "leaf": "Norway_Nordland",
+          "coverage_of_region_pct": 0.22,
+          "shared_with_navi_regions": [
+            "europe_norway_nord_norge"
+          ],
+          "leaf_mostly_outside_region": true
+        }
+      ],
+      "notes": "Union <100% often = ocean/fjord in Navi poly vs land CoMaps borders; add neighbour leaves for cross-MWM exits."
+    },
+    "europe_norway_vestlandet": {
+      "union_coverage_pct": 54.27,
+      "comaps_leaves": [
+        {
+          "leaf": "Norway_Western",
+          "coverage_of_region_pct": 31.98,
+          "shared_with_navi_regions": [
+            "europe_norway_ostlandet",
+            "europe_norway_trondelag"
+          ],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Norway_Hordaland",
+          "coverage_of_region_pct": 13.1,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Norway_Rogaland",
+          "coverage_of_region_pct": 9.18,
+          "shared_with_navi_regions": [
+            "europe_norway_sorlandet"
+          ],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Union <100% often = ocean/fjord in Navi poly vs land CoMaps borders; add neighbour leaves for cross-MWM exits."
+    },
+    "europe_denmark": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Denmark_Capital Region of Denmark",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Denmark_Central Denmark Region",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Denmark_North Denmark Region",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [
+            "europe_norway_ostlandet"
+          ],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Denmark_Region Zealand",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Denmark_Region of Southern Denmark",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Pilot: all Denmark CoMaps leaves. Cross-border out of Nordic not supported."
+    },
+    "europe_finland": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Finland_Eastern Finland_North",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Finland_Eastern Finland_South",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Finland_Northern Finland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Finland_Southern Finland_Helsinki",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Finland_Southern Finland_Lappeenranta",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Finland_Southern Finland_West",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Finland_Western Finland_Jyvaskyla",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Finland_Western Finland_Tampere",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Pilot: all Finland CoMaps leaves. Cross-border out of Nordic not supported."
+    },
+    "europe_sweden": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Bergslagen",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Sweden_Malardalen",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Sweden_Mellannorrland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Sweden_Norra Sverige",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Sweden_Ostra Gotaland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Sweden_Sodra Gotaland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Sweden_Stockholm",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        },
+        {
+          "leaf": "Sweden_Vastra Gotaland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Pilot aggregate. County-level Navi packs map into these CoMaps leaves (approximate)."
+    },
+    "europe_sweden_blekinge": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Sodra Gotaland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_dalarna": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Bergslagen",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_gavleborg": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Mellannorrland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_gotland": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Ostra Gotaland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_halland": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Vastra Gotaland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_jamtland": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Mellannorrland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_jonkoping": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Ostra Gotaland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_kalmar": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Ostra Gotaland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_kronoberg": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Sodra Gotaland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_norrbotten": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Norra Sverige",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_orebro": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Bergslagen",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_ostergotland": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Ostra Gotaland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_skane": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Sodra Gotaland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_sodermanland": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Malardalen",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_stockholm": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Stockholm",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_uppsala": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Malardalen",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_varmland": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Bergslagen",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_vasterbotten": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Norra Sverige",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_vasternorrland": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Mellannorrland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_vastmanland": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Malardalen",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    },
+    "europe_sweden_vastra_gotaland": {
+      "union_coverage_pct": null,
+      "comaps_leaves": [
+        {
+          "leaf": "Sweden_Vastra Gotaland",
+          "coverage_of_region_pct": null,
+          "shared_with_navi_regions": [],
+          "leaf_mostly_outside_region": false
+        }
+      ],
+      "notes": "Approximate county\u2192CoMaps leaf for Nordic pilot catalog."
+    }
+  },
+  "shared_leaves": {
+    "Norway_Nordland": [
+      "europe_norway_nord_norge",
+      "europe_norway_trondelag"
+    ],
+    "Norway_Svalbard": [
+      "europe_norway_nord_norge",
+      "europe_norway_svalbard_janmayen"
+    ],
+    "Norway_Southern": [
+      "europe_norway_ostlandet",
+      "europe_norway_sorlandet"
+    ],
+    "Norway_Western": [
+      "europe_norway_ostlandet",
+      "europe_norway_trondelag",
+      "europe_norway_vestlandet"
+    ],
+    "Norway_Rogaland": [
+      "europe_norway_sorlandet",
+      "europe_norway_vestlandet"
+    ],
+    "Denmark_North Denmark Region": [
+      "europe_denmark",
+      "europe_norway_ostlandet"
+    ],
+    "Sweden_Bergslagen": [
+      "europe_sweden",
+      "europe_norway_ostlandet"
+    ],
+    "Sweden_Vastra Gotaland": [
+      "europe_sweden",
+      "europe_norway_ostlandet"
+    ]
+  },
+  "ostlandet_gap": {
+    "pct": 1.1543500649684622,
+    "not_a_missing_ostlandet_leaf": true,
+    "covered_by": [
+      [
+        "Denmark_North Denmark Region",
+        44.1
+      ],
+      [
+        "Sweden_Bergslagen",
+        26.1
+      ],
+      [
+        "Norway_Western",
+        13.4
+      ],
+      [
+        "Sweden_Vastra Gotaland",
+        7.6
+      ],
+      [
+        "Norway_Hordaland",
+        5.4
+      ],
+      [
+        "Norway_South Trondelag",
+        3.0
+      ]
+    ]
+  }
+}
