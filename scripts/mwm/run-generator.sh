@@ -41,7 +41,8 @@ RSS_TSV="${LOG_DIR}/bake-${RUN_ID}-rss.tsv"
 OVERLAY="${NAVI_MWM_MAPS_BUILD}/overlays/${RUN_ID}"
 
 run_inner() {
-  mwm_log "run-generator start run_id=${RUN_ID} leafset=${NAVI_MWM_LEAFSET}"
+  mwm_apply_profile_from_leafset || true
+  mwm_log "run-generator start run_id=${RUN_ID} leafset=${NAVI_MWM_LEAFSET} node_storage=${NAVI_MWM_NODE_STORAGE} threads_features=${NAVI_MWM_THREADS_FEATURES} threads_count=${NAVI_MWM_THREADS_COUNT}"
   python3 "${SCRIPT_DIR}/validate-leafset.py" \
     --leafset "$NAVI_MWM_LEAFSET" \
     --borders-dir "${NAVI_MWM_COMAPS_ROOT}/data/borders" \
@@ -107,9 +108,10 @@ run_inner() {
   fi
   python3 - "$INI_SRC" "$INI_RUN" "$NAVI_MWM_COMAPS_ROOT" "$NAVI_MWM_BUILD_DIR" \
     "$NAVI_MWM_MAPS_BUILD" "$PBF_URL" "file://${MD5_FILE}" "$NAVI_MWM_HGT_CACHE" \
-    "${NAVI_MWM_THREADS_FEATURES}" "${NAVI_MWM_NODE_STORAGE}" <<'PY'
+    "${NAVI_MWM_THREADS_FEATURES}" "${NAVI_MWM_NODE_STORAGE}" \
+    "${NAVI_MWM_THREADS_COUNT}" "${NAVI_MWM_CACHE_PATH}" <<'PY'
 import re, sys
-src, dst, omim, build, out, planet, md5, srtm, threads, node = sys.argv[1:]
+src, dst, omim, build, out, planet, md5, srtm, threads, node, threads_all, cache = sys.argv[1:]
 text = open(src).read()
 def set_key(text, key, value):
     # Replace first KEY: value occurrence in file
@@ -126,7 +128,15 @@ text = set_key(text, 'PLANET_MD5_URL', md5)
 text = set_key(text, 'SRTM_PATH', srtm)
 text = set_key(text, 'THREADS_COUNT_FEATURES_STAGE', threads)
 text = set_key(text, 'NODE_STORAGE', node)
+text = set_key(text, 'THREADS_COUNT', threads_all)
 text = set_key(text, 'NEED_PLANET_UPDATE', '0')
+# CACHE_PATH: optional separate dir for node/way/relation caches (disk locality, not RAM).
+if cache:
+    # Uncomment / set CACHE_PATH line
+    if re.search(r'(?m)^#?\s*CACHE_PATH\s*:', text):
+        text = re.sub(r'(?m)^#?\s*CACHE_PATH\s*:.*$', f'CACHE_PATH: {cache}', text, count=1)
+    else:
+        text = set_key(text, 'CACHE_PATH', cache)
 open(dst, 'w').write(text)
 print('wrote', dst)
 PY
@@ -156,7 +166,10 @@ PY
     echo "countries=${COUNTRIES}"
     echo "disk_used_bytes_start=${DISK_BASE}"
     echo "threads_features=${NAVI_MWM_THREADS_FEATURES}"
+    echo "threads_count=${NAVI_MWM_THREADS_COUNT}"
     echo "node_storage=${NAVI_MWM_NODE_STORAGE}"
+    echo "cache_path=${NAVI_MWM_CACHE_PATH}"
+    echo "generator_skip=${NAVI_MWM_GENERATOR_SKIP}"
     echo "memory_max_hint=${NAVI_MWM_MEMORY_MAX}"
   } | tee "$METRICS"
 
@@ -181,9 +194,10 @@ PY
   export LD_LIBRARY_PATH="${NAVI_MWM_QT_LIB_DIR:-}:${LD_LIBRARY_PATH:-}"
 
   cd "${NAVI_MWM_COMAPS_ROOT}/tools/python"
+  SKIP_ARG="${NAVI_MWM_GENERATOR_SKIP:-Coastline}"
   set +e
   /usr/bin/time -v -o "${LOG_DIR}/bake-${RUN_ID}-time.txt" \
-    python3 -m maps_generator --countries="$COUNTRIES" --skip="Coastline" \
+    python3 -m maps_generator --countries="$COUNTRIES" --skip="$SKIP_ARG" \
     >"$LOG" 2>&1
   EC=$?
   set -e
@@ -215,7 +229,7 @@ for m in re.finditer(r"(Stage\w+).*?(?:finished|took|done).*", log, re.I):
 PY
   fi
 
-  # Locate newest version dir containing our leaves
+  # Locate newest version dir containing our leaves (may be absent for Features-only).
   VERSION_DIR="$(python3 - <<PY
 from pathlib import Path
 root = Path("${NAVI_MWM_MAPS_BUILD}")
@@ -223,19 +237,22 @@ leaf = "$(mwm_read_leafset | head -1)"
 cands = sorted(root.glob(f"*/{leaf}.mwm"), key=lambda p: p.stat().st_mtime, reverse=True)
 if not cands:
     cands = sorted(root.glob(f"*/*/{leaf}.mwm"), key=lambda p: p.stat().st_mtime, reverse=True)
-if not cands:
-    raise SystemExit("no mwm found for " + leaf)
-# maps_build/<run>/<version>/<leaf>.mwm
-p = cands[0]
-if p.parent.name.isdigit() or len(p.parent.name) == 6:
-    print(p.parent)
+if cands:
+    print(cands[0].parent)
+    raise SystemExit(0)
+# Features-only / skipped Mwm: fall back to newest dated build dir.
+dated = sorted([p for p in root.glob("20*") if p.is_dir()], key=lambda p: p.stat().st_mtime, reverse=True)
+if dated:
+    print(dated[0])
 else:
-    print(p.parent)
+    raise SystemExit("no build dir found under " + str(root))
 PY
 )"
   echo "version_dir=${VERSION_DIR}" | tee -a "$METRICS"
   echo "${VERSION_DIR}" >"${LOG_DIR}/bake-${RUN_ID}-version-dir.txt"
-  cp -a "$ATTR_OUT" "${VERSION_DIR}/attribution-mapterhorn.json" 2>/dev/null || true
+  if [[ -d "$VERSION_DIR" ]]; then
+    cp -a "$ATTR_OUT" "${VERSION_DIR}/attribution-mapterhorn.json" 2>/dev/null || true
+  fi
 
   [[ "$EC" -eq 0 ]] || mwm_die "maps_generator failed exit=${EC} log=${LOG}"
   mwm_log "run-generator OK version_dir=${VERSION_DIR}"

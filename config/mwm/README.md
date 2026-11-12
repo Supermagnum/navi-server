@@ -23,6 +23,19 @@ from the leaf set and validates: every leaf has a border, every in-set
 neighbour needed for `cross_mwm` is present, and no leftover borders from
 another leaf set remain in the working overlay (spike 3 crash).
 
+## Generator profiles (RAM)
+
+| File | `NODE_STORAGE` | Threads | Host |
+|------|----------------|---------|------|
+| `profiles/nordic.json` | `map` | features=4, common=4 | media |
+| `profiles/planet.json` | `mem` | auto (`0`) | mapgen-class |
+
+`run-generator.sh` loads the profile matching the leafset basename unless
+`NAVI_MWM_NO_PROFILE=1`. Nordic keeps `map` (measured `raw` raised peak RSS
+and Preprocess wall; see `/tmp/navi-mwm-ram.md`) and caps `THREADS_COUNT`
+so StageMwm does not fan out to all cores. Override with
+`NAVI_MWM_NO_PROFILE=1` plus `NAVI_MWM_NODE_STORAGE` / `NAVI_MWM_THREADS_*`.
+
 ## Input PBF (Nordic)
 
 Default: a **Nordic merge** of Geofabrik extracts covering Norway, Sweden,

@@ -22,10 +22,16 @@ mwm_load_defaults() {
   : "${NAVI_MWM_LEAFSET:=${root}/config/mwm/leafsets/nordic.txt}"
   : "${NAVI_MWM_PIN_JSON:=${root}/config/mwm/comaps-pin.json}"
   : "${NAVI_MWM_REGION_MAP:=${root}/config/mwm/catalog/region_leaf_mapping.json}"
-  : "${NAVI_MWM_MEMORY_MAX:=14G}"
+  # Nordic measured peak ~19–20 GiB MaxRSS; 14G cgroup OOMs Features.
+  : "${NAVI_MWM_MEMORY_MAX:=24G}"
   : "${NAVI_MWM_ALLOWED_CPUS:=}"
+  # Nordic defaults: NODE_STORAGE=map (raw measured worse on Nordic), cap threads.
   : "${NAVI_MWM_THREADS_FEATURES:=4}"
+  : "${NAVI_MWM_THREADS_COUNT:=4}"
   : "${NAVI_MWM_NODE_STORAGE:=map}"
+  : "${NAVI_MWM_CACHE_PATH:=}"
+  : "${NAVI_MWM_PROFILE:=}"
+  : "${NAVI_MWM_GENERATOR_SKIP:=Coastline}"
   : "${NAVI_MWM_GRACE_DAYS:=${NAVI_GRACE_DAYS:-7}}"
   : "${NAVI_MWM_KEEP_RELEASES:=2}"
   : "${NAVI_MWM_AMBIGUOUS_THRESHOLD:=0}"
@@ -33,6 +39,43 @@ mwm_load_defaults() {
   : "${NAVI_MWM_MAPTERHORN_ATTRIBUTION_URL:=https://download.mapterhorn.com/attribution.json}"
   : "${NAVI_MWM_PLANET_PBF:=}"
   mkdir -p "$NAVI_MWM_STATE_DIR" "$NAVI_MWM_HGT_CACHE"
+}
+
+# Apply config/mwm/profiles/{nordic,planet}.json when NAVI_MWM_PROFILE is set,
+# or infer from leafset basename. Overwrites defaults. Set NAVI_MWM_NO_PROFILE=1
+# to keep explicit env / defaults only.
+mwm_apply_profile_from_leafset() {
+  local root profile_name profile_path
+  [[ "${NAVI_MWM_NO_PROFILE:-0}" == "1" ]] && return 0
+  root="$(mwm_repo_root)"
+  if [[ -n "${NAVI_MWM_PROFILE}" ]]; then
+    profile_name="${NAVI_MWM_PROFILE}"
+  else
+    profile_name="$(basename "${NAVI_MWM_LEAFSET:-nordic.txt}" .txt)"
+  fi
+  profile_path="${root}/config/mwm/profiles/${profile_name}.json"
+  [[ -f "$profile_path" ]] || return 0
+  eval "$(python3 - "$profile_path" <<'PY'
+import json, sys
+p = json.load(open(sys.argv[1]))
+mapping = {
+    "node_storage": "NAVI_MWM_NODE_STORAGE",
+    "threads_features": "NAVI_MWM_THREADS_FEATURES",
+    "threads_count": "NAVI_MWM_THREADS_COUNT",
+    "memory_max_hint": "NAVI_MWM_MEMORY_MAX",
+    "cache_path": "NAVI_MWM_CACHE_PATH",
+}
+for k, env in mapping.items():
+    if k not in p:
+        continue
+    v = p[k]
+    if v is None or v == "":
+        continue
+    print(f"export {env}={json.dumps(str(v))}")
+print(f"export NAVI_MWM_PROFILE_LOADED={json.dumps(sys.argv[1])}")
+PY
+)"
+  mwm_log "profile loaded=${NAVI_MWM_PROFILE_LOADED:-none} node_storage=${NAVI_MWM_NODE_STORAGE} threads_features=${NAVI_MWM_THREADS_FEATURES} threads_count=${NAVI_MWM_THREADS_COUNT}"
 }
 
 mwm_log() { echo "[mwm $(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"; }

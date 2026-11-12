@@ -13,7 +13,8 @@ WorkingDirectory=/opt/navi/navi-server
 ExecStart=/opt/navi/navi-server/scripts/mwm/run-mwm-bake.sh
 # Honour MemoryMax when started via systemd; AllowedCPUs may need taskset
 # (spike3: AllowedCPUs alone did not shrink multiprocessing.cpu_count).
-MemoryMax=14G
+# Nordic map+tf4/tc4 peak MaxRSS ~19–20 GiB; 14G OOMs Features (see /tmp/navi-mwm-ram.md).
+MemoryMax=24G
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7

@@ -21,6 +21,7 @@ if [[ -n "${NAVI_MWM_MAPTERHORN_PMTILES}" && -x /tmp/navi-mwm-spike2/venv/bin/py
   export NAVI_MWM_HGT_PYTHON=/tmp/navi-mwm-spike2/venv/bin/python
 fi
 export NAVI_MWM_THREADS_FEATURES="${NAVI_MWM_THREADS_FEATURES:-4}"
+export NAVI_MWM_THREADS_COUNT="${NAVI_MWM_THREADS_COUNT:-4}"
 export NAVI_MWM_NODE_STORAGE="${NAVI_MWM_NODE_STORAGE:-map}"
 export NAVI_MWM_QT_BIN_DIR="${NAVI_MWM_QT_BIN_DIR:-/media/navi/haaken-scratch/comaps-feasibility/qt6-local/opt/usr/lib/qt6/bin}"
 export NAVI_MWM_QT_LIB_DIR="${NAVI_MWM_QT_LIB_DIR:-/media/navi/haaken-scratch/comaps-feasibility/qt6-local/opt/usr/lib/x86_64-linux-gnu}"
