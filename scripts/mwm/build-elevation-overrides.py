@@ -41,22 +41,47 @@ def terrarium_elev(r: int, g: int, b: int) -> float:
 
 
 class TileCache:
-    def __init__(self, cache_dir: Path, max_bytes: int, zoom: int):
+    """Mapterhorn Terrarium tile cache. HTTP 404 is a soft miss (try lower zoom)."""
+
+    _MISSING = object()  # sentinel stored in _mem for known-missing tiles
+
+    def __init__(self, cache_dir: Path, max_bytes: int, zoom: int, min_zoom: int = 10):
         self.cache_dir = cache_dir
         self.max_bytes = max_bytes
         self.zoom = zoom
+        self.min_zoom = min_zoom
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self._mem: OrderedDict[tuple[int, int], object] = OrderedDict()
-        self._mem_bytes = 0
+        self._mem: OrderedDict[tuple[int, int, int], object] = OrderedDict()
+        self._approx_bytes = 0
+        self._fetches_since_enforce = 0
         self.hits = 0
         self.misses = 0
         self.fetches = 0
+        self.not_found = 0
+        self.fallback_ok = 0
 
-    def _path(self, x: int, y: int) -> Path:
-        return self.cache_dir / str(self.zoom) / str(x) / f"{y}.webp"
+    def _path(self, z: int, x: int, y: int) -> Path:
+        return self.cache_dir / str(z) / str(x) / f"{y}.webp"
 
-    def _enforce_limit(self) -> None:
-        # Soft limit: delete oldest on-disk tiles under zoom until under budget.
+    def _miss_marker(self, z: int, x: int, y: int) -> Path:
+        return self.cache_dir / str(z) / str(x) / f"{y}.404"
+
+    def _remember_missing(self, key: tuple[int, int, int]) -> None:
+        self._mem[key] = self._MISSING
+        while len(self._mem) > 512:
+            self._mem.popitem(last=False)
+
+    def _remember_image(self, key: tuple[int, int, int], img) -> None:
+        self._mem[key] = img
+        while len(self._mem) > 512:
+            self._mem.popitem(last=False)
+
+    def _enforce_limit(self, force: bool = False) -> None:
+        # Full tree walk is expensive; only run every N fetches or when over budget.
+        self._fetches_since_enforce += 1
+        if not force and self._fetches_since_enforce < 64 and self._approx_bytes < self.max_bytes:
+            return
+        self._fetches_since_enforce = 0
         total = 0
         files: list[tuple[float, Path]] = []
         for p in self.cache_dir.rglob("*.webp"):
@@ -66,6 +91,7 @@ class TileCache:
                 continue
             total += st.st_size
             files.append((st.st_mtime, p))
+        self._approx_bytes = total
         if total <= self.max_bytes:
             return
         files.sort()
@@ -78,51 +104,93 @@ class TileCache:
                 total -= sz
             except OSError:
                 continue
+        self._approx_bytes = total
 
-    def get_image(self, x: int, y: int):
+    def _fetch_one(self, z: int, x: int, y: int):
+        """Return PIL Image, or None if tile is missing (404) / unreadable."""
         from PIL import Image
         import io
+        import urllib.error
 
-        key = (x, y)
+        key = (z, x, y)
         if key in self._mem:
             self._mem.move_to_end(key)
+            val = self._mem[key]
+            if val is self._MISSING:
+                self.hits += 1
+                return None
             self.hits += 1
-            return self._mem[key]
-        path = self._path(x, y)
+            return val
+
+        path = self._path(z, x, y)
+        miss = self._miss_marker(z, x, y)
+        if miss.is_file():
+            self.hits += 1
+            self._remember_missing(key)
+            return None
+
         data: bytes | None = None
         if path.is_file():
             data = path.read_bytes()
             self.hits += 1
         else:
             self.misses += 1
-            url = TILE_TMPL.format(z=self.zoom, x=x, y=y)
+            url = TILE_TMPL.format(z=z, x=x, y=y)
             req = urllib.request.Request(
-                url, headers={"User-Agent": os.environ.get("NAVI_MWM_HTTP_USER_AGENT", DEFAULT_UA)}
+                url,
+                headers={
+                    "User-Agent": os.environ.get("NAVI_MWM_HTTP_USER_AGENT", DEFAULT_UA)
+                },
             )
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                data = resp.read()
-            self.fetches += 1
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(data)
-            self._enforce_limit()
-        img = Image.open(io.BytesIO(data)).convert("RGB")
-        # Keep a few decoded tiles in RAM.
-        approx = img.size[0] * img.size[1] * 3
-        self._mem[key] = img
-        self._mem_bytes += approx
-        while len(self._mem) > 64:
-            self._mem.popitem(last=False)
+            try:
+                with urllib.request.urlopen(req, timeout=15) as resp:
+                    data = resp.read()
+                self.fetches += 1
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(data)
+                self._approx_bytes += len(data)
+                self._enforce_limit()
+            except urllib.error.HTTPError as e:
+                # Soft-miss: memoize so we never re-hit the network for this tile.
+                self.not_found += 1
+                if e.code == 404:
+                    miss.parent.mkdir(parents=True, exist_ok=True)
+                    miss.write_text("404\n")
+                self._remember_missing(key)
+                return None
+            except Exception:
+                # Timeouts / transient errors: memoize for this process only.
+                self.not_found += 1
+                self._remember_missing(key)
+                return None
+
+        try:
+            img = Image.open(io.BytesIO(data)).convert("RGB")
+        except Exception:
+            self.not_found += 1
+            self._remember_missing(key)
+            return None
+        self._remember_image(key, img)
         return img
 
+    def get_image(self, lat: float, lon: float):
+        """Fetch tile covering lat/lon at preferred zoom, falling back on 404."""
+        for z in range(self.zoom, self.min_zoom - 1, -1):
+            x, y = latlon_to_tile(lat, lon, z)
+            img = self._fetch_one(z, x, y)
+            if img is not None:
+                if z != self.zoom:
+                    self.fallback_ok += 1
+                return img, z, x, y
+        return None, self.zoom, 0, 0
+
     def sample(self, lat: float, lon: float) -> float | None:
-        x, y = latlon_to_tile(lat, lon, self.zoom)
-        img = self.get_image(x, y)
-        n = 2.0**self.zoom
-        # Pixel within tile (256 assumed; webp terrarium tiles are 512 for some providers —
-        # use actual size).
+        img, z, x, y = self.get_image(lat, lon)
+        if img is None:
+            return None
+        n = 2.0**z
         w, h = img.size
         xf = ((lon + 180.0) / 360.0 * n - x) * w
-        # Web mercator Y
         lat_rad = math.radians(lat)
         yf = ((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n - y) * h
         px = min(max(int(xf), 0), w - 1)
@@ -227,6 +295,8 @@ def main() -> int:
         "tile_cache_hits": cache.hits,
         "tile_cache_misses": cache.misses,
         "tile_fetches": cache.fetches,
+        "tile_not_found": cache.not_found,
+        "tile_fallback_ok": cache.fallback_ok,
         "wall_s": time.monotonic() - t0,
     }
     if args.stats_out:
