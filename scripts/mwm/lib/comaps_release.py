@@ -63,6 +63,9 @@ class ReleaseInfo:
     countries_txt_bytes: int
     leaves: dict[str, LeafInfo]
     maps_json: dict[str, Any]
+    countries_txt_sig_verified: bool = False
+    countries_txt_sig_sha256: str = ""
+    countries_txt_pubkey_hex: str = COUNTRIES_TXT_PUBKEY_HEX
 
 
 def user_agent() -> str:
@@ -190,6 +193,46 @@ def sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def decode_hex32(hex_str: str) -> bytes:
+    """Decode 64 hex chars → 32 bytes (CoMaps Storage::DecodeHex32)."""
+    h = hex_str.strip().lower()
+    if len(h) != 64:
+        raise ValueError(f"expected 64 hex chars, got {len(h)}")
+    try:
+        return bytes.fromhex(h)
+    except ValueError as e:
+        raise ValueError(f"invalid hex public key: {e}") from e
+
+
+def verify_countries_txt_sig(
+    countries_txt: bytes,
+    signature: bytes,
+    *,
+    pubkey_hex: str = COUNTRIES_TXT_PUBKEY_HEX,
+) -> bool:
+    """Ed25519 verify as CoMaps Storage::RunCountriesCheckAsync.
+
+    Pinned source (comaps fd11cc6f / private.h + libs/storage/storage.cpp):
+      private.h:~19  COUNTRIES_TXT_SIGNATURE_HEX
+      storage.cpp:~428–445  sig size 64; DecodeHex32; platform::crypto::VerifyEd25519
+    """
+    if len(signature) != 64:
+        return False
+    try:
+        from nacl.exceptions import BadSignatureError
+        from nacl.signing import VerifyKey
+    except ImportError as e:  # pragma: no cover
+        raise RuntimeError(
+            "PyNaCl required for countries.txt.sig verification (pip install pynacl)"
+        ) from e
+    try:
+        key = VerifyKey(decode_hex32(pubkey_hex))
+        key.verify(countries_txt, signature)
+        return True
+    except (BadSignatureError, ValueError):
+        return False
+
+
 def url_encode_leaf(leaf_id: str) -> str:
     # CoMaps url::UrlEncode: percent-encode spaces / non-ASCII; keep - _ .
     return urllib.parse.quote(leaf_id, safe="-_.")
@@ -245,15 +288,23 @@ def discover_release(
     if countries_raw is None:
         raise RuntimeError(f"failed to fetch countries.txt: {last_err}")
 
-    # Signature fetch is best-effort; record presence. Full Ed25519 verify needs
-    # cryptography; we still SHA-256 the body for catalog binding.
-    try:
-        sig_url = f"{ranked[0].rstrip('/')}/maps/{map_series}/{version}/countries.txt.sig"
-        sig = http_get_bytes(sig_url, timeout=30.0, retries=2)
-        if len(sig) != 64:
-            pass  # reported in open issues if verify unavailable
-    except Exception:
-        sig = b""
+    # Ed25519 verify countries.txt.sig (abort on failure — matches CoMaps app).
+    sig: bytes | None = None
+    sig_err: Exception | None = None
+    for mirror in ranked:
+        sig_url = f"{mirror.rstrip('/')}/maps/{map_series}/{version}/countries.txt.sig"
+        try:
+            sig = http_get_bytes(sig_url, timeout=30.0, retries=2)
+            break
+        except Exception as e:  # noqa: BLE001
+            sig_err = e
+    if sig is None:
+        raise RuntimeError(f"failed to fetch countries.txt.sig: {sig_err}")
+    if not verify_countries_txt_sig(countries_raw, sig):
+        raise RuntimeError(
+            "countries.txt.sig Ed25519 verification failed "
+            f"(pubkey={COUNTRIES_TXT_PUBKEY_HEX[:16]}…)"
+        )
 
     v, series, leaves = parse_countries_txt(countries_raw)
     if v != version:
@@ -270,6 +321,9 @@ def discover_release(
         countries_txt_bytes=len(countries_raw),
         leaves=leaves,
         maps_json=maps_json,
+        countries_txt_sig_verified=True,
+        countries_txt_sig_sha256=sha256_bytes(sig),
+        countries_txt_pubkey_hex=COUNTRIES_TXT_PUBKEY_HEX,
     )
 
 

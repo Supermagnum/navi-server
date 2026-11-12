@@ -51,6 +51,9 @@ only). Credit CoMaps and mirror operators (see `ATTRIBUTION.md`).
 | `version` | CoMaps data version directory name |
 | `comaps.map_series` / `release_version` | CoMaps series + version |
 | `comaps.countries_txt_sha256` | Checksum of the release `countries.txt` |
+| `comaps.countries_txt_sig_verified` | `true` after Ed25519 verify of `countries.txt.sig` (CoMaps app key) |
+| `comaps.countries_txt_sig_sha256` | SHA-256 of the verified signature bytes |
+| `comaps.countries_txt_pubkey_hex` | CoMaps `COUNTRIES_TXT_SIGNATURE_HEX` used for verify |
 | `comaps.metaserver_url` | Metaserver used for discovery (no hard-coded mirrors) |
 | `leaves[]` | Per leaf: CoMaps file name/size/`sha1_base64`; Navi `mwm_sha256`+`mwm_bytes` fingerprint; sidecar URL/size/SHA-256; `shared` |
 | `region_to_leaves` | Navi region id → CoMaps leaf id list (Norway draft + growing) |

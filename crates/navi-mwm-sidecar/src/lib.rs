@@ -492,11 +492,25 @@ pub fn load_boardwalk_jsonl(path: &Path, ambiguous_threshold: u32) -> Result<Vec
     Ok(records)
 }
 
-/// Decode a spike2 flat sidecar and return the wetland record count.
+/// Count Soft vs Hard wetland records.
+pub fn wetland_class_counts(records: &[WetlandRecord]) -> (usize, usize) {
+    let mut soft = 0usize;
+    let mut hard = 0usize;
+    for r in records {
+        match r.class {
+            CLASS_SOFT => soft += 1,
+            CLASS_HARD => hard += 1,
+            _ => {}
+        }
+    }
+    (soft, hard)
+}
+
+/// Decode a spike2 flat sidecar and return the wetland records.
 ///
 /// Layout after zstd: `NVSC`, version `u32`, MWM sha256, MWM size `u64`,
 /// count `u32`, then count records of 8 bytes.
-pub fn read_spike2_flat_wetland_count(path: &Path) -> Result<usize> {
+pub fn read_spike2_flat_wetland_records(path: &Path) -> Result<Vec<WetlandRecord>> {
     let comp = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
     let data = zstd_decompress(&comp)?;
     if data.len() < 52 || &data[0..4] != MAGIC {
@@ -519,13 +533,28 @@ pub fn read_spike2_flat_wetland_count(path: &Path) -> Result<usize> {
     if !tail.is_empty() {
         bail!("spike2 trailing bytes");
     }
+    let mut out = Vec::with_capacity(count);
     for rec in recs {
+        let feature_id = u32::from_le_bytes([rec[0], rec[1], rec[2], rec[3]]);
+        let segment_index = u16::from_le_bytes([rec[4], rec[5]]);
+        let direction = rec[6];
         let class = rec[7];
         if class != CLASS_SOFT && class != CLASS_HARD {
             bail!("spike2 record has unknown class {class}");
         }
+        out.push(WetlandRecord {
+            feature_id,
+            segment_index,
+            direction,
+            class,
+        });
     }
-    Ok(count)
+    Ok(out)
+}
+
+/// Decode a spike2 flat sidecar and return the wetland record count.
+pub fn read_spike2_flat_wetland_count(path: &Path) -> Result<usize> {
+    Ok(read_spike2_flat_wetland_records(path)?.len())
 }
 
 fn wetland_body(records: &[WetlandRecord]) -> Result<Vec<u8>> {

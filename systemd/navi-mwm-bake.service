@@ -6,12 +6,16 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+# Resume via processed.json after crash; lock released when ExecStart exits.
+Restart=on-failure
+RestartSec=120
 Environment=NAVI_MWM_ENABLED=0
 Environment=NAVI_MWM_MODE=comaps-release
 EnvironmentFile=-/etc/navi/mwm.env
 WorkingDirectory=/opt/navi/navi-server
 ExecStart=/opt/navi/navi-server/scripts/mwm/run-mwm-bake.sh
 # generate mode Nordic peak ~19–20 GiB; comaps-release streaming is far lower.
+# Parallel comaps-release: N * ~8.7 GiB + 16 GiB headroom (see leaf_scheduler).
 MemoryMax=24G
 Nice=10
 IOSchedulingClass=best-effort

@@ -33,6 +33,10 @@ mwm_load_defaults() {
   : "${NAVI_MWM_COMAPS_VERSION:=}"
   : "${NAVI_MWM_DOWNLOAD_DIR:=}"
   : "${NAVI_MWM_DOWNLOAD_CONCURRENCY:=2}"
+  # Process concurrency: 0 → derive from free RAM (see leaf_scheduler.py).
+  : "${NAVI_MWM_PROCESS_CONCURRENCY:=0}"
+  : "${NAVI_MWM_PER_LEAF_GIB:=8.7}"
+  : "${NAVI_MWM_RAM_HEADROOM_GIB:=16}"
   # Nordic measured peak ~19–20 GiB MaxRSS; 14G cgroup OOMs Features.
   : "${NAVI_MWM_MEMORY_MAX:=24G}"
   : "${NAVI_MWM_ALLOWED_CPUS:=}"
@@ -49,6 +53,8 @@ mwm_load_defaults() {
   : "${NAVI_MWM_MAPTERHORN_PMTILES:=}"
   : "${NAVI_MWM_MAPTERHORN_ATTRIBUTION_URL:=https://download.mapterhorn.com/attribution.json}"
   : "${NAVI_MWM_PLANET_PBF:=}"
+  # comaps-release wetland bind reads the MWM itself; PBF only for generate mode.
+  : "${NAVI_MWM_ALL_LEAVES:=0}"
   : "${NAVI_MWM_HTTP_USER_AGENT:=navi-server-mwm/1.0 (+https://github.com/Supermagnum/navi-server; contact=mwm-pipeline)}"
   mkdir -p "$NAVI_MWM_STATE_DIR" "$NAVI_MWM_HGT_CACHE" "$NAVI_MWM_MAPTERHORN_CACHE"
 }

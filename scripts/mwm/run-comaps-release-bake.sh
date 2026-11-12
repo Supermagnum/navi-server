@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Stream CoMaps official MWMs → Navi sidecars only (default MWM mode).
-# Per leaf: download → verify → dump roads → wetland annotate → elevation →
-# sidecar bake → record fingerprint → DELETE MWM.
+# Per leaf: download → verify → dump roads+wetlands from MWM → annotate →
+# elevation → sidecar bake → record fingerprint → DELETE MWM.
+# No planet/continental PBF required.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
@@ -58,14 +59,17 @@ LEAF_FILTER='${LEAF_FILTER}'
 LIMIT='${LIMIT}'
 FORCE='${FORCE}'
 export CARGO_TARGET_DIR='${ROOT}/target'
+export NAVI_MWM_PYTHON=\"\$PYTHON\"
 
 # Always rebuild so elevation/wetland CLI flags match sources (stale target/ is common).
 cargo build -p navi-mwm-sidecar --release --manifest-path \"\${ROOT}/Cargo.toml\"
 SIDECAR_BIN=\"\${CARGO_TARGET_DIR}/release/navi-mwm-sidecar\"
 \"\$SIDECAR_BIN\" bake --help | grep -q elevation-jsonl || mwm_die \"sidecar binary lacks --elevation-jsonl: \$SIDECAR_BIN\"
+export NAVI_MWM_FORCE_REBUILD=\"\${NAVI_MWM_FORCE_REBUILD:-0}\"
 \"\${SCRIPT_DIR}/build-dump-mwm-roads.sh\" >/dev/null
 DUMP_BIN=\"\${NAVI_MWM_BUILD_DIR}/dump_mwm_roads\"
 [[ -x \"\$DUMP_BIN\" ]] || mwm_die \"dump_mwm_roads missing\"
+\"\$DUMP_BIN\" --help 2>&1 | grep -q out-wetlands || mwm_die \"dump_mwm_roads lacks --out-wetlands (rebuild required)\"
 
 DISCOVERY=\$(\"\$PYTHON\" - \"\$SCRIPT_DIR\" <<'PY'
 import json, os, sys
@@ -86,6 +90,9 @@ print(json.dumps({
   'mirrors': info.mirrors,
   'countries_txt_sha256': info.countries_txt_sha256,
   'countries_txt_bytes': info.countries_txt_bytes,
+  'countries_txt_sig_verified': info.countries_txt_sig_verified,
+  'countries_txt_sig_sha256': info.countries_txt_sig_sha256,
+  'countries_txt_pubkey_hex': info.countries_txt_pubkey_hex,
   'leaf_count': len(info.leaves),
   'leaves': {k: {'id': v.id, 'size': v.size, 'sha1_base64': v.sha1_base64,
                  'affiliations': v.affiliations} for k, v in info.leaves.items()},
@@ -95,11 +102,37 @@ PY
 
 VER=\$(echo \"\$DISCOVERY\" | \"\$PYTHON\" -c 'import json,sys; print(json.load(sys.stdin)[\"version\"])')
 SERIES=\$(echo \"\$DISCOVERY\" | \"\$PYTHON\" -c 'import json,sys; print(json.load(sys.stdin)[\"map_series\"])')
+SIG_OK=\$(echo \"\$DISCOVERY\" | \"\$PYTHON\" -c 'import json,sys; print(json.load(sys.stdin).get(\"countries_txt_sig_verified\"))')
+[[ \"\$SIG_OK\" == \"True\" ]] || mwm_die \"countries.txt.sig not verified\"
 WORK=\"\${NAVI_MWM_DOWNLOAD_DIR:-\${NAVI_MWM_MAPS_BUILD}/comaps-release}/\${VER}\"
 mkdir -p \"\$WORK/sidecars\" \"\$WORK/tmp\" \"\$WORK/stats\" \"\$WORK/meta\"
 echo \"\$DISCOVERY\" >\"\$WORK/meta/discovery.json\"
 STATE=\"\$WORK/meta/processed.json\"
 [[ -f \"\$STATE\" ]] || echo '{\"release_version\":'\"\$VER\"',\"leaves\":{}}' >\"\$STATE\"
+
+# Restrict discovery leaves to the configured leafset (Nordic by default),
+# unless NAVI_MWM_ALL_LEAVES=1 (world run).
+if [[ \"\${NAVI_MWM_ALL_LEAVES:-0}\" != \"1\" ]]; then
+  \"\$PYTHON\" - \"\$WORK/meta/discovery.json\" \"\${NAVI_MWM_LEAFSET}\" <<'PY'
+import json, sys
+from pathlib import Path
+disc_path, leafset_path = sys.argv[1:3]
+disc = json.loads(Path(disc_path).read_text())
+wanted = set()
+for line in Path(leafset_path).read_text().splitlines():
+    s = line.strip()
+    if s and not s.startswith('#'):
+        wanted.add(s)
+missing = sorted(wanted - set(disc['leaves']))
+if missing:
+    raise SystemExit(f'leafset entries missing from countries.txt: {missing[:5]}')
+disc['leaves'] = {k: v for k, v in disc['leaves'].items() if k in wanted}
+disc['leaf_count'] = len(disc['leaves'])
+disc['leafset'] = leafset_path
+Path(disc_path).write_text(json.dumps(disc) + '\n')
+print(f'leafset filtered to {len(wanted)} leaves')
+PY
+fi
 
 export NAVI_MWM_HTTP_USER_AGENT=\"\${NAVI_MWM_HTTP_USER_AGENT:-navi-server-mwm/1.0 (+https://github.com/Supermagnum/navi-server)}\"
 ATTR_JSON=\"\$WORK/attribution.json\"
@@ -108,120 +141,23 @@ ATTR_JSON=\"\$WORK/attribution.json\"
   --out-json \"\$ATTR_JSON\" \
   --out-md \"\$WORK/ATTRIBUTION.md\"
 
-PROCESSED=0
-while IFS= read -r leaf; do
-  [[ -n \"\$leaf\" ]] || continue
-  if [[ -n \"\$LEAF_FILTER\" && \"\$leaf\" != \"\$LEAF_FILTER\" ]]; then
-    continue
-  fi
-  if [[ \"\$LIMIT\" != \"0\" && \"\$PROCESSED\" -ge \"\$LIMIT\" ]]; then
-    break
-  fi
-  # Skip if already processed for this release
-  ALREADY=\$(\"\$PYTHON\" - \"\$STATE\" \"\$leaf\" <<'PY'
-import json,sys
-st=json.load(open(sys.argv[1]))
-print('1' if sys.argv[2] in st.get('leaves',{}) else '0')
-PY
+PARALLEL_ARGS=(
+  --work \"\$WORK\"
+  --discovery \"\$WORK/meta/discovery.json\"
+  --dump-bin \"\$DUMP_BIN\"
+  --sidecar-bin \"\$SIDECAR_BIN\"
+  --resources-path \"\${NAVI_MWM_COMAPS_ROOT}/data\"
+  --attribution \"\$ATTR_JSON\"
 )
-  if [[ \"\$ALREADY\" == \"1\" ]]; then
-    mwm_log \"skip already processed \${leaf}\"
-    continue
-  fi
+[[ -n \"\$LEAF_FILTER\" ]] && PARALLEL_ARGS+=(--leaf \"\$LEAF_FILTER\")
+[[ \"\$LIMIT\" != \"0\" ]] && PARALLEL_ARGS+=(--limit \"\$LIMIT\")
+[[ \"\$SKIP_ANNOTATE\" == \"1\" ]] && PARALLEL_ARGS+=(--skip-annotate)
+[[ \"\$SKIP_ELEVATION\" == \"1\" ]] && PARALLEL_ARGS+=(--skip-elevation)
+[[ -n \"\${NAVI_MWM_MAPTERHORN_ZOOM:-}\" && \"\${NAVI_MWM_MAPTERHORN_ZOOM}\" != \"0\" ]] && \
+  PARALLEL_ARGS+=(--elev-zoom \"\${NAVI_MWM_MAPTERHORN_ZOOM}\")
 
-  mwm_log \"leaf start \${leaf}\"
-  MWM=\"\$WORK/tmp/\${leaf}.mwm\"
-  ROADS=\"\$WORK/tmp/\${leaf}.roads.jsonl\"
-  WJSON=\"\$WORK/tmp/\${leaf}.wetland.jsonl\"
-  BJSON=\"\$WORK/tmp/\${leaf}.boardwalk.jsonl\"
-  EJSON=\"\$WORK/tmp/\${leaf}.elevation.jsonl\"
-  OUT=\"\$WORK/sidecars/\${leaf}.navi-sidecar.v1.zst\"
-  ESTATS=\"\$WORK/stats/\${leaf}.elevation.json\"
-
-  cleanup_leaf() {
-    rm -f \"\$MWM\" \"\$MWM.part\" \"\$ROADS\" \"\$WJSON\" \"\$BJSON\" \"\$EJSON\"
-  }
-  trap cleanup_leaf EXIT
-
-  \"\$PYTHON\" \"\${SCRIPT_DIR}/download_comaps_leaf.py\" \
-    --discovery \"\$WORK/meta/discovery.json\" \
-    --leaf \"\$leaf\" \
-    --out \"\$MWM\"
-
-  \"\$DUMP_BIN\" --mwm \"\$MWM\" --resources_path \"\${NAVI_MWM_COMAPS_ROOT}/data\" --out \"\$ROADS\"
-
-  if [[ \"\$SKIP_ANNOTATE\" == \"1\" ]]; then
-    : >\"\$WJSON\"; : >\"\$BJSON\"
-  else
-    PBF=\"\${NAVI_MWM_PLANET_PBF:-}\"
-    [[ -n \"\$PBF\" && -f \"\$PBF\" ]] || mwm_die \"NAVI_MWM_PLANET_PBF required for annotate (or --skip-annotate)\"
-    BORDER=\"\${NAVI_MWM_COMAPS_ROOT}/data/borders/\${leaf}.poly\"
-    \"\$PYTHON\" \"\${SCRIPT_DIR}/annotate-wetland-edges.py\" \
-      --pbf \"\$PBF\" \
-      --roads-jsonl \"\$ROADS\" \
-      --border-poly \"\$BORDER\" \
-      --out-wetland \"\$WJSON\" \
-      --out-boardwalk \"\$BJSON\"
-  fi
-
-  if [[ \"\$SKIP_ELEVATION\" == \"1\" ]]; then
-    : >\"\$EJSON\"
-  else
-    \"\$PYTHON\" \"\${SCRIPT_DIR}/build-elevation-overrides.py\" \
-      --roads-jsonl \"\$ROADS\" \
-      --out \"\$EJSON\" \
-      --cache-dir \"\${NAVI_MWM_MAPTERHORN_CACHE}\" \
-      --cache-max-bytes \"\${NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES}\" \
-      --threshold-m \"\${NAVI_MWM_ELEV_THRESHOLD_M}\" \
-      --stats-out \"\$ESTATS\"
-  fi
-
-  TAG=\"comaps-release/\${SERIES}\"
-  SHA=\"\${VER}\"
-  \"\$SIDECAR_BIN\" bake \
-    --mwm \"\$MWM\" \
-    --wetland-jsonl \"\$WJSON\" \
-    --boardwalk-jsonl \"\$BJSON\" \
-    --elevation-jsonl \"\$EJSON\" \
-    --attribution \"\$ATTR_JSON\" \
-    --generator-tag \"\$TAG\" \
-    --generator-sha \"\$SHA\" \
-    --ambiguous-threshold \"\${NAVI_MWM_AMBIGUOUS_THRESHOLD}\" \
-    --out \"\$OUT\" | tee \"\$WORK/stats/\${leaf}.sidecar.json\"
-
-  \"\$PYTHON\" - \"\$STATE\" \"\$leaf\" \"\$MWM\" \"\$OUT\" \"\$WORK/meta/discovery.json\" <<'PY'
-import json, hashlib, sys
-from pathlib import Path
-state_path, leaf, mwm, out, disc_path = sys.argv[1:6]
-st = json.load(open(state_path))
-disc = json.load(open(disc_path))
-meta = disc['leaves'][leaf]
-h = hashlib.sha256(); n=0
-with open(mwm,'rb') as f:
-  for c in iter(lambda: f.read(1<<20), b''):
-    h.update(c); n += len(c)
-sh = hashlib.sha256()
-with open(out,'rb') as f:
-  for c in iter(lambda: f.read(1<<20), b''):
-    sh.update(c)
-st.setdefault('leaves',{})[leaf] = {
-  'comaps_bytes': meta['size'],
-  'comaps_sha1_base64': meta['sha1_base64'],
-  'mwm_bytes': n,
-  'mwm_sha256': h.hexdigest(),
-  'sidecar_bytes': Path(out).stat().st_size,
-  'sidecar_sha256': sh.hexdigest(),
-}
-st['release_version'] = disc['version']
-Path(state_path).write_text(json.dumps(st, indent=2)+'\n')
-print('recorded', leaf)
-PY
-
-  cleanup_leaf
-  trap - EXIT
-  PROCESSED=\$((PROCESSED+1))
-  mwm_log \"leaf done \${leaf} (processed=\${PROCESSED})\"
-done < <(mwm_read_leafset)
+mwm_log \"parallel leaf bake starting (lock held for whole run)\"
+\"\$PYTHON\" \"\${SCRIPT_DIR}/run_parallel_leaves.py\" \"\${PARALLEL_ARGS[@]}\"
 
 # Stage version dir for publish (sidecars only)
 VERSION_DIR=\"\$WORK/publish-staging/\${VER}\"

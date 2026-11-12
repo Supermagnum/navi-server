@@ -6,6 +6,10 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+# Restart on failure so a mid-leaf crash resumes via processed.json; flock
+# on pack-pipeline.lock is held only for the duration of ExecStart.
+Restart=on-failure
+RestartSec=120
 Environment=NAVI_MWM_ENABLED=0
 Environment=NAVI_MWM_MODE=comaps-release
 EnvironmentFile=-/etc/navi/mwm.env
