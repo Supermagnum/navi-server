@@ -66,7 +66,20 @@ def load_osm2ft_ways(path: Path) -> dict[int, list[int]]:
 
 def osmium_export_geojson(pbf: Path, out: Path, expr: str, bbox: tuple[float, float, float, float]):
     west, south, east, north = bbox
+    clipped = out.with_suffix(".bbox.pbf")
     filtered = out.with_suffix(".filtered.pbf")
+    # tags-filter has no --bbox; clip first then filter tags.
+    subprocess.check_call(
+        [
+            "osmium",
+            "extract",
+            f"--bbox={west},{south},{east},{north}",
+            "-o",
+            str(clipped),
+            "--overwrite",
+            str(pbf),
+        ]
+    )
     subprocess.check_call(
         [
             "osmium",
@@ -74,9 +87,8 @@ def osmium_export_geojson(pbf: Path, out: Path, expr: str, bbox: tuple[float, fl
             "-o",
             str(filtered),
             "--overwrite",
-            str(pbf),
+            str(clipped),
             expr,
-            f"--bbox={west},{south},{east},{north}",
         ]
     )
     subprocess.check_call(
@@ -112,10 +124,59 @@ def poly_bbox(path: Path) -> tuple[float, float, float, float]:
     return min_lon, min_lat, max_lon, max_lat
 
 
+def load_roads_midpoint_index(roads_jsonl: Path):
+    """STRtree of dumped MWM road midpoints → feature ids (CoMaps release path)."""
+    from shapely.geometry import Point
+    from shapely.strtree import STRtree
+
+    mids = []
+    fids = []
+    with roads_jsonl.open() as f:
+        for line in f:
+            if not line.strip():
+                continue
+            feat = json.loads(line)
+            pts = feat.get("points") or []
+            if not pts:
+                continue
+            mid = pts[len(pts) // 2]
+            mids.append(Point(float(mid["lon"]), float(mid["lat"])))
+            fids.append(int(feat["feature_id"]))
+    return STRtree(mids), mids, fids
+
+
+def nearest_feature_id(tree, mids, fids, lon: float, lat: float, max_m: float) -> tuple[int | None, bool]:
+    import math
+
+    from shapely.geometry import Point
+
+    pt = Point(lon, lat)
+    idx = tree.nearest(pt)
+    if hasattr(idx, "item"):
+        idx = int(idx.item())
+    else:
+        idx = int(idx)
+    near = mids[idx]
+    # haversine metres
+    r = 6371000.0
+    p1, p2 = math.radians(lat), math.radians(near.y)
+    dphi = p2 - p1
+    dl = math.radians(near.x - lon)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    dist = 2 * r * math.asin(math.sqrt(min(1.0, a)))
+    if dist > max_m:
+        return None, False
+    return fids[idx], False
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--pbf", required=True, type=Path)
-    ap.add_argument("--osm2ft", required=True, type=Path)
+    ap.add_argument("--osm2ft", type=Path, default=None,
+                    help="Generator osm2ft (generate mode)")
+    ap.add_argument("--roads-jsonl", type=Path, default=None,
+                    help="dump_mwm_roads JSONL (comaps-release mode; no osm2ft)")
+    ap.add_argument("--match-max-m", type=float, default=75.0)
     ap.add_argument("--border-poly", type=Path, default=None)
     ap.add_argument("--bbox", default=None, help="west,south,east,north")
     ap.add_argument("--out-wetland", required=True, type=Path)
@@ -134,13 +195,18 @@ def main() -> int:
     else:
         raise SystemExit("need --bbox or --border-poly")
 
-    osm2ft = load_osm2ft_ways(args.osm2ft)
+    if bool(args.osm2ft) == bool(args.roads_jsonl):
+        raise SystemExit("need exactly one of --osm2ft or --roads-jsonl")
+
+    osm2ft = load_osm2ft_ways(args.osm2ft) if args.osm2ft else None
+    road_index = load_roads_midpoint_index(args.roads_jsonl) if args.roads_jsonl else None
 
     with tempfile.TemporaryDirectory() as td:
         td_path = Path(td)
         wet_gj = td_path / "wetland.geojson"
         hwy_gj = td_path / "highway.geojson"
-        osmium_export_geojson(args.pbf, wet_gj, "n/w/r/natural=wetland", bbox)  # type: ignore
+        # osmium filter type prefix is "nwr/..." (not "n/w/r/..."; the latter matches nothing).
+        osmium_export_geojson(args.pbf, wet_gj, "nwr/natural=wetland", bbox)  # type: ignore
         osmium_export_geojson(args.pbf, hwy_gj, "w/highway", bbox)  # type: ignore
 
         wet_feats = json.loads(wet_gj.read_text()).get("features", [])
@@ -167,25 +233,23 @@ def main() -> int:
         wetland_out = []
         boardwalk_out = []
         ambiguous = 0
+        unmatched = 0
         for f in hwy_feats:
             props = f.get("properties") or {}
             osm_id = props.get("@id") or props.get("id")
-            if osm_id is None:
-                continue
-            try:
-                wid = int(str(osm_id).split("/")[-1])
-            except ValueError:
+            wid: int | None = None
+            if osm_id is not None:
+                try:
+                    wid = int(str(osm_id).split("/")[-1])
+                except ValueError:
+                    wid = None
+            # osm2ft mode needs a way id; roads_jsonl binds by geometry midpoint only.
+            if osm2ft is not None and wid is None:
                 continue
             geom = shape(f["geometry"])
             if geom.is_empty or geom.geom_type not in ("LineString", "MultiLineString"):
                 continue
             lines = [geom] if geom.geom_type == "LineString" else list(geom.geoms)
-            fids = osm2ft.get(wid, [])
-            amb = len(fids) > 1
-            if amb:
-                ambiguous += 1
-            if not fids:
-                continue
             bw = is_boardwalk(props)
             for line in lines:
                 coords = list(line.coords)
@@ -200,6 +264,31 @@ def main() -> int:
                             if poly.contains(mid) or poly.intersects(LineString([(x0, y0), (x1, y1)])):
                                 cls = classes[int(idx)]
                                 break
+                    if cls is None and not bw:
+                        continue
+
+                    if osm2ft is not None:
+                        assert wid is not None
+                        fids = osm2ft.get(wid, [])
+                        amb = len(fids) > 1
+                        if amb:
+                            ambiguous += 1
+                        if not fids:
+                            unmatched += 1
+                            continue
+                    else:
+                        assert road_index is not None
+                        rtree, mids, fids_list = road_index
+                        fid, amb = nearest_feature_id(
+                            rtree, mids, fids_list, mid.x, mid.y, args.match_max_m
+                        )
+                        if fid is None:
+                            unmatched += 1
+                            continue
+                        fids = [fid]
+                        if amb:
+                            ambiguous += 1
+
                     for fid in fids:
                         if bw:
                             boardwalk_out.append(
@@ -237,6 +326,8 @@ def main() -> int:
                 "wetland_records": len(wetland_out),
                 "boardwalk_records": len(boardwalk_out),
                 "ambiguous_ways": ambiguous,
+                "unmatched_segments": unmatched,
+                "bind_mode": "osm2ft" if osm2ft is not None else "roads_jsonl",
                 "out_wetland": str(args.out_wetland),
                 "out_boardwalk": str(args.out_boardwalk),
             }

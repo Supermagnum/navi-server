@@ -63,6 +63,7 @@ fn embedded_fixture_roundtrip_counts() {
         99,
         wetland,
         Vec::<BoardwalkRecord>::new(),
+        Vec::new(),
         "{}",
     )
     .unwrap();

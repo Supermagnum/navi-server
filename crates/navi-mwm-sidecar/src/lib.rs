@@ -3,7 +3,7 @@
 //! The `.zst` file is one zstd frame (level 10) around a logical blob:
 //! magic, version, generator tag and sha, MWM fingerprint, a section
 //! directory, then concatenated per-section zstd bodies. Section names are
-//! `wetland_edges`, `boardwalk_flags`, and `attribution`.
+//! `wetland_edges`, `boardwalk_flags`, `elevation_overrides`, and `attribution`.
 //!
 //! Spike2 Ostlandet files use a flat layout (no directory). [`read_spike2_flat_wetland_count`]
 //! decodes that layout.
@@ -30,6 +30,9 @@ pub const SECTION_BOARDWALK: &str = "boardwalk_flags";
 
 /// UTF-8 JSON attribution section name.
 pub const SECTION_ATTRIBUTION: &str = "attribution";
+
+/// Mapterhorn elevation overrides (integer decimetres, delta-encoded).
+pub const SECTION_ELEVATION: &str = "elevation_overrides";
 
 /// Soft class byte (`bog`, `string_bog`, `fen`, untyped wetland).
 pub const CLASS_SOFT: u8 = 1;
@@ -72,6 +75,26 @@ pub struct BoardwalkRecord {
     pub flag: u8,
 }
 
+/// One point altitude override for a routable feature.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ElevationPoint {
+    /// Index into the MWM feature geometry.
+    pub point_index: u16,
+    /// Absolute altitude in integer decimetres (0.1 m).
+    pub altitude_dm: i16,
+}
+
+/// Elevation overrides for one feature (only points that differ from CoMaps).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ElevationFeature {
+    /// MWM feature id.
+    pub feature_id: u32,
+    /// Full geometry point count (for client alignment).
+    pub point_count: u16,
+    /// Sparse overrides in ascending `point_index` order.
+    pub points: Vec<ElevationPoint>,
+}
+
 /// Section directory entry. `offset` is from the start of the payload region.
 #[derive(Debug, Clone)]
 pub struct SectionInfo {
@@ -106,8 +129,23 @@ pub struct Sidecar {
     pub wetland: Vec<WetlandRecord>,
     /// Boardwalk flag records.
     pub boardwalk: Vec<BoardwalkRecord>,
+    /// Mapterhorn elevation overrides.
+    pub elevation: Vec<ElevationFeature>,
     /// Attribution section as UTF-8 JSON text.
     pub attribution_json: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct ElevationPointJson {
+    point_index: u16,
+    altitude_dm: i16,
+}
+
+#[derive(Debug, Deserialize)]
+struct ElevationFeatureJson {
+    feature_id: u32,
+    point_count: u16,
+    points: Vec<ElevationPointJson>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -181,6 +219,7 @@ pub fn sha256_file(path: &Path) -> Result<([u8; 32], u64)> {
 ///
 /// Records are sorted. Duplicate records are dropped. `attribution_json` must
 /// be UTF-8 JSON.
+#[allow(clippy::too_many_arguments)]
 pub fn build_sidecar_bytes(
     generator_tag: &str,
     generator_sha: &str,
@@ -188,6 +227,7 @@ pub fn build_sidecar_bytes(
     mwm_size: u64,
     mut wetland: Vec<WetlandRecord>,
     mut boardwalk: Vec<BoardwalkRecord>,
+    mut elevation: Vec<ElevationFeature>,
     attribution_json: &str,
 ) -> Result<Vec<u8>> {
     serde_json::from_str::<serde_json::Value>(attribution_json)
@@ -196,10 +236,17 @@ pub fn build_sidecar_bytes(
     wetland.dedup();
     boardwalk.sort();
     boardwalk.dedup();
+    for feat in &mut elevation {
+        feat.points.sort_by_key(|p| p.point_index);
+        feat.points.dedup_by_key(|p| p.point_index);
+    }
+    elevation.sort_by_key(|f| f.feature_id);
+    elevation.dedup_by_key(|f| f.feature_id);
 
     let sections_raw = [
         (SECTION_WETLAND, wetland_body(&wetland)?),
         (SECTION_BOARDWALK, boardwalk_body(&boardwalk)?),
+        (SECTION_ELEVATION, elevation_body(&elevation)?),
         (SECTION_ATTRIBUTION, attribution_json.as_bytes().to_vec()),
     ];
 
@@ -303,6 +350,7 @@ pub fn read_sidecar(path: &Path) -> Result<Sidecar> {
 
     let mut wetland = Vec::new();
     let mut boardwalk = Vec::new();
+    let mut elevation = Vec::new();
     let mut attribution_json = String::new();
     for info in &sections {
         let start = usize::try_from(info.offset).context("section offset")?;
@@ -321,6 +369,7 @@ pub fn read_sidecar(path: &Path) -> Result<Sidecar> {
         match info.name.as_str() {
             SECTION_WETLAND => wetland = parse_wetland_body(&raw)?,
             SECTION_BOARDWALK => boardwalk = parse_boardwalk_body(&raw)?,
+            SECTION_ELEVATION => elevation = parse_elevation_body(&raw)?,
             SECTION_ATTRIBUTION => {
                 attribution_json = String::from_utf8(raw).context("attribution is not utf-8")?;
                 serde_json::from_str::<serde_json::Value>(&attribution_json)
@@ -339,6 +388,7 @@ pub fn read_sidecar(path: &Path) -> Result<Sidecar> {
         sections,
         wetland,
         boardwalk,
+        elevation,
         attribution_json,
     })
 }
@@ -371,6 +421,43 @@ pub fn load_wetland_jsonl(path: &Path, ambiguous_threshold: u32) -> Result<Vec<W
         bail!("ambiguous wetland bindings {ambiguous} exceed threshold {ambiguous_threshold}");
     }
     Ok(records)
+}
+
+/// Load elevation override JSONL. A missing file yields an empty list.
+///
+/// Each line: `{"feature_id":u32,"point_count":u16,"points":[{"point_index":u16,"altitude_dm":i16},...]}`.
+pub fn load_elevation_jsonl(path: &Path) -> Result<Vec<ElevationFeature>> {
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let text = std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    let mut out = Vec::new();
+    for (i, line) in text.lines().enumerate() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let row: ElevationFeatureJson = serde_json::from_str(line)
+            .with_context(|| format!("elevation jsonl line {}", i + 1))?;
+        let mut points: Vec<ElevationPoint> = row
+            .points
+            .into_iter()
+            .map(|p| ElevationPoint {
+                point_index: p.point_index,
+                altitude_dm: p.altitude_dm,
+            })
+            .collect();
+        points.sort_by_key(|p| p.point_index);
+        points.dedup_by_key(|p| p.point_index);
+        if points.is_empty() {
+            continue;
+        }
+        out.push(ElevationFeature {
+            feature_id: row.feature_id,
+            point_count: row.point_count,
+            points,
+        });
+    }
+    Ok(out)
 }
 
 /// Load boardwalk JSONL. A missing file yields an empty list.
@@ -463,6 +550,102 @@ fn boardwalk_body(records: &[BoardwalkRecord]) -> Result<Vec<u8>> {
         body.push(rec.flag);
     }
     Ok(body)
+}
+
+/// Elevation body: feature count, then per feature:
+/// `feature_id u32`, `point_count u16`, `n u16`, then n times delta(`point_index`)
+/// as u16 and zigzag-delta(`altitude_dm`) as u16.
+fn elevation_body(features: &[ElevationFeature]) -> Result<Vec<u8>> {
+    let mut body = Vec::new();
+    write_count(&mut body, features.len())?;
+    for feat in features {
+        body.extend_from_slice(&feat.feature_id.to_le_bytes());
+        body.extend_from_slice(&feat.point_count.to_le_bytes());
+        let n = u16::try_from(feat.points.len()).context("too many elevation points")?;
+        body.extend_from_slice(&n.to_le_bytes());
+        let mut prev_idx = 0u16;
+        let mut prev_alt = 0i16;
+        for (i, p) in feat.points.iter().enumerate() {
+            let idx_delta = if i == 0 {
+                p.point_index
+            } else {
+                p.point_index
+                    .checked_sub(prev_idx)
+                    .context("elevation point_index not ascending")?
+            };
+            body.extend_from_slice(&idx_delta.to_le_bytes());
+            let alt_delta = i16::wrapping_sub(p.altitude_dm, prev_alt);
+            let zz = zigzag_encode_i16(alt_delta);
+            body.extend_from_slice(&zz.to_le_bytes());
+            prev_idx = p.point_index;
+            prev_alt = p.altitude_dm;
+        }
+    }
+    Ok(body)
+}
+
+fn parse_elevation_body(data: &[u8]) -> Result<Vec<ElevationFeature>> {
+    if data.len() < 4 {
+        bail!("elevation body too short");
+    }
+    let count = usize::try_from(read_u32(data, 0)?).context("elevation feature count")?;
+    let mut off = 4usize;
+    let mut out = Vec::with_capacity(count);
+    for _ in 0..count {
+        if off + 4 + 2 + 2 > data.len() {
+            bail!("truncated elevation feature header");
+        }
+        let feature_id = read_u32(data, off)?;
+        off += 4;
+        let point_count = read_u16(data, off)?;
+        off += 2;
+        let n = usize::from(read_u16(data, off)?);
+        off += 2;
+        let mut points = Vec::with_capacity(n);
+        let mut prev_idx = 0u16;
+        let mut prev_alt = 0i16;
+        for i in 0..n {
+            if off + 4 > data.len() {
+                bail!("truncated elevation point");
+            }
+            let idx_delta = read_u16(data, off)?;
+            off += 2;
+            let zz = read_u16(data, off)?;
+            off += 2;
+            let point_index = if i == 0 {
+                idx_delta
+            } else {
+                prev_idx
+                    .checked_add(idx_delta)
+                    .context("elevation point_index overflow")?
+            };
+            let alt_delta = zigzag_decode_i16(zz);
+            let altitude_dm = i16::wrapping_add(prev_alt, alt_delta);
+            points.push(ElevationPoint {
+                point_index,
+                altitude_dm,
+            });
+            prev_idx = point_index;
+            prev_alt = altitude_dm;
+        }
+        out.push(ElevationFeature {
+            feature_id,
+            point_count,
+            points,
+        });
+    }
+    if off != data.len() {
+        bail!("elevation trailing bytes");
+    }
+    Ok(out)
+}
+
+fn zigzag_encode_i16(v: i16) -> u16 {
+    ((v << 1) ^ (v >> 15)) as u16
+}
+
+fn zigzag_decode_i16(v: u16) -> i16 {
+    ((v >> 1) as i16) ^ -((v & 1) as i16)
 }
 
 fn write_count(body: &mut Vec<u8>, len: usize) -> Result<()> {
@@ -631,6 +814,20 @@ mod tests {
             direction: 0,
             flag: 1,
         }];
+        let elevation = vec![ElevationFeature {
+            feature_id: 10,
+            point_count: 4,
+            points: vec![
+                ElevationPoint {
+                    point_index: 1,
+                    altitude_dm: 1234,
+                },
+                ElevationPoint {
+                    point_index: 3,
+                    altitude_dm: 1200,
+                },
+            ],
+        }];
         let bytes = build_sidecar_bytes(
             "v2026.11.07-16",
             "fd11cc6f2256443d4d69112a3c22299d4e0664ce",
@@ -638,6 +835,7 @@ mod tests {
             12345,
             wetland,
             boardwalk,
+            elevation,
             r#"{"label":"Mapterhorn"}"#,
         )
         .unwrap();
@@ -667,13 +865,23 @@ mod tests {
             ]
         );
         assert_eq!(sc.boardwalk.len(), 1);
+        assert_eq!(sc.elevation.len(), 1);
+        assert_eq!(sc.elevation[0].feature_id, 10);
+        assert_eq!(sc.elevation[0].points.len(), 2);
+        assert_eq!(sc.elevation[0].points[0].altitude_dm, 1234);
+        assert_eq!(sc.elevation[0].points[1].altitude_dm, 1200);
         assert!(sc.attribution_json.contains("Mapterhorn"));
         assert_eq!(
             sc.sections
                 .iter()
                 .map(|s| s.name.as_str())
                 .collect::<Vec<_>>(),
-            vec![SECTION_WETLAND, SECTION_BOARDWALK, SECTION_ATTRIBUTION]
+            vec![
+                SECTION_WETLAND,
+                SECTION_BOARDWALK,
+                SECTION_ELEVATION,
+                SECTION_ATTRIBUTION
+            ]
         );
         let mut offset = 0u64;
         for section in &sc.sections {

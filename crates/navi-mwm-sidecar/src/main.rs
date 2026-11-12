@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use navi_mwm_sidecar::{
-    build_sidecar_bytes, load_boardwalk_jsonl, load_wetland_jsonl, read_sidecar, sha256_file,
-    write_sidecar,
+    build_sidecar_bytes, load_boardwalk_jsonl, load_elevation_jsonl, load_wetland_jsonl,
+    read_sidecar, sha256_file, write_sidecar,
 };
 use serde_json::json;
 
@@ -24,6 +24,8 @@ enum Cmd {
         wetland_jsonl: PathBuf,
         #[arg(long)]
         boardwalk_jsonl: Option<PathBuf>,
+        #[arg(long)]
+        elevation_jsonl: Option<PathBuf>,
         #[arg(long)]
         attribution: PathBuf,
         #[arg(long)]
@@ -60,6 +62,7 @@ fn main() -> Result<()> {
             mwm,
             wetland_jsonl,
             boardwalk_jsonl,
+            elevation_jsonl,
             attribution,
             generator_tag,
             generator_sha,
@@ -72,6 +75,10 @@ fn main() -> Result<()> {
                 Some(p) => load_boardwalk_jsonl(&p, ambiguous_threshold)?,
                 None => Vec::new(),
             };
+            let elevation = match elevation_jsonl {
+                Some(p) => load_elevation_jsonl(&p)?,
+                None => Vec::new(),
+            };
             let attr = std::fs::read_to_string(&attribution)
                 .with_context(|| format!("read {}", attribution.display()))?;
             let bytes = build_sidecar_bytes(
@@ -81,10 +88,12 @@ fn main() -> Result<()> {
                 mwm_size,
                 wetland,
                 boardwalk,
+                elevation,
                 &attr,
             )?;
             write_sidecar(&out, &bytes)?;
             let sc = read_sidecar(&out)?;
+            let elev_points: usize = sc.elevation.iter().map(|f| f.points.len()).sum();
             println!(
                 "{}",
                 json!({
@@ -93,6 +102,8 @@ fn main() -> Result<()> {
                     "mwm_bytes": sc.mwm_size,
                     "wetland_records": sc.wetland.len(),
                     "boardwalk_records": sc.boardwalk.len(),
+                    "elevation_features": sc.elevation.len(),
+                    "elevation_points": elev_points,
                 })
             );
         }
@@ -105,6 +116,7 @@ fn main() -> Result<()> {
                 fingerprint_ok = sha == sc.mwm_sha256 && size == sc.mwm_size;
                 fingerprint_ok_sha = hex_encode(&sha);
             }
+            let elev_points: usize = sc.elevation.iter().map(|f| f.points.len()).sum();
             println!(
                 "{}",
                 json!({
@@ -115,6 +127,8 @@ fn main() -> Result<()> {
                     "mwm_size": sc.mwm_size,
                     "wetland_records": sc.wetland.len(),
                     "boardwalk_records": sc.boardwalk.len(),
+                    "elevation_features": sc.elevation.len(),
+                    "elevation_points": elev_points,
                     "sections": sc.sections.iter().map(|s| &s.name).collect::<Vec<_>>(),
                     "fingerprint_ok": fingerprint_ok,
                     "fingerprint_ok_sha": fingerprint_ok_sha,

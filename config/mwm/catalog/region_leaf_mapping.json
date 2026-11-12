@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "pilot": "nordic",
-  "limitation": "Cross-border routing out of the Nordic leaf set is not supported in the pilot.",
+  "pilot": "comaps-release",
+  "limitation": "Base MWMs are CoMaps planet release leaves. Navi region\u2192leaf mappings below cover Norway (draft) and will grow; shared leaves are flagged. Clients download MWMs from CoMaps mirrors and sidecars from navi-server.",
   "navi_region_to_comaps_leaves": {
     "europe_norway_nord_norge": {
       "union_coverage_pct": 64.91,
@@ -641,5 +641,7 @@
         3.0
       ]
     ]
-  }
+  },
+  "scope": "world",
+  "notes_world": "Catalog v2 lists every processed leaf for the CoMaps release. Navi region ids outside Norway are not yet assigned; use leaf ids directly until mapping lands."
 }

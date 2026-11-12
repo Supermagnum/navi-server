@@ -12,16 +12,27 @@ mwm_load_defaults() {
   local root
   root="$(mwm_repo_root)"
   : "${NAVI_MWM_ENABLED:=0}"
+  # Default: CoMaps official planet release + Navi sidecars only.
+  # Set NAVI_MWM_MODE=generate to keep the Nordic generator path for testing.
+  : "${NAVI_MWM_MODE:=comaps-release}"
   : "${NAVI_MWM_COMAPS_ROOT:=/var/lib/navi/mwm/comaps}"
   : "${NAVI_MWM_BUILD_DIR:=/var/lib/navi/mwm/omim-build-release}"
   : "${NAVI_MWM_MAPS_BUILD:=/var/lib/navi/mwm/maps_build}"
   : "${NAVI_MWM_HGT_CACHE:=${root}/data/elevation/hgt-mapterhorn}"
+  : "${NAVI_MWM_MAPTERHORN_CACHE:=${root}/data/elevation/mapterhorn-cache}"
+  : "${NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES:=2147483648}"
+  : "${NAVI_MWM_ELEV_THRESHOLD_M:=2}"
   : "${NAVI_MWM_STATE_DIR:=${root}/data/state}"
   : "${NAVI_MWM_LOCK:=${NAVI_MWM_STATE_DIR}/pack-pipeline.lock}"
   : "${NAVI_MWM_PUBLISHED_ROOT:=${root}/data/published/mwm}"
   : "${NAVI_MWM_LEAFSET:=${root}/config/mwm/leafsets/nordic.txt}"
   : "${NAVI_MWM_PIN_JSON:=${root}/config/mwm/comaps-pin.json}"
   : "${NAVI_MWM_REGION_MAP:=${root}/config/mwm/catalog/region_leaf_mapping.json}"
+  : "${NAVI_MWM_METASERVER:=https://cdn-us-1.comaps.app}"
+  : "${NAVI_MWM_MAP_SERIES:=2026.10.27}"
+  : "${NAVI_MWM_COMAPS_VERSION:=}"
+  : "${NAVI_MWM_DOWNLOAD_DIR:=}"
+  : "${NAVI_MWM_DOWNLOAD_CONCURRENCY:=2}"
   # Nordic measured peak ~19–20 GiB MaxRSS; 14G cgroup OOMs Features.
   : "${NAVI_MWM_MEMORY_MAX:=24G}"
   : "${NAVI_MWM_ALLOWED_CPUS:=}"
@@ -38,7 +49,8 @@ mwm_load_defaults() {
   : "${NAVI_MWM_MAPTERHORN_PMTILES:=}"
   : "${NAVI_MWM_MAPTERHORN_ATTRIBUTION_URL:=https://download.mapterhorn.com/attribution.json}"
   : "${NAVI_MWM_PLANET_PBF:=}"
-  mkdir -p "$NAVI_MWM_STATE_DIR" "$NAVI_MWM_HGT_CACHE"
+  : "${NAVI_MWM_HTTP_USER_AGENT:=navi-server-mwm/1.0 (+https://github.com/Supermagnum/navi-server; contact=mwm-pipeline)}"
+  mkdir -p "$NAVI_MWM_STATE_DIR" "$NAVI_MWM_HGT_CACHE" "$NAVI_MWM_MAPTERHORN_CACHE"
 }
 
 # Apply config/mwm/profiles/{nordic,planet}.json when NAVI_MWM_PROFILE is set,

@@ -1,19 +1,17 @@
 [Unit]
-Description=Navi MWM Nordic bake (generator + sidecars + validate + publish)
+Description=Navi MWM bake (default: comaps-release sidecars; generate mode optional)
 Documentation=file:docs/client-fetch-mwm.md
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
-# Off until operator enables Environment NAVI_MWM_ENABLED=1
 Environment=NAVI_MWM_ENABLED=0
+Environment=NAVI_MWM_MODE=comaps-release
 EnvironmentFile=-/etc/navi/mwm.env
 WorkingDirectory=/opt/navi/navi-server
 ExecStart=/opt/navi/navi-server/scripts/mwm/run-mwm-bake.sh
-# Honour MemoryMax when started via systemd; AllowedCPUs may need taskset
-# (spike3: AllowedCPUs alone did not shrink multiprocessing.cpu_count).
-# Nordic map+tf4/tc4 peak MaxRSS ~19–20 GiB; 14G OOMs Features (see /tmp/navi-mwm-ram.md).
+# generate mode Nordic peak ~19–20 GiB; comaps-release streaming is far lower.
 MemoryMax=24G
 Nice=10
 IOSchedulingClass=best-effort

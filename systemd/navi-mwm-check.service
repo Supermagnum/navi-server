@@ -1,0 +1,18 @@
+[Unit]
+Description=Navi MWM CoMaps release check (daily); bake when new
+Documentation=file:docs/client-fetch-mwm.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+Environment=NAVI_MWM_ENABLED=0
+Environment=NAVI_MWM_MODE=comaps-release
+EnvironmentFile=-/etc/navi/mwm.env
+WorkingDirectory=/opt/navi/navi-server
+# Exit 10 from check => new release; run bake. Other non-zero fails the unit.
+ExecStart=/bin/bash -c '/opt/navi/navi-server/scripts/mwm/check-comaps-release.sh; ec=$?; if [ $ec -eq 10 ]; then exec /opt/navi/navi-server/scripts/mwm/run-mwm-bake.sh; fi; exit $ec'
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
