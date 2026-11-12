@@ -220,25 +220,26 @@ def main() -> int:
     ap.add_argument("--cache-dir", type=Path, required=True)
     ap.add_argument("--cache-max-bytes", type=int, default=2 * 1024**3)
     ap.add_argument("--threshold-m", type=float, default=2.0)
-    ap.add_argument("--zoom", type=int, default=0, help="0 = auto highest")
+    ap.add_argument(
+        "--zoom",
+        type=int,
+        default=0,
+        help="Mapterhorn zoom; 0 = NAVI_MWM_MAPTERHORN_ZOOM or 12 (not max-zoom)",
+    )
     ap.add_argument("--stats-out", type=Path, default=None)
     ap.add_argument("--max-features", type=int, default=0)
     args = ap.parse_args()
 
-    # Probe zoom from first feature midpoint.
+    # Default production zoom is 12. Auto-max (highest_working_zoom→15) is a
+    # mountain pilot only — corridor same-point median stays ~0.5 m at z12.
     if args.zoom <= 0:
-        args.zoom = int(os.environ.get("NAVI_MWM_MAPTERHORN_ZOOM", "0") or "0")
-    zoom = args.zoom
+        args.zoom = int(os.environ.get("NAVI_MWM_MAPTERHORN_ZOOM", "12") or "12")
+    zoom = args.zoom if args.zoom > 0 else 12
     with args.roads_jsonl.open() as f:
         first = f.readline()
     if not first:
         args.out.write_text("")
         return 0
-    sample = json.loads(first)
-    pts = sample["points"]
-    mid = pts[len(pts) // 2]
-    if zoom <= 0:
-        zoom = highest_working_zoom(mid["lat"], mid["lon"], 15)
     cache = TileCache(args.cache_dir, args.cache_max_bytes, zoom)
 
     total_points = 0

@@ -9,7 +9,11 @@ Uses a uniform lon/lat grid index over triangle bboxes (no shapely Polygon
 objects — 4M+ triangles would OOM). Exact-tests segment–triangle intersection
 and fully-inside. Emits both directions.
 
-Boardwalk carve-out kept when types encode boardwalk/wood (rare in CoMaps).
+Boardwalk carve-out (PBF-free proxy):
+  CoMaps has no bridge=boardwalk / surface=wood type (mapcss-mapping.csv only
+  emits highway-{footway,path,track,pedestrian}-bridge for bridge=yes). Treat
+  those bridge types as boardwalks when the segment touches/crosses wetland —
+  exempt from Soft/Hard wetland penalty.
 Policy: Soft=bog/fen/untyped; Hard=swamp/reedbed; marsh omitted at dump.
 """
 from __future__ import annotations
@@ -27,6 +31,16 @@ HARD = 2
 # ~1.1 km cells at mid-latitudes; fine enough for candidate pruning.
 GRID_DEG = 0.01
 
+# CoMaps types.txt / classificator: highway-{footway,path,track,pedestrian}|bridge
+BOARDWALK_BRIDGE_TYPES = frozenset(
+    {
+        "highway-footway-bridge",
+        "highway-path-bridge",
+        "highway-track-bridge",
+        "highway-pedestrian-bridge",
+    }
+)
+
 
 def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     r = 6371000.0
@@ -38,8 +52,15 @@ def haversine_m(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
 
 
 def is_boardwalk_types(types: list[str]) -> bool:
-    joined = " ".join(types).lower()
-    return "boardwalk" in joined or "surface-wood" in joined
+    """True if feature types encode an explicit boardwalk or foot/path bridge."""
+    normalized = []
+    for raw in types:
+        t = str(raw).strip().lower().replace("|", "-")
+        normalized.append(t)
+    joined = " ".join(normalized)
+    if "boardwalk" in joined or "surface-wood" in joined:
+        return True
+    return any(t in BOARDWALK_BRIDGE_TYPES for t in normalized)
 
 
 def orient(ax, ay, bx, by, cx, cy) -> float:
@@ -212,16 +233,19 @@ def main() -> int:
                     if best is None or cls > best:
                         best = cls
 
+                if best is None:
+                    continue
+
+                # Wetland-touching foot/path/track/pedestrian bridges → boardwalk
+                # carve-out (exempt from Soft/Hard penalty). Bridges that do not
+                # touch wetland are left alone (not boardwalks).
                 if bw:
                     boardwalk_segments += 1
                     dirs = (0, 1) if both_dirs else (0,)
                     for d in dirs:
                         bw_keys.add((fid, seg_i, d))
+                    continue
 
-                if best is None:
-                    continue
-                if bw and best == HARD:
-                    continue
                 wet_length_m += seg_m
                 if best == SOFT:
                     soft_segments += 1
@@ -267,6 +291,7 @@ def main() -> int:
     hard_records = sum(1 for r in wetland_out if r["class"] == HARD)
     stats = {
         "bind_mode": "mwm_geometry",
+        "boardwalk_proxy": "highway-{footway,path,track,pedestrian}-bridge ∩ wetland",
         "wetland_records": len(wetland_out),
         "soft_records": soft_records,
         "hard_records": hard_records,

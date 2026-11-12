@@ -1,0 +1,17 @@
+# Leaves required to stage the six-route validation suite (Nordic + border).
+# Configurable via NAVI_MWM_ROUTE_CHECK_LEAVES. Includes Stockholm/Helsinki and
+# Tornio/Haparanda border leaves for sweden_finland.
+Norway_Hedmark
+Norway_Oppland
+Norway_Central
+Norway_Southern
+Norway_Western
+Sweden_Bergslagen
+Sweden_Malardalen
+Sweden_Stockholm
+Sweden_Norra Sverige
+Sweden_Mellannorrland
+Finland_Southern Finland_Helsinki
+Finland_Northern Finland
+Finland_Western Finland_Tampere
+Finland_Eastern Finland_North

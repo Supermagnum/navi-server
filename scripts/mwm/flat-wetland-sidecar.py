@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Pack wetland JSONL into spike2-flat NVSC.zst for routes_builder wetland hook.
+"""LEGACY: Pack wetland JSONL into spike2-flat NVSC.zst.
+
+Removed from the validation path. routes_builder now loads sectioned NVSC
+(scripts/mwm/hook/navi_wetland_cost.cpp) — the same format clients use.
+Kept only for comparing against old spike2 fixtures.
 
 Layout (after zstd): magic NVSC, version u32=1, mwm_sha256[32], mwm_size u64,
 count u32, then count * 8-byte records (fid u32, seg u16, dir u8, class u8).

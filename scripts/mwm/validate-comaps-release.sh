@@ -79,17 +79,22 @@ if errors:
 print("validate-comaps-release OK")
 PY
 
-# Optional route check: re-download Nordic leaves needed for routes if WORK_DIR set
-# and routes_builder_tool exists. Best-effort — report skip if tooling/paths missing.
-if [[ -n "$WORK_DIR" && -x "${NAVI_MWM_BUILD_DIR}/routes_builder_tool" ]]; then
-  mwm_log "route check: best-effort (temp Nordic MWMs); see open issues if skipped"
-  # Full six-route check needs simultaneous presence of many leaves — stream mode
-  # cannot keep them. Documented as open issue unless NAVI_MWM_ROUTE_CHECK_LEAVES is set.
-  if [[ -n "${NAVI_MWM_ROUTE_CHECK_LEAVES:-}" ]]; then
-    mwm_log "NAVI_MWM_ROUTE_CHECK_LEAVES set — operator must stage MWMs under ${WORK_DIR}/route-mwms"
-  else
-    mwm_log "skip full routes_builder_tool suite in streaming mode (needs multi-leaf MWMs on disk)"
-  fi
+# Six-route check before publish: stage configurable leaf MWMs + sectioned sidecars.
+# Set NAVI_MWM_SKIP_ROUTE_CHECK=1 to skip (streaming CI without disk for MWMs).
+# Leaf list: NAVI_MWM_ROUTE_CHECK_LEAVES (default config/mwm/leafsets/six-route.txt).
+if [[ "${NAVI_MWM_SKIP_ROUTE_CHECK:-0}" == "1" ]]; then
+  mwm_log "skip six-route check (NAVI_MWM_SKIP_ROUTE_CHECK=1)"
+elif [[ -n "$WORK_DIR" && -x "${NAVI_MWM_BUILD_DIR}/routes_builder_tool" ]]; then
+  ROOT="$(mwm_repo_root)"
+  LEAFSET="${NAVI_MWM_ROUTE_CHECK_LEAVES:-${ROOT}/config/mwm/leafsets/six-route.txt}"
+  STAGE="${WORK_DIR}/route-mwms"
+  mwm_log "six-route check leafset=${LEAFSET} stage=${STAGE}"
+  "${SCRIPT_DIR}/run-six-route-check.sh" \
+    --stage-dir "$STAGE" \
+    --sidecar-dir "$VERSION_DIR" \
+    --leafset "$LEAFSET"
+else
+  mwm_log "six-route check skipped (need --work-dir and routes_builder_tool)"
 fi
 
 mwm_log "validate-comaps-release passed"
