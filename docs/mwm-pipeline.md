@@ -41,10 +41,19 @@ Defaults from `scripts/mwm/lib/common.sh` / `config/mwm/measured-peaks.json`.
 | `NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES` | `51539607552` (48 GiB) | mtime-LRU eviction cap; raise to measured+20% after first world run |
 | `NAVI_MWM_MAPTERHORN_ZOOM` | `12` | Terrarium zoom |
 | `NAVI_MWM_ELEV_THRESHOLD_M` | `2` | Override when \|Δ\| exceeds this |
-| `NAVI_MWM_PROCESS_CONCURRENCY` | `0` (auto) | `0` → from RAM; override with explicit int |
-| `NAVI_MWM_PER_LEAF_GIB` | `8.2` | Measured peak RSS (also `measured-peaks.json`) |
+| `NAVI_MWM_PROCESS_CONCURRENCY` | `0` (auto) | `0` → from RAM + per-stage peaks; override with explicit int |
+| `NAVI_MWM_PER_LEAF_GIB` | empty | Optional single-value override; empty uses `stage_peaks_gib` |
 | `NAVI_MWM_RAM_HEADROOM_GIB` | `16` | Reserved when deriving concurrency |
+| `NAVI_MWM_ANNOTATE_CONCURRENCY` | `2` | Semaphore cap on concurrent wetland annotate stages |
+| `NAVI_MWM_TILE_FETCH_CONCURRENCY` | `16` | Per-leaf concurrent Mapterhorn HTTP tile fetches |
+| `NAVI_MWM_TILE_MEM_CACHE` | `4096` | Decoded RGB tile LRU capacity per worker |
+| `NAVI_MWM_PREFETCH_DISK_BUDGET_GIB` | `20` | Disk budget for prefetched MWMs in `tmp/_downloads` |
 | `NAVI_MWM_DOWNLOAD_CONCURRENCY` | `2` | Parallel MWM HTTP downloads |
+| `NAVI_MWM_SCHEDULE_GUARD` | `1` | Pause 6h before Monday 00:00 UTC weekly bake |
+| `NAVI_MWM_WEEKLY_BAKE_WEEKDAY` | `0` | UTC weekday of weekly bake (`0`=Mon) |
+| `NAVI_MWM_WEEKLY_BAKE_UTC` | `00:00` | UTC `HH:MM` of weekly bake |
+| `NAVI_MWM_PAUSE_BEFORE_HOURS` | `6` | Hours before weekly bake to pause starting new leaves |
+| `NAVI_MWM_PAUSE_AFTER_HOURS` | `6` | Hours after weekly bake start until pause window ends |
 | `NAVI_MWM_MEASURED_PEAKS` | `config/mwm/measured-peaks.json` | Peak RSS source |
 | `NAVI_MWM_METASERVER` | `https://cdn-us-1.comaps.app` | CoMaps metaserver |
 | `NAVI_MWM_MAP_SERIES` | `2026.10.27` | maps.json series key |

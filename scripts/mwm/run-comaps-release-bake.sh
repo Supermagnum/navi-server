@@ -177,6 +177,18 @@ PARALLEL_ARGS=(
 mwm_log \"parallel leaf bake starting (lock held for whole run)\"
 \"\$PYTHON\" \"\${SCRIPT_DIR}/run_parallel_leaves.py\" \"\${PARALLEL_ARGS[@]}\"
 
+STOPPED_EARLY=\$(\"\$PYTHON\" - \"\$WORK/meta/run-summary.json\" <<'PY'
+import json, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+print(\"1\" if p.is_file() and json.loads(p.read_text()).get(\"stopped_early\") else \"0\")
+PY
+)
+if [[ \"\$STOPPED_EARLY\" == \"1\" ]]; then
+  mwm_log \"parallel leaf bake stopped early (graceful stop) — skipping staging/validate/publish\"
+  exit 0
+fi
+
 # Stage version dir for publish (sidecars only)
 VERSION_DIR=\"\$WORK/publish-staging/\${VER}\"
 rm -rf \"\$VERSION_DIR\"

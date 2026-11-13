@@ -127,6 +127,18 @@ fn main() -> Result<()> {
             }
             let elev_points: usize = sc.elevation.iter().map(|f| f.points.len()).sum();
             let (soft, hard) = wetland_class_counts(&sc.wetland);
+            let section_details: Vec<_> = sc
+                .sections
+                .iter()
+                .map(|s| {
+                    json!({
+                        "name": s.name,
+                        "uncompressed_size": s.uncompressed_size,
+                        "compressed_size": s.compressed_size,
+                        "sha256": hex_encode(&s.sha256),
+                    })
+                })
+                .collect();
             println!(
                 "{}",
                 json!({
@@ -142,6 +154,7 @@ fn main() -> Result<()> {
                     "elevation_features": sc.elevation.len(),
                     "elevation_points": elev_points,
                     "sections": sc.sections.iter().map(|s| &s.name).collect::<Vec<_>>(),
+                    "section_details": section_details,
                     "fingerprint_ok": fingerprint_ok,
                     "fingerprint_ok_sha": fingerprint_ok_sha,
                 })

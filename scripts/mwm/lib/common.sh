@@ -37,11 +37,20 @@ mwm_load_defaults() {
   : "${NAVI_MWM_COMAPS_VERSION:=}"
   : "${NAVI_MWM_DOWNLOAD_DIR:=}"
   : "${NAVI_MWM_DOWNLOAD_CONCURRENCY:=2}"
-  # Process concurrency: 0 → derive from free RAM (see leaf_scheduler.py).
+  # Process concurrency: 0 → derive from free RAM + per-stage peaks (see leaf_scheduler.py).
   : "${NAVI_MWM_PROCESS_CONCURRENCY:=0}"
-  # Measured peak RSS for comaps-release leaf process (gates2 Nordic): 8.2 GiB.
-  : "${NAVI_MWM_PER_LEAF_GIB:=8.2}"
+  # Optional single-value override; empty uses stage_peaks_gib from measured-peaks.json.
+  : "${NAVI_MWM_PER_LEAF_GIB:=}"
   : "${NAVI_MWM_RAM_HEADROOM_GIB:=16}"
+  : "${NAVI_MWM_ANNOTATE_CONCURRENCY:=2}"
+  : "${NAVI_MWM_TILE_FETCH_CONCURRENCY:=16}"
+  : "${NAVI_MWM_TILE_MEM_CACHE:=4096}"
+  : "${NAVI_MWM_PREFETCH_DISK_BUDGET_GIB:=20}"
+  : "${NAVI_MWM_SCHEDULE_GUARD:=1}"
+  : "${NAVI_MWM_WEEKLY_BAKE_WEEKDAY:=0}"
+  : "${NAVI_MWM_WEEKLY_BAKE_UTC:=00:00}"
+  : "${NAVI_MWM_PAUSE_BEFORE_HOURS:=6}"
+  : "${NAVI_MWM_PAUSE_AFTER_HOURS:=6}"
   # Nordic measured peak ~19–20 GiB MaxRSS; 14G cgroup OOMs Features.
   : "${NAVI_MWM_MEMORY_MAX:=24G}"
   : "${NAVI_MWM_ALLOWED_CPUS:=}"
