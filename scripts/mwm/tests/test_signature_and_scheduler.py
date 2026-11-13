@@ -68,16 +68,16 @@ class TestLeafScheduler(unittest.TestCase):
         self.assertLess(leaf_sort_key("Germany_Bavaria")[0], leaf_sort_key("World")[0])
 
     def test_default_concurrency_headroom(self):
-        # 42 GiB available, 16 headroom, 8.7/leaf → floor(26/8.7)=2
+        # 41 GiB available, 16 headroom, 8.2/leaf → floor(25/8.2)=3
         self.assertEqual(
             default_process_concurrency(
-                per_leaf_gib=8.7, headroom_gib=16.0, available_gib=42.0
+                per_leaf_gib=8.2, headroom_gib=16.0, available_gib=41.0
             ),
-            2,
+            3,
         )
         self.assertEqual(
             default_process_concurrency(
-                per_leaf_gib=8.7, headroom_gib=16.0, available_gib=20.0
+                per_leaf_gib=8.2, headroom_gib=16.0, available_gib=20.0
             ),
             1,
         )

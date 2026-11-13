@@ -190,14 +190,30 @@ def main() -> int:
                 time.sleep(0.2)
 
     dl_thread.join()
+    # Aggregate Mapterhorn tile cache hit rate across elevation stats.
+    hits = misses = 0
+    stats_dir = args.work / "stats"
+    if stats_dir.is_dir():
+        for p in stats_dir.glob("*.elevation.json"):
+            try:
+                s = json.loads(p.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            hits += int(s.get("tile_cache_hits") or 0)
+            misses += int(s.get("tile_cache_misses") or 0)
+    lookups = hits + misses
     summary = {
         "ok": ok,
         "failed": failures,
         "wall_s": round(time.monotonic() - t0, 1),
         "process_concurrency": proc_n,
         "download_concurrency": dl_n,
+        "tile_cache_hits": hits,
+        "tile_cache_misses": misses,
+        "tile_cache_hit_rate": (hits / lookups) if lookups else None,
     }
     print(json.dumps(summary), flush=True)
+    (args.work / "meta" / "run-summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     return 1 if failures else 0
 
 

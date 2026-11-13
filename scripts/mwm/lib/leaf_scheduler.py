@@ -2,12 +2,14 @@
 """Parallel leaf scheduling for CoMaps-release bake.
 
 Downloads stay at polite concurrency (default 2). Processing concurrency is
-separate and defaults from free RAM: per-leaf peak ~8.7 GiB, leave ≥16 GiB
-headroom on the media filesystem host.
+separate and defaults from free RAM: per-leaf peak from measured-peaks.json
+(8.2 GiB gates2), leave ≥16 GiB headroom. On media (~40+ GiB MemAvailable)
+that yields concurrency 3. Override with NAVI_MWM_PROCESS_CONCURRENCY.
 
 Order: Nordic first, then remaining Europe, then World / rest.
 Resume via processed.json (atomic write). Safe under systemd Restart=on-failure
 when the outer bake holds pack-pipeline.lock for the whole run.
+Never start while the weekly .rkyv bake holds pack-pipeline.lock (flock).
 """
 from __future__ import annotations
 
@@ -16,8 +18,8 @@ import os
 from pathlib import Path
 from typing import Iterable
 
-# Measured Nordic streaming bake peak RSS per leaf (~8.7 GiB).
-DEFAULT_PER_LEAF_GIB = 8.7
+# Measured comaps-release leaf process peak RSS (gates2 Nordic /usr/bin/time -v).
+DEFAULT_PER_LEAF_GIB = 8.2
 DEFAULT_HEADROOM_GIB = 16.0
 
 NORDIC_PREFIXES = (
@@ -107,11 +109,27 @@ def default_process_concurrency(
     return max(1, int(usable // per_leaf_gib))
 
 
+def _load_measured_per_leaf_gib() -> float:
+    path = os.environ.get("NAVI_MWM_MEASURED_PEAKS", "").strip()
+    if not path:
+        root = Path(__file__).resolve().parents[3]
+        path = str(root / "config" / "mwm" / "measured-peaks.json")
+    try:
+        data = json.loads(Path(path).read_text())
+        v = data.get("comaps_release_process_peak_rss_gib")
+        if v is not None:
+            return float(v)
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        pass
+    return DEFAULT_PER_LEAF_GIB
+
+
 def resolve_process_concurrency() -> int:
+    """Explicit override wins; 0 / empty / unset → derive from RAM + measured peak."""
     raw = os.environ.get("NAVI_MWM_PROCESS_CONCURRENCY", "").strip()
-    if raw:
+    if raw and raw != "0":
         return max(1, int(raw))
-    per = float(os.environ.get("NAVI_MWM_PER_LEAF_GIB", str(DEFAULT_PER_LEAF_GIB)))
+    per = float(os.environ.get("NAVI_MWM_PER_LEAF_GIB", str(_load_measured_per_leaf_gib())))
     head = float(os.environ.get("NAVI_MWM_RAM_HEADROOM_GIB", str(DEFAULT_HEADROOM_GIB)))
     return default_process_concurrency(per_leaf_gib=per, headroom_gib=head)
 

@@ -1,0 +1,13 @@
+{
+  "schema": "navi-mwm-measured-peaks/v1",
+  "notes": "Measured on media (gates2 Nordic re-bake, CoMaps-release streaming). Used as defaults for concurrency.",
+  "comaps_release_process_peak_rss_gib": 8.2,
+  "comaps_release_process_peak_rss_kib": 8563516,
+  "comaps_release_process_peak_rss_bytes": 8771439616,
+  "source": "gates2 Nordic 34-leaf re-bake /usr/bin/time -v Maximum resident set size",
+  "date": "2026-11-12",
+  "mapterhorn_cache_nordic_end_gib": 8.5,
+  "recommended_mapterhorn_cache_default_gib": 48,
+  "recommended_ram_headroom_gib": 16,
+  "expected_process_concurrency_on_media": 3
+}

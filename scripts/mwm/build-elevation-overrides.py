@@ -286,6 +286,7 @@ def main() -> int:
             )
             features_out += 1
 
+    lookups = cache.hits + cache.misses
     stats = {
         "zoom": zoom,
         "threshold_m": args.threshold_m,
@@ -295,9 +296,12 @@ def main() -> int:
         "features_with_overrides": features_out,
         "tile_cache_hits": cache.hits,
         "tile_cache_misses": cache.misses,
+        "tile_cache_hit_rate": (cache.hits / lookups) if lookups else None,
         "tile_fetches": cache.fetches,
         "tile_not_found": cache.not_found,
         "tile_fallback_ok": cache.fallback_ok,
+        "cache_dir": str(args.cache_dir),
+        "cache_max_bytes": args.cache_max_bytes,
         "wall_s": time.monotonic() - t0,
     }
     if args.stats_out:

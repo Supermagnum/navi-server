@@ -19,14 +19,18 @@ mwm_load_defaults() {
   : "${NAVI_MWM_BUILD_DIR:=/var/lib/navi/mwm/omim-build-release}"
   : "${NAVI_MWM_MAPS_BUILD:=/var/lib/navi/mwm/maps_build}"
   : "${NAVI_MWM_HGT_CACHE:=${root}/data/elevation/hgt-mapterhorn}"
+  # Persistent across CoMaps releases (Mapterhorn tiles are release-independent).
   : "${NAVI_MWM_MAPTERHORN_CACHE:=${root}/data/elevation/mapterhorn-cache}"
-  : "${NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES:=2147483648}"
+  # Default 48 GiB (pre-world); after first world run raise to measured+20% via env.
+  : "${NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES:=51539607552}"
+  : "${NAVI_MWM_MAPTERHORN_ZOOM:=12}"
   : "${NAVI_MWM_ELEV_THRESHOLD_M:=2}"
   : "${NAVI_MWM_STATE_DIR:=${root}/data/state}"
   : "${NAVI_MWM_LOCK:=${NAVI_MWM_STATE_DIR}/pack-pipeline.lock}"
   : "${NAVI_MWM_PUBLISHED_ROOT:=${root}/data/published/mwm}"
   : "${NAVI_MWM_LEAFSET:=${root}/config/mwm/leafsets/nordic.txt}"
   : "${NAVI_MWM_PIN_JSON:=${root}/config/mwm/comaps-pin.json}"
+  : "${NAVI_MWM_MEASURED_PEAKS:=${root}/config/mwm/measured-peaks.json}"
   : "${NAVI_MWM_REGION_MAP:=${root}/config/mwm/catalog/region_leaf_mapping.json}"
   : "${NAVI_MWM_METASERVER:=https://cdn-us-1.comaps.app}"
   : "${NAVI_MWM_MAP_SERIES:=2026.10.27}"
@@ -35,7 +39,8 @@ mwm_load_defaults() {
   : "${NAVI_MWM_DOWNLOAD_CONCURRENCY:=2}"
   # Process concurrency: 0 → derive from free RAM (see leaf_scheduler.py).
   : "${NAVI_MWM_PROCESS_CONCURRENCY:=0}"
-  : "${NAVI_MWM_PER_LEAF_GIB:=8.7}"
+  # Measured peak RSS for comaps-release leaf process (gates2 Nordic): 8.2 GiB.
+  : "${NAVI_MWM_PER_LEAF_GIB:=8.2}"
   : "${NAVI_MWM_RAM_HEADROOM_GIB:=16}"
   # Nordic measured peak ~19–20 GiB MaxRSS; 14G cgroup OOMs Features.
   : "${NAVI_MWM_MEMORY_MAX:=24G}"

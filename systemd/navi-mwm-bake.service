@@ -14,9 +14,10 @@ Environment=NAVI_MWM_MODE=comaps-release
 EnvironmentFile=-/etc/navi/mwm.env
 WorkingDirectory=/opt/navi/navi-server
 ExecStart=/opt/navi/navi-server/scripts/mwm/run-mwm-bake.sh
-# generate mode Nordic peak ~19–20 GiB; comaps-release streaming is far lower.
-# Parallel comaps-release: N * ~8.7 GiB + 16 GiB headroom (see leaf_scheduler).
-MemoryMax=24G
+# generate mode Nordic peak ~19–20 GiB (test-only).
+# Parallel comaps-release: N * ~8.2 GiB + 16 GiB headroom (see leaf_scheduler /
+# config/mwm/measured-peaks.json). Concurrency 3 on media needs >24G cgroup.
+MemoryMax=48G
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7

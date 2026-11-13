@@ -32,14 +32,22 @@ def sha256_file(path: Path) -> tuple[str, int]:
     return h.hexdigest(), n
 
 
-def record_processed(state_path: Path, leaf: str, mwm: Path, out: Path, discovery: dict) -> None:
+def record_processed(
+    state_path: Path,
+    leaf: str,
+    mwm: Path,
+    out: Path,
+    discovery: dict,
+    *,
+    wall_s: float | None = None,
+) -> None:
     meta = discovery["leaves"][leaf]
     mwm_sha, mwm_n = sha256_file(mwm)
     sc_sha, sc_n = sha256_file(out)
     with state_path.open("a+") as lockf:
         fcntl.flock(lockf.fileno(), fcntl.LOCK_EX)
         st = load_processed(state_path)
-        st.setdefault("leaves", {})[leaf] = {
+        rec = {
             "comaps_bytes": meta["size"],
             "comaps_sha1_base64": meta["sha1_base64"],
             "mwm_bytes": mwm_n,
@@ -48,6 +56,9 @@ def record_processed(state_path: Path, leaf: str, mwm: Path, out: Path, discover
             "sidecar_sha256": sc_sha,
             "finished_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         }
+        if wall_s is not None:
+            rec["wall_s"] = round(wall_s, 1)
+        st.setdefault("leaves", {})[leaf] = rec
         st["release_version"] = discovery["version"]
         save_processed_atomic(state_path, st)
 
@@ -183,7 +194,7 @@ def main() -> int:
                 "--cache-dir",
                 os.environ["NAVI_MWM_MAPTERHORN_CACHE"],
                 "--cache-max-bytes",
-                os.environ.get("NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES", str(2 * 1024**3)),
+                os.environ.get("NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES", str(48 * 1024**3)),
                 "--threshold-m",
                 os.environ.get("NAVI_MWM_ELEV_THRESHOLD_M", "2"),
                 "--stats-out",
@@ -225,8 +236,8 @@ def main() -> int:
         (args.work / "stats" / f"{leaf}.sidecar.json").write_text(bake.stdout)
         print(bake.stdout.strip(), flush=True)
 
-        record_processed(state_path, leaf, mwm, out, discovery)
         wall = time.monotonic() - t0
+        record_processed(state_path, leaf, mwm, out, discovery, wall_s=wall)
         print(json.dumps({"leaf": leaf, "ok": True, "wall_s": round(wall, 1)}), flush=True)
         return 0
     except Exception as e:

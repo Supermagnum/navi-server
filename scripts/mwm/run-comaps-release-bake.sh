@@ -112,7 +112,25 @@ STATE=\"\$WORK/meta/processed.json\"
 
 # Restrict discovery leaves to the configured leafset (Nordic by default),
 # unless NAVI_MWM_ALL_LEAVES=1 (world run).
-if [[ \"\${NAVI_MWM_ALL_LEAVES:-0}\" != \"1\" ]]; then
+if [[ \"\${NAVI_MWM_ALL_LEAVES:-0}\" == \"1\" ]]; then
+  # World run: materialize ordered leafset for publish/validate (Nordic→Europe→World).
+  WORLD_LEAFSET=\"\$WORK/meta/world-leafset.txt\"
+  \"\$PYTHON\" - \"\$SCRIPT_DIR\" \"\$WORK/meta/discovery.json\" \"\$WORLD_LEAFSET\" <<'PY'
+import json, sys
+from pathlib import Path
+sys.path.insert(0, str(Path(sys.argv[1]) / 'lib'))
+from leaf_scheduler import order_leaves
+disc = json.loads(Path(sys.argv[2]).read_text())
+leaves = order_leaves(disc['leaves'].keys())
+Path(sys.argv[3]).write_text('\\n'.join(leaves) + '\\n')
+disc['leaf_count'] = len(leaves)
+disc['leafset'] = sys.argv[3]
+disc['all_leaves'] = True
+Path(sys.argv[2]).write_text(json.dumps(disc) + '\\n')
+print(f'world leafset {len(leaves)} leaves -> {sys.argv[3]}')
+PY
+  export NAVI_MWM_LEAFSET=\"\$WORLD_LEAFSET\"
+else
   \"\$PYTHON\" - \"\$WORK/meta/discovery.json\" \"\${NAVI_MWM_LEAFSET}\" <<'PY'
 import json, sys
 from pathlib import Path

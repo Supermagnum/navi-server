@@ -141,8 +141,10 @@ class TestLeafScheduler(unittest.TestCase):
         self.assertEqual(ordered[0], "Norway_Hedmark")
         self.assertEqual(ordered[1], "Sweden_Stockholm")
         self.assertLess(leaf_sort_key("Germany_Bavaria")[0], leaf_sort_key("World")[0])
-        self.assertEqual(default_process_concurrency(available_gib=40, headroom_gib=16, per_leaf_gib=8.7), 2)
-        self.assertEqual(default_process_concurrency(available_gib=20, headroom_gib=16, per_leaf_gib=8.7), 1)
+        # Measured 8.2 GiB/leaf + 16 GiB headroom → concurrency 3 at 41 GiB available.
+        self.assertEqual(default_process_concurrency(available_gib=41, headroom_gib=16, per_leaf_gib=8.2), 3)
+        self.assertEqual(default_process_concurrency(available_gib=40, headroom_gib=16, per_leaf_gib=8.2), 2)
+        self.assertEqual(default_process_concurrency(available_gib=20, headroom_gib=16, per_leaf_gib=8.2), 1)
 
     def test_resume_pending(self):
         from leaf_scheduler import pending_leaves
