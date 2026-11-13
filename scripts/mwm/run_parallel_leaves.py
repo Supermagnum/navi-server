@@ -168,8 +168,8 @@ def main() -> int:
     elev_mod = None
     cache_dir: Path | None = None
     cache_max_bytes = int(
-        os.environ.get("NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES", str(48 * 1024**3))
-        or str(48 * 1024**3)
+        os.environ.get("NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES", "58755104232")
+        or "58755104232"
     )
     if not args.skip_elevation and os.environ.get("NAVI_MWM_MAPTERHORN_CACHE", "").strip():
         cache_dir = Path(os.environ["NAVI_MWM_MAPTERHORN_CACHE"])

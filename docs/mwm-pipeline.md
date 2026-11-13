@@ -38,7 +38,7 @@ Defaults from `scripts/mwm/lib/common.sh` / `config/mwm/measured-peaks.json`.
 | `NAVI_MWM_LEAFSET` | `config/mwm/leafsets/nordic.txt` | Leaf list (ignored if `ALL_LEAVES=1`) |
 | `NAVI_MWM_ALL_LEAVES` | `0` | `1` = world (ordered Nordic→Europe→world) |
 | `NAVI_MWM_MAPTERHORN_CACHE` | `{repo}/data/elevation/mapterhorn-cache` | **Persistent** tile cache (survives releases) |
-| `NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES` | `51539607552` (48 GiB) | mtime-LRU eviction cap; raise to measured+20% after first world run |
+| `NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES` | `58755104232` (54.72 GiB) | mtime-LRU eviction cap (261105 world measured 45.60 GiB + 20%) |
 | `NAVI_MWM_MAPTERHORN_ZOOM` | `12` | Terrarium zoom |
 | `NAVI_MWM_ELEV_THRESHOLD_M` | `2` | Override when \|Δ\| exceeds this |
 | `NAVI_MWM_PROCESS_CONCURRENCY` | `0` (auto) | `0` → from RAM + per-stage peaks; override with explicit int |
@@ -78,7 +78,7 @@ On media (~41 GiB MemAvailable idle): **3**. Explicit
 | Item | Budget / note |
 |------|----------------|
 | Pool | 1.0 TiB total; leave headroom for `.rkyv` + scratch |
-| Mapterhorn cache default | **48 GiB** — fits; Nordic end size ~8.5 GiB; world end size sets measured+20% default |
+| Mapterhorn cache default | **54.72 GiB** (`58755104232` B) — fits; Nordic end ~8.5 GiB; 261105 world end 45.60 GiB (post-LRU) + 20% |
 | World work tree | MWMs deleted after each leaf; sidecars + stats remain |
 | Publish | Sidecars only (~tens of MiB Nordic; world scales with leaf count) |
 

@@ -1,6 +1,6 @@
 {
   "schema": "navi-mwm-measured-peaks/v2",
-  "notes": "Measured on media (gates2 Nordic re-bake + 5-leaf stage RSS profiling). Concurrency uses per-stage peaks with an annotate semaphore of 2.",
+  "notes": "Measured on media (gates2 Nordic re-bake + 5-leaf stage RSS profiling; cache max updated from 261105 world measured 48,962,586,860 B / 45.60 GiB post-LRU + 20% = 58,755,104,232 B / 54.72 GiB). Concurrency uses per-stage peaks with an annotate semaphore of 2.",
   "comaps_release_process_peak_rss_gib": 8.2,
   "comaps_release_process_peak_rss_kib": 8563516,
   "comaps_release_process_peak_rss_bytes": 8771439616,
@@ -23,7 +23,10 @@
   "source": "gates2 Nordic 34-leaf re-bake + 261105 5-leaf stage RSS profiling",
   "date": "2026-11-13",
   "mapterhorn_cache_nordic_end_gib": 8.5,
-  "recommended_mapterhorn_cache_default_gib": 48,
+  "mapterhorn_cache_world_end_bytes": 48962586860,
+  "mapterhorn_cache_world_end_gib": 45.6,
+  "recommended_mapterhorn_cache_default_gib": 54.72,
+  "recommended_mapterhorn_cache_max_bytes": 58755104232,
   "recommended_ram_headroom_gib": 16,
   "expected_process_concurrency_on_media": 6
 }

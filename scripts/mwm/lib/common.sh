@@ -21,8 +21,8 @@ mwm_load_defaults() {
   : "${NAVI_MWM_HGT_CACHE:=${root}/data/elevation/hgt-mapterhorn}"
   # Persistent across CoMaps releases (Mapterhorn tiles are release-independent).
   : "${NAVI_MWM_MAPTERHORN_CACHE:=${root}/data/elevation/mapterhorn-cache}"
-  # Default 48 GiB (pre-world); after first world run raise to measured+20% via env.
-  : "${NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES:=51539607552}"
+  # Default 54.72 GiB (261105 world measured 48,962,586,860 B + 20%).
+  : "${NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES:=58755104232}"
   : "${NAVI_MWM_MAPTERHORN_ZOOM:=12}"
   : "${NAVI_MWM_ELEV_THRESHOLD_M:=2}"
   : "${NAVI_MWM_STATE_DIR:=${root}/data/state}"

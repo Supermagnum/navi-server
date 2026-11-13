@@ -328,7 +328,7 @@ def main() -> int:
                 "--cache-dir",
                 os.environ["NAVI_MWM_MAPTERHORN_CACHE"],
                 "--cache-max-bytes",
-                os.environ.get("NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES", str(48 * 1024**3)),
+                os.environ.get("NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES", "58755104232"),
                 "--threshold-m",
                 os.environ.get("NAVI_MWM_ELEV_THRESHOLD_M", "2"),
                 "--stats-out",
