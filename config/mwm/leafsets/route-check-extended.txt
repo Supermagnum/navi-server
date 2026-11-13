@@ -1,0 +1,31 @@
+# Extended route-check leafset: six Nordic/border + foot detour + informational.
+# Used by run-six-route-check.sh when NAVI_MWM_ROUTE_CHECK_LEAVES points here,
+# or by the next-release gate script.
+#
+# Six-route + foot detour (Nordic):
+Norway_Hedmark
+Norway_Oppland
+Norway_Central
+Norway_Southern
+Norway_Western
+Sweden_Bergslagen
+Sweden_Malardalen
+Sweden_Stockholm
+Sweden_Norra Sverige
+Sweden_Mellannorrland
+Finland_Southern Finland_Helsinki
+Finland_Northern Finland
+Finland_Western Finland_Tampere
+Finland_Eastern Finland_North
+#
+# Informational (outside Europe):
+US_California_LA
+US_California_Sacramento_Sacramento
+Japan_Kanto_Tokyo
+Japan_Kanto_Kanagawa
+Chile_Central
+Argentina_Cuyo
+Australia_Sydney
+Australia_Melbourne
+Australia_New South Wales
+Australia_Victoria

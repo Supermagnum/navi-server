@@ -27,6 +27,11 @@ DEFAULT_PER_LEAF_GIB = 8.2
 DEFAULT_HEADROOM_GIB = 16.0
 DEFAULT_ANNOTATE_CONCURRENCY = 2
 DEFAULT_PREFETCH_DISK_BUDGET_GIB = 20.0
+# Per-worker Python parent RSS (process_comaps_leaf leaf_self peak ~1.12 GiB).
+DEFAULT_LEAF_SELF_GIB = 1.1
+# Terrarium decoded RGB tile (Mapterhorn z12 is 512x512).
+DEFAULT_DECODED_TILE_BYTES = 512 * 512 * 3
+DEFAULT_TILE_MEM_CACHE = 4096
 
 NORDIC_PREFIXES = (
     "Denmark_",
@@ -115,6 +120,20 @@ def default_process_concurrency(
     return max(1, int(usable // per_leaf_gib))
 
 
+def estimate_elevation_rss_gib(
+    unique_tiles: int,
+    *,
+    mem_tiles: int = DEFAULT_TILE_MEM_CACHE,
+    decoded_tile_bytes: int = DEFAULT_DECODED_TILE_BYTES,
+    base_gib: float = 0.3,
+) -> float:
+    """Per-leaf elevation RSS estimate: unique tiles × decode size, capped by mem cache."""
+    tiles = max(0, int(unique_tiles))
+    cap = max(0, int(mem_tiles))
+    held = min(tiles, cap) if cap > 0 else tiles
+    return float(base_gib) + (held * int(decoded_tile_bytes)) / float(1024**3)
+
+
 def stage_aware_process_concurrency(
     *,
     stage_peaks_gib: dict[str, float],
@@ -122,24 +141,66 @@ def stage_aware_process_concurrency(
     headroom_gib: float = DEFAULT_HEADROOM_GIB,
     available_gib: float | None = None,
     max_concurrency: int | None = None,
+    leaf_self_gib: float | None = None,
+    elev_unique_tiles: int | None = None,
+    tile_mem_cache: int | None = None,
 ) -> int:
     """Derive leaf concurrency from per-stage peak RSS and annotate semaphore.
 
     At most `annotate_concurrency` workers may occupy the wetland annotate stage
     simultaneously; remaining workers run dump/elevation/bake bounded by the
     maximum of those non-annotate stage peaks.
+
+    Each concurrent worker also budgets `leaf_self` (~1.1 GiB) for the Python
+    parent. Elevation peak is the max of the measured stage peak and an estimate
+    from unique_tiles × decoded tile size capped by the tile mem cache, so one
+    unusual leaf cannot silently exceed RAM headroom.
     """
     avail = available_ram_gib() if available_gib is None else available_gib
     usable = avail - headroom_gib
     if usable <= 0:
         return 1
 
-    ann_peak = max(0.1, float(stage_peaks_gib.get("annotate", DEFAULT_PER_LEAF_GIB)))
-    other_peak = max(
-        0.1,
-        float(stage_peaks_gib.get("dump", 0.5)),
-        float(stage_peaks_gib.get("elevation", 1.8)),
-        float(stage_peaks_gib.get("bake", 0.3)),
+    self_gib = (
+        DEFAULT_LEAF_SELF_GIB
+        if leaf_self_gib is None
+        else max(0.0, float(leaf_self_gib))
+    )
+    # Prefer explicit leaf_self from measured peaks when present.
+    if leaf_self_gib is None and "leaf_self" in stage_peaks_gib:
+        try:
+            self_gib = max(0.0, float(stage_peaks_gib["leaf_self"]))
+        except (ValueError, TypeError):
+            pass
+
+    mem_tiles = (
+        DEFAULT_TILE_MEM_CACHE
+        if tile_mem_cache is None
+        else max(0, int(tile_mem_cache))
+    )
+    elev_measured = max(0.1, float(stage_peaks_gib.get("elevation", 1.8)))
+    if elev_unique_tiles is not None:
+        elev_est = estimate_elevation_rss_gib(
+            int(elev_unique_tiles), mem_tiles=mem_tiles
+        )
+        elev_peak = max(elev_measured, elev_est)
+    else:
+        # Without a per-leaf tile count, keep measured peak but never under-budget
+        # the mem-cache decode ceiling (worst-case full mem cache resident).
+        elev_peak = max(
+            elev_measured,
+            estimate_elevation_rss_gib(mem_tiles, mem_tiles=mem_tiles),
+        )
+
+    ann_peak = max(0.1, float(stage_peaks_gib.get("annotate", DEFAULT_PER_LEAF_GIB))) + self_gib
+    other_peak = (
+        max(
+            0.1,
+            float(stage_peaks_gib.get("dump", 0.5)),
+            elev_peak,
+            float(stage_peaks_gib.get("bake", 0.3)),
+        )
+        + self_gib
     )
     ann_cap = max(1, int(annotate_concurrency))
     cap = max_concurrency if (max_concurrency and max_concurrency > 0) else 64
@@ -192,7 +253,7 @@ def load_stage_peaks_gib(
     raw_stages = data.get("stage_peaks_gib")
     peaks: dict[str, float] = {}
     if isinstance(raw_stages, dict):
-        for k in ("dump", "annotate", "elevation", "bake"):
+        for k in ("dump", "annotate", "elevation", "bake", "leaf_self"):
             if k in raw_stages and raw_stages[k] is not None:
                 try:
                     peaks[k] = float(raw_stages[k])
@@ -200,7 +261,9 @@ def load_stage_peaks_gib(
                     pass
 
     if stats_dir is not None and stats_dir.is_dir():
-        samples: dict[str, list[float]] = {k: [] for k in ("dump", "annotate", "elevation", "bake")}
+        samples: dict[str, list[float]] = {
+            k: [] for k in ("dump", "annotate", "elevation", "bake", "leaf_self")
+        }
         for p in stats_dir.glob("*.timings.json"):
             try:
                 t = json.loads(p.read_text())
@@ -225,6 +288,9 @@ def load_stage_peaks_gib(
                 p95_idx = min(len(vals) - 1, int(0.95 * (len(vals) - 1)))
                 p95_val = vals[p95_idx]
                 peaks[k] = max(peaks.get(k, 0.0), p95_val) if peaks else p95_val
+
+    if peaks and "leaf_self" not in peaks:
+        peaks["leaf_self"] = DEFAULT_LEAF_SELF_GIB
 
     return peaks if peaks else None
 
@@ -278,12 +344,21 @@ def resolve_process_concurrency(
         ann_n = resolve_annotate_concurrency(measured_peaks_path=measured_peaks_path)
         max_raw = os.environ.get("NAVI_MWM_MAX_PROCESS_CONCURRENCY", "").strip()
         max_n = int(max_raw) if max_raw and int(max_raw) > 0 else None
+        peaks_json = _load_measured_peaks_json(measured_peaks_path)
+        mem_tiles = int(
+            os.environ.get(
+                "NAVI_MWM_TILE_MEM_CACHE",
+                str(peaks_json.get("tile_mem_cache", DEFAULT_TILE_MEM_CACHE)),
+            )
+            or DEFAULT_TILE_MEM_CACHE
+        )
         return stage_aware_process_concurrency(
             stage_peaks_gib=stage_peaks,
             annotate_concurrency=ann_n,
             headroom_gib=head,
             available_gib=available_gib,
             max_concurrency=max_n,
+            tile_mem_cache=mem_tiles,
         )
 
     per = _load_measured_per_leaf_gib(measured_peaks_path)
@@ -362,12 +437,17 @@ def pending_leaves(
     *,
     leaf_filter: str | None = None,
     limit: int = 0,
+    include_non_routable: bool = False,
 ) -> list[str]:
+    from non_routable import is_non_routable_leaf  # local import avoids cycle at module load
+
     done = set((processed.get("leaves") or {}).keys())
     ordered = order_leaves(all_leaves)
     out = []
     for leaf in ordered:
         if leaf_filter and leaf != leaf_filter:
+            continue
+        if not include_non_routable and is_non_routable_leaf(leaf):
             continue
         if leaf in done:
             continue

@@ -318,6 +318,26 @@ def main() -> int:
             stages_s["elev_total"] = 0.0
             peak_rss_kib["elevation"] = 0
         else:
+            from elevation_policy import (  # noqa: E402
+                classify_mapterhorn_leaf,
+                resolve_policy_version,
+                threshold_m_for_leaf,
+            )
+
+            policy_ver = resolve_policy_version()
+            # Optional lat_max from env override; else heuristic inside policy helper.
+            lat_max_raw = os.environ.get("NAVI_MWM_LEAF_LAT_MAX", "").strip()
+            lat_max = float(lat_max_raw) if lat_max_raw else None
+            threshold = threshold_m_for_leaf(
+                leaf,
+                policy_version=policy_ver,
+                lat_max=lat_max,
+                mapterhorn_class=classify_mapterhorn_leaf(leaf),
+            )
+            # Explicit env still wins for offline experiments.
+            if os.environ.get("NAVI_MWM_ELEV_THRESHOLD_M", "").strip():
+                threshold = float(os.environ["NAVI_MWM_ELEV_THRESHOLD_M"])
+
             elev_cmd = [
                 python,
                 str(SCRIPT_DIR / "build-elevation-overrides.py"),
@@ -330,10 +350,13 @@ def main() -> int:
                 "--cache-max-bytes",
                 os.environ.get("NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES", "58755104232"),
                 "--threshold-m",
-                os.environ.get("NAVI_MWM_ELEV_THRESHOLD_M", "2"),
+                str(threshold),
                 "--stats-out",
                 str(estat),
             ]
+            gcache = os.environ.get("NAVI_MWM_GEOMETRY_CACHE", "").strip()
+            if gcache:
+                elev_cmd.extend(["--geometry-cache", gcache, "--geometry-cache-write"])
             if os.environ.get("NAVI_MWM_CACHE_PARENT_EVICT", "0").strip() == "1":
                 elev_cmd.append("--no-evict")
             if args.elev_zoom > 0:
@@ -356,6 +379,74 @@ def main() -> int:
                 stages_s["elev_scan"] = 0.0
                 stages_s["elev_fetch"] = 0.0
                 stages_s["elev_sample"] = round(elev_s, 3)
+
+        # After elevation absolute samples are cached, attach wetland/boardwalk by road hash.
+        gcache_path = os.environ.get("NAVI_MWM_GEOMETRY_CACHE", "").strip()
+        if gcache_path and not args.skip_annotate and wjson.is_file():
+            try:
+                from geometry_cache import (  # noqa: E402
+                    GeometryResultCache,
+                    RoadCacheEntry,
+                    road_geometry_hash,
+                )
+
+                gc = GeometryResultCache(
+                    Path(gcache_path),
+                    zoom=int(os.environ.get("NAVI_MWM_MAPTERHORN_ZOOM", "12") or "12"),
+                )
+                wet_by_fid: dict[int, list[dict]] = {}
+                bw_by_fid: dict[int, list[dict]] = {}
+                for line in wjson.read_text().splitlines():
+                    if not line.strip():
+                        continue
+                    rec = json.loads(line)
+                    wet_by_fid.setdefault(int(rec["feature_id"]), []).append(
+                        {
+                            "segment_index": int(rec["segment_index"]),
+                            "direction": int(rec["direction"]),
+                            "class": int(rec["class"]),
+                        }
+                    )
+                if bjson.is_file():
+                    for line in bjson.read_text().splitlines():
+                        if not line.strip():
+                            continue
+                        rec = json.loads(line)
+                        bw_by_fid.setdefault(int(rec["feature_id"]), []).append(
+                            {
+                                "segment_index": int(rec["segment_index"]),
+                                "direction": int(rec["direction"]),
+                                "flag": int(rec.get("flag", 1)),
+                            }
+                        )
+                updates = []
+                if roads.is_file():
+                    for line in roads.read_text().splitlines():
+                        if not line.strip():
+                            continue
+                        feat = json.loads(line)
+                        fid = int(feat["feature_id"])
+                        gh = road_geometry_hash(feat["points"])
+                        existing = gc.get_road(gh)
+                        samples = (
+                            existing.samples_dm
+                            if existing
+                            else [None] * len(feat["points"])
+                        )
+                        updates.append(
+                            RoadCacheEntry(
+                                geom_hash=gh,
+                                n_points=len(feat["points"]),
+                                samples_dm=samples,
+                                wetland=wet_by_fid.get(fid, []),
+                                boardwalk=bw_by_fid.get(fid, []),
+                            )
+                        )
+                if updates:
+                    gc.put_roads_many(updates)
+                gc.close()
+            except Exception as e:  # noqa: BLE001 — cache write must not fail the leaf
+                print(json.dumps({"geometry_cache_wetland_warn": str(e)}), flush=True)
 
         series = discovery["map_series"]
         ver = str(discovery["version"])

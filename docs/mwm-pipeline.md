@@ -61,7 +61,9 @@ Defaults from `scripts/mwm/lib/common.sh` / `config/mwm/measured-peaks.json`.
 | `NAVI_MWM_GRACE_DAYS` | `7` | Retain superseded releases |
 | `NAVI_MWM_KEEP_RELEASES` | `2` | Retain count floor |
 | `NAVI_MWM_HTTP_USER_AGENT` | `navi-server-mwm/1.0 (+…)` | Polite client |
-| `NAVI_MWM_SKIP_ROUTE_CHECK` | `0` | `1` skips six-route (streaming/low disk) |
+| `NAVI_MWM_SKIP_ROUTE_CHECK` | `0` | `1` skips route validation (offline CI only). Normal path stages leaf MWMs from the CoMaps CDN, runs six gated car routes + foot wetland detour + informational routes, then deletes staged MWMs. |
+| `NAVI_MWM_GEOMETRY_CACHE` | (unset) | SQLite path for geometry-hash absolute-sample cache |
+| `NAVI_MWM_ELEV_POLICY_VERSION` | `1` | `1` = uniform 2 m; `2` = Copernicus-only &lt;60°N uses 5 m (next release default) |
 | `NAVI_MWM_REGION_MAP` | `config/mwm/catalog/region_leaf_mapping.json` | Region→leaf |
 
 Auto concurrency:
@@ -147,7 +149,7 @@ export NAVI_MWM_PROCESS_CONCURRENCY=3   # or 0 for auto
 # Nordic leafset (default):
 ./scripts/mwm/run-mwm-bake.sh --force --publish-root "$NAVI_MWM_PUBLISHED_ROOT"
 # World:
-NAVI_MWM_ALL_LEAVES=1 NAVI_MWM_SKIP_ROUTE_CHECK=1 \
+NAVI_MWM_ALL_LEAVES=1 \
   ./scripts/mwm/run-comaps-release-bake.sh --force --publish-root "$NAVI_MWM_PUBLISHED_ROOT"
 ```
 

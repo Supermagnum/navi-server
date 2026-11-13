@@ -413,14 +413,24 @@ class TestProcessedRaceAndScheduler(unittest.TestCase):
         self.assertEqual(acquired, [(True, 2000)])
 
     def test_stage_aware_concurrency_and_annotate_semaphore(self):
-        # 41 GiB avail, 16 headroom -> 25 usable; 2*8.2 + 4*1.8 = 23.6 <= 25 -> 6
+        # 41 GiB avail, 16 headroom -> 25 usable.
+        # With leaf_self 1.1 + elev mem-cache ceiling (~3.3), peaks become
+        # ann=9.3 / other=4.4 → 2*9.3 + 1*4.4 = 23 <= 25 → concurrency 3
+        # (was 6 before leaf_self / elev RSS accounting).
         n = stage_aware_process_concurrency(
-            stage_peaks_gib={"dump": 0.5, "annotate": 8.2, "elevation": 1.8, "bake": 0.3},
+            stage_peaks_gib={
+                "dump": 0.5,
+                "annotate": 8.2,
+                "elevation": 1.8,
+                "bake": 0.3,
+                "leaf_self": 1.1,
+            },
             annotate_concurrency=2,
             headroom_gib=16.0,
             available_gib=41.0,
+            tile_mem_cache=4096,
         )
-        self.assertEqual(n, 6)
+        self.assertEqual(n, 3)
 
         with tempfile.TemporaryDirectory() as td:
             peaks_file = Path(td) / "peaks.json"
@@ -432,8 +442,10 @@ class TestProcessedRaceAndScheduler(unittest.TestCase):
                             "annotate": 8.2,
                             "elevation": 1.8,
                             "bake": 0.3,
+                            "leaf_self": 1.1,
                         },
                         "annotate_concurrency": 2,
+                        "tile_mem_cache": 4096,
                     }
                 )
             )
@@ -446,7 +458,7 @@ class TestProcessedRaceAndScheduler(unittest.TestCase):
                     "NAVI_MWM_MEASURED_PEAKS": str(peaks_file),
                 },
             ):
-                self.assertEqual(resolve_process_concurrency(available_gib=41.0), 6)
+                self.assertEqual(resolve_process_concurrency(available_gib=41.0), 3)
 
             lock_dir = Path(td) / "ann_locks"
             mgr = multiprocessing.Manager()

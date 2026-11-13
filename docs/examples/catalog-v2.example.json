@@ -68,6 +68,8 @@
     ]
   },
   "world_leaf_count": 1161,
+  "elevation_policy_version": 1,
+  "non_routable_leaves": ["World", "WorldCoasts"],
   "leaves": [
     {
       "id": "Norway_Hedmark",
@@ -75,6 +77,8 @@
       "sidecar_bytes": 261797,
       "sidecar_url": "261105/Norway_Hedmark.navi-sidecar.v1.zst",
       "shared": false,
+      "no_sidecar": false,
+      "elevation_policy_version": 1,
       "comaps_file": "Norway_Hedmark.mwm",
       "comaps_bytes": 102194292,
       "comaps_sha1_base64": "SYcBVbtm7e8BwcOGWpo0WV8bFK4=",

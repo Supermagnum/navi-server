@@ -120,14 +120,19 @@ import json, sys
 from pathlib import Path
 sys.path.insert(0, str(Path(sys.argv[1]) / 'lib'))
 from leaf_scheduler import order_leaves
+from non_routable import NON_ROUTABLE_LEAVES, is_non_routable_leaf
 disc = json.loads(Path(sys.argv[2]).read_text())
-leaves = order_leaves(disc['leaves'].keys())
+all_ids = list(disc['leaves'].keys())
+# Sidecar bake skips non-routable overlays (World / WorldCoasts); catalog still lists them.
+leaves = order_leaves([leaf for leaf in all_ids if not is_non_routable_leaf(leaf)])
 Path(sys.argv[3]).write_text('\\n'.join(leaves) + '\\n')
 disc['leaf_count'] = len(leaves)
 disc['leafset'] = sys.argv[3]
 disc['all_leaves'] = True
+disc['non_routable_leaves'] = sorted(NON_ROUTABLE_LEAVES & set(all_ids))
+disc['countries_txt_leaf_count'] = len(all_ids)
 Path(sys.argv[2]).write_text(json.dumps(disc) + '\\n')
-print(f'world leafset {len(leaves)} leaves -> {sys.argv[3]}')
+print(f'world leafset {len(leaves)} routable leaves (excluded {disc[\"non_routable_leaves\"]}) -> {sys.argv[3]}')
 PY
   export NAVI_MWM_LEAFSET=\"\$WORLD_LEAFSET\"
 else

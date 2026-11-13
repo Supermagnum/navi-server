@@ -108,6 +108,20 @@ CI validates that example against the field rules below.
 | `mwm_fingerprint` | object | `{size, sha256}` — same values; prefer for checks |
 | `shared` | bool | True if the leaf appears in multiple Navi regions |
 | `shared_with_regions` | string[] | Present when `shared` |
+| `no_sidecar` | bool | Optional. `true` for non-routable CoMaps overlays (`World`, `WorldCoasts`) — clients must not expect a Navi sidecar |
+| `sidecar` / `sidecar_url` | null | Set when `no_sidecar` is true |
+| `elevation_policy_version` | number\|null | Sidecar elevation policy (`1` = uniform 2 m; `2` = Copernicus-only &lt;60°N uses 5 m). `null` when `no_sidecar` |
+
+Top-level catalog also carries `elevation_policy_version` (one policy per release) and
+`non_routable_leaves` (`["World","WorldCoasts"]`).
+
+### Non-routable leaves (no sidecar)
+
+`World.mwm` and `WorldCoasts.mwm` are CoMaps overlay / coastline datasets without a
+per-country road network for Navi wetland or elevation routing. Navi **does not**
+bake or publish sidecars for them (they previously drove multi-GiB elevation RSS).
+Clients still download those MWMs from CoMaps when the app needs them; catalog
+entries are present with `no_sidecar: true` so fetchers can skip sidecar URLs.
 
 ### Version / compat
 

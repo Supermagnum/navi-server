@@ -97,7 +97,8 @@ class TestLeafScheduler(unittest.TestCase):
                 ["Norway_Hedmark", "Norway_Oppland", "World"],
                 st,
             )
-            self.assertEqual(pending, ["Norway_Oppland", "World"])
+            # World is non-routable and excluded from sidecar processing.
+            self.assertEqual(pending, ["Norway_Oppland"])
 
 
 if __name__ == "__main__":

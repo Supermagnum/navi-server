@@ -182,11 +182,15 @@ def evict_cache_lru(
     *,
     force_scan: bool = False,
     low_watermark_ratio: float | None = None,
+    reserve_bytes: int = 0,
 ) -> tuple[int, int, int]:
     """Single-owner (flock-serialized) LRU eviction over .webp files.
 
     Returns (final_bytes, evicted_count, evicted_bytes).
-    Only scans the directory tree when tracked size > max_bytes (or force_scan).
+
+    Evicts until ``total + reserve_bytes <= max_bytes`` (then down to the low
+    watermark when already over the cap). Callers that are about to write must
+    pass ``reserve_bytes`` so the cache never exceeds the cap after the write.
     """
     if low_watermark_ratio is None:
         raw_ratio = os.environ.get(
@@ -194,6 +198,7 @@ def evict_cache_lru(
         )
         low_watermark_ratio = float(raw_ratio or DEFAULT_EVICT_LOW_WATERMARK_RATIO)
     ratio = min(max(float(low_watermark_ratio), 0.1), 1.0)
+    reserve = max(0, int(reserve_bytes))
 
     with _cache_lock(cache_dir):
         entries: list[tuple[float, int, Path]] | None = None
@@ -208,16 +213,20 @@ def evict_cache_lru(
             else:
                 total = tracked
 
-        if total <= max_bytes:
+        # Hard cap: tracked size plus the bytes about to be written.
+        hard_limit = max(0, int(max_bytes) - reserve)
+        if total <= hard_limit and total <= max_bytes:
             return total, 0, 0
 
         if entries is None:
             total, entries = scan_cache_webp(cache_dir)
-            if total <= max_bytes:
+            if total <= hard_limit and total <= max_bytes:
                 _write_cache_size_unlocked(cache_dir, total)
                 return total, 0, 0
 
-        target = int(max_bytes * ratio) if max_bytes > 0 else 0
+        # When over (or about to exceed) the cap, drain to the low watermark of
+        # the *effective* hard limit so subsequent in-flight writes fit.
+        target = int(hard_limit * ratio) if hard_limit > 0 else 0
         entries.sort(key=lambda item: (item[0], str(item[2])))
         evicted_count = 0
         evicted_bytes = 0
@@ -234,6 +243,72 @@ def evict_cache_lru(
                 continue
         _write_cache_size_unlocked(cache_dir, total)
         return total, evicted_count, evicted_bytes
+
+
+def ensure_cache_room(
+    cache_dir: Path,
+    max_bytes: int,
+    needed_bytes: int,
+) -> tuple[int, int, int]:
+    """Evict before a write so ``current + needed_bytes <= max_bytes``."""
+    return evict_cache_lru(
+        cache_dir,
+        max_bytes,
+        reserve_bytes=max(0, int(needed_bytes)),
+    )
+
+
+def write_webp_under_cap(
+    cache_dir: Path,
+    path: Path,
+    data: bytes,
+    max_bytes: int,
+) -> tuple[int, int]:
+    """Evict + write + account under one cache lock so parallel writers cannot overshoot.
+
+    Returns (delta_bytes, final_tracked_bytes).
+    """
+    old_sz = 0
+    try:
+        if path.is_file():
+            old_sz = path.stat().st_size
+    except OSError:
+        old_sz = 0
+    delta = len(data) - old_sz
+
+    with _cache_lock(cache_dir):
+        tracked = _read_cache_size_unlocked(cache_dir)
+        if tracked is None:
+            tracked, entries = scan_cache_webp(cache_dir)
+        else:
+            entries = None
+        hard_limit = max(0, int(max_bytes) - max(0, delta))
+        if tracked > hard_limit:
+            if entries is None:
+                tracked, entries = scan_cache_webp(cache_dir)
+            raw_ratio = os.environ.get(
+                "NAVI_MWM_CACHE_EVICT_RATIO", str(DEFAULT_EVICT_LOW_WATERMARK_RATIO)
+            )
+            ratio = min(max(float(raw_ratio or DEFAULT_EVICT_LOW_WATERMARK_RATIO), 0.1), 1.0)
+            target = int(hard_limit * ratio) if hard_limit > 0 else 0
+            entries.sort(key=lambda item: (item[0], str(item[2])))
+            for _, _sz, p in entries:
+                if tracked <= target:
+                    break
+                # Never evict the file we are about to overwrite.
+                if p.resolve() == path.resolve():
+                    continue
+                try:
+                    actual_sz = p.stat().st_size
+                    p.unlink()
+                    tracked = max(0, tracked - actual_sz)
+                except OSError:
+                    continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        _atomic_write_bytes(path, data)
+        tracked = max(0, tracked + delta)
+        _write_cache_size_unlocked(cache_dir, tracked)
+        return delta, tracked
 
 
 def parse_retry_after(value: str | None, *, max_wait_s: float = 120.0) -> float | None:
@@ -571,6 +646,7 @@ class TileCache:
         self._pop_oldest_mem()
 
     def _enforce_limit(self, force: bool = False) -> None:
+        # parent_evict skips *end-of-leaf* full scans; room-before-write still runs.
         if self.parent_evict and not force:
             return
         final_bytes, _, _ = evict_cache_lru(
@@ -580,11 +656,21 @@ class TileCache:
         )
         self._approx_bytes = final_bytes
 
+    def _ensure_room_for(self, needed_bytes: int) -> None:
+        """Evict before writing so the cache stays at or under max_bytes."""
+        if needed_bytes <= 0 or self.max_bytes <= 0:
+            return
+        final_bytes, _, _ = ensure_cache_room(
+            self.cache_dir, self.max_bytes, needed_bytes
+        )
+        self._approx_bytes = final_bytes
+
     def _download_one_to_disk(self, z: int, x: int, y: int) -> tuple[str, bytes | None, int]:
         """Download a single missing tile into disk cache atomically.
 
         Returns (status_tag, bytes_or_None, bytes_added_to_cache).
         status_tag is one of: 'hit_disk', 'hit_404', 'ok', '404', 'err'.
+        Evicts before write so disk cache never exceeds max_bytes.
         """
         path = self._path(z, x, y)
         miss = self._miss_marker(z, x, y)
@@ -625,18 +711,18 @@ class TileCache:
                 return "err", None, 0
             data = body
 
-        old_sz = 0
-        try:
-            if path.is_file():
-                old_sz = path.stat().st_size
-        except OSError:
-            old_sz = 0
-        _atomic_write_bytes(path, data)
-        delta = len(data) - old_sz
+        delta, tracked = write_webp_under_cap(
+            self.cache_dir, path, data, self.max_bytes
+        )
+        self._approx_bytes = tracked
         return "ok", data, delta
 
     def prefetch_tiles(self, tile_keys: Iterable[tuple[int, int, int]]) -> dict[str, int]:
-        """Collect missing tiles and fetch them concurrently with keep-alive session."""
+        """Collect missing tiles and fetch them concurrently with keep-alive session.
+
+        Prefetch runs in bounded chunks; each write goes through
+        ``write_webp_under_cap`` so parallel workers cannot overshoot the cap.
+        """
         unique = sorted(set(tile_keys))
         missing: list[tuple[int, int, int]] = []
         for z, x, y in unique:
@@ -647,31 +733,57 @@ class TileCache:
         if not missing:
             return {"unique_tiles": len(unique), "missing_tiles": 0, "fetched": 0, "not_found": 0}
 
-        bytes_added = 0
+        # Bound in-flight prefetch: ~75 KiB/tile typical terrarium webp.
+        approx_tile = int(
+            os.environ.get("NAVI_MWM_CACHE_APPROX_TILE_BYTES", str(75 * 1024)) or (75 * 1024)
+        )
+        chunk = max(
+            1,
+            int(
+                os.environ.get(
+                    "NAVI_MWM_CACHE_PREFETCH_CHUNK",
+                    str(max(self.fetch_concurrency * 4, 64)),
+                )
+                or 64
+            ),
+        )
+        max_chunk_bytes = max(
+            1,
+            min(self.max_bytes // 20 if self.max_bytes else approx_tile, 256 * 1024**2),
+        )
+        chunk = min(chunk, max(1, max_chunk_bytes // max(1, approx_tile)))
+
         fetched = 0
         not_found = 0
-        with ThreadPoolExecutor(
-            max_workers=min(self.fetch_concurrency, len(missing)),
-            thread_name_prefix="tile-fetch",
-        ) as pool:
-            futs = {pool.submit(self._download_one_to_disk, z, x, y): (z, x, y) for z, x, y in missing}
-            for fut in as_completed(futs):
-                key = futs[fut]
-                tag, _, delta = fut.result()
-                if tag == "ok":
-                    self.misses += 1
-                    self.fetches += 1
-                    fetched += 1
-                    bytes_added += delta
-                elif tag in ("404", "err"):
-                    self.misses += 1
-                    self.not_found += 1
-                    not_found += 1
-                    if tag == "err":
-                        self._remember_missing(key)
+        for start in range(0, len(missing), chunk):
+            batch = missing[start : start + chunk]
+            # Proactive room for the whole batch (individual writes still lock).
+            self._ensure_room_for(len(batch) * approx_tile)
+            with ThreadPoolExecutor(
+                max_workers=min(self.fetch_concurrency, len(batch)),
+                thread_name_prefix="tile-fetch",
+            ) as pool:
+                futs = {
+                    pool.submit(self._download_one_to_disk, z, x, y): (z, x, y)
+                    for z, x, y in batch
+                }
+                for fut in as_completed(futs):
+                    key = futs[fut]
+                    tag, _, _delta = fut.result()
+                    if tag == "ok":
+                        self.misses += 1
+                        self.fetches += 1
+                        fetched += 1
+                    elif tag in ("404", "err"):
+                        self.misses += 1
+                        self.not_found += 1
+                        not_found += 1
+                        if tag == "err":
+                            self._remember_missing(key)
 
-        if bytes_added != 0:
-            self._approx_bytes = adjust_cache_size(self.cache_dir, bytes_added)
+        tracked = read_cache_size(self.cache_dir)
+        if tracked is not None:
+            self._approx_bytes = tracked
         return {
             "unique_tiles": len(unique),
             "missing_tiles": len(missing),
@@ -710,8 +822,11 @@ class TileCache:
             if tag == "ok" and body is not None:
                 data = body
                 self.fetches += 1
+                # Size already accounted inside write_webp_under_cap.
                 if delta != 0:
-                    self._approx_bytes = adjust_cache_size(self.cache_dir, delta)
+                    tracked = read_cache_size(self.cache_dir)
+                    if tracked is not None:
+                        self._approx_bytes = tracked
             elif tag == "hit_disk" and body is not None:
                 data = body
                 self.hits += 1
@@ -817,6 +932,17 @@ def main() -> int:
     ap.add_argument("--no-evict", action="store_true")
     ap.add_argument("--stats-out", type=Path, default=None)
     ap.add_argument("--max-features", type=int, default=0)
+    ap.add_argument(
+        "--geometry-cache",
+        type=Path,
+        default=None,
+        help="SQLite geometry-hash cache (absolute MH samples). Empty/omit = disabled.",
+    )
+    ap.add_argument(
+        "--geometry-cache-write",
+        action="store_true",
+        help="Populate geometry cache with absolute samples for misses/all features.",
+    )
     args = ap.parse_args()
 
     # Default production zoom is 12. Auto-max (highest_working_zoom→15) is a
@@ -864,14 +990,64 @@ def main() -> int:
         parent_evict=True if args.no_evict else None,
     )
 
+    gcache = None
+    gcache_path = args.geometry_cache
+    if gcache_path is None:
+        env_gc = os.environ.get("NAVI_MWM_GEOMETRY_CACHE", "").strip()
+        if env_gc and os.environ.get("NAVI_MWM_GEOMETRY_CACHE_ENABLE", "1").strip() not in (
+            "0",
+            "false",
+            "no",
+            "off",
+        ):
+            gcache_path = Path(env_gc)
+    if gcache_path is not None:
+        sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
+        from geometry_cache import (  # noqa: E402
+            GeometryResultCache,
+            RoadCacheEntry,
+            overrides_from_samples,
+            road_geometry_hash,
+        )
+
+        gcache = GeometryResultCache(Path(gcache_path), zoom=zoom)
+        if args.geometry_cache_write or os.environ.get(
+            "NAVI_MWM_GEOMETRY_CACHE_WRITE", "1"
+        ).strip() not in ("0", "false", "no", "off"):
+            args.geometry_cache_write = True
+
     total_points = 0
     override_points = 0
     features_out = 0
+    ghash_hits = 0
+    ghash_misses = 0
     t0 = time.monotonic()
+    prefetch_info = {"unique_tiles": 0, "missing_tiles": 0, "fetched": 0, "not_found": 0}
     try:
         t_scan0 = time.monotonic()
+        # When geometry cache is warm we still collect unique tiles only for misses.
+        # Cold / no-cache path prefetches everything as before.
+        roads_for_prefetch = args.roads_jsonl
+        miss_roads_path: Path | None = None
+        if gcache is not None:
+            miss_roads_path = args.out.with_suffix(".ghash-miss.roads.jsonl")
+            with args.roads_jsonl.open() as inp, miss_roads_path.open("w") as miss_out:
+                for i, line in enumerate(inp):
+                    if args.max_features and i >= args.max_features:
+                        break
+                    if not line.strip():
+                        continue
+                    feat = json.loads(line)
+                    gh = road_geometry_hash(feat["points"])
+                    if gcache.get_road(gh) is not None:
+                        ghash_hits += 1
+                    else:
+                        ghash_misses += 1
+                        miss_out.write(line if line.endswith("\n") else line + "\n")
+            roads_for_prefetch = miss_roads_path
+
         unique_tiles = collect_unique_tiles(
-            args.roads_jsonl, zoom, max_features=args.max_features
+            roads_for_prefetch, zoom, max_features=args.max_features
         )
         elev_scan_s = time.monotonic() - t_scan0
 
@@ -880,6 +1056,7 @@ def main() -> int:
         elev_fetch_s = time.monotonic() - t_fetch0
 
         t_sample0 = time.monotonic()
+        pending_cache_writes: list = []
         with args.roads_jsonl.open() as inp, args.out.open("w") as out:
             for i, line in enumerate(inp):
                 if args.max_features and i >= args.max_features:
@@ -890,20 +1067,55 @@ def main() -> int:
                 fid = int(feat["feature_id"])
                 points = feat["points"]
                 point_count = len(points)
-                overrides = []
-                for idx, p in enumerate(points):
-                    total_points += 1
-                    mh = cache.sample(float(p["lat"]), float(p["lon"]))
-                    if mh is None:
-                        continue
-                    comaps = float(p.get("alt_m", 0))
-                    if abs(mh - comaps) <= args.threshold_m:
-                        continue
-                    dm = int(round(mh * 10.0))
-                    if dm < -32768 or dm > 32767:
-                        continue
-                    overrides.append({"point_index": idx, "altitude_dm": dm})
-                    override_points += 1
+                comaps_alts = [float(p.get("alt_m", 0)) for p in points]
+                total_points += point_count
+
+                samples_dm: list[int | None] | None = None
+                if gcache is not None:
+                    gh = road_geometry_hash(points)
+                    hit = gcache.get_road(gh)
+                    if hit is not None and len(hit.samples_dm) == point_count:
+                        samples_dm = hit.samples_dm
+                    else:
+                        samples_dm = []
+                        for p in points:
+                            mh = cache.sample(float(p["lat"]), float(p["lon"]))
+                            if mh is None:
+                                samples_dm.append(None)
+                            else:
+                                samples_dm.append(int(round(mh * 10.0)))
+                        if args.geometry_cache_write:
+                            prev = gcache.get_road(gh)
+                            pending_cache_writes.append(
+                                RoadCacheEntry(
+                                    geom_hash=gh,
+                                    n_points=point_count,
+                                    samples_dm=samples_dm,
+                                    wetland=prev.wetland if prev else [],
+                                    boardwalk=prev.boardwalk if prev else [],
+                                    wetland_touch_hashes=(
+                                        prev.wetland_touch_hashes if prev else b""
+                                    ),
+                                )
+                            )
+                    overrides = overrides_from_samples(
+                        samples_dm, comaps_alts, args.threshold_m
+                    )
+                else:
+                    overrides = []
+                    for idx, p in enumerate(points):
+                        mh = cache.sample(float(p["lat"]), float(p["lon"]))
+                        if mh is None:
+                            continue
+                        comaps = float(p.get("alt_m", 0))
+                        if abs(mh - comaps) <= args.threshold_m:
+                            continue
+                        dm = int(round(mh * 10.0))
+                        if dm < -32768 or dm > 32767:
+                            continue
+                        overrides.append({"point_index": idx, "altitude_dm": dm})
+
+                override_points += len(overrides)
                 if not overrides:
                     continue
                 out.write(
@@ -918,15 +1130,26 @@ def main() -> int:
                     + "\n"
                 )
                 features_out += 1
+        if gcache is not None and pending_cache_writes:
+            gcache.put_roads_many(pending_cache_writes)
         elev_sample_s = time.monotonic() - t_sample0
+
+        if miss_roads_path is not None:
+            try:
+                miss_roads_path.unlink(missing_ok=True)
+            except OSError:
+                pass
 
         if not cache.parent_evict:
             cache._enforce_limit()
     finally:
         cache.close()
+        if gcache is not None:
+            gcache.close()
 
     lookups = cache.hits + cache.misses
     wall_s = time.monotonic() - t0
+    ghash_lookups = ghash_hits + ghash_misses
     stats = {
         "zoom": zoom,
         "threshold_m": args.threshold_m,
@@ -946,6 +1169,9 @@ def main() -> int:
         "cache_bytes_approx": cache._approx_bytes,
         "cache_dir": str(args.cache_dir),
         "cache_max_bytes": args.cache_max_bytes,
+        "geometry_hash_hits": ghash_hits,
+        "geometry_hash_misses": ghash_misses,
+        "geometry_hash_hit_rate": (ghash_hits / ghash_lookups) if ghash_lookups else None,
         "elev_scan_s": round(elev_scan_s, 3),
         "elev_fetch_s": round(elev_fetch_s, 3),
         "elev_sample_s": round(elev_sample_s, 3),

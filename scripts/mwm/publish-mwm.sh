@@ -34,8 +34,8 @@ rm -rf "$STAGING"
 mkdir -p "$STAGING"
 
 python3 - "$VERSION_DIR" "$STAGING" "$NAVI_MWM_LEAFSET" "$TAG" "$SHA" \
-  "$NAVI_MWM_REGION_MAP" "$SIDECARS_ONLY" <<'PY'
-import hashlib, json, shutil, sys
+  "$NAVI_MWM_REGION_MAP" "$SIDECARS_ONLY" "$SCRIPT_DIR" <<'PY'
+import hashlib, json, os, shutil, sys
 from pathlib import Path
 
 version = Path(sys.argv[1])
@@ -44,6 +44,10 @@ leafset = Path(sys.argv[3])
 tag, sha = sys.argv[4], sys.argv[5]
 region_map = Path(sys.argv[6])
 sidecars_only = sys.argv[7] == "1"
+script_dir = Path(sys.argv[8])
+sys.path.insert(0, str(script_dir / "lib"))
+from non_routable import NON_ROUTABLE_LEAVES, is_non_routable_leaf, non_routable_catalog_entry  # noqa: E402
+
 leaves = [ln.strip() for ln in leafset.read_text().splitlines() if ln.strip() and not ln.strip().startswith("#")]
 
 def sha256(p: Path) -> str:
@@ -62,9 +66,19 @@ if disc_path.is_file():
 if proc_path.is_file():
     processed = json.loads(proc_path.read_text()).get("leaves") or {}
 
+policy_version = int(os.environ.get("NAVI_MWM_ELEV_POLICY_VERSION", "1") or "1")
+
 leaf_entries = []
 checksums = {}
+seen = set()
 for leaf in leaves:
+    seen.add(leaf)
+    if is_non_routable_leaf(leaf):
+        disc_leaf = (discovery.get("leaves") or {}).get(leaf) or {}
+        entry = non_routable_catalog_entry(leaf, disc_leaf)
+        entry["elevation_policy_version"] = None
+        leaf_entries.append(entry)
+        continue
     sc = version / f"{leaf}.navi-sidecar.v1.zst"
     mwm = version / f"{leaf}.mwm"
     if not sc.is_file():
@@ -81,6 +95,8 @@ for leaf in leaves:
         "sidecar_bytes": dst_s.stat().st_size,
         "sidecar_url": f"{staging.name}/{leaf}.navi-sidecar.v1.zst",
         "shared": False,
+        "no_sidecar": False,
+        "elevation_policy_version": policy_version,
     }
     if sidecars_only:
         meta = processed.get(leaf) or {}
@@ -107,6 +123,16 @@ for leaf in leaves:
             "mwm_bytes": dst_m.stat().st_size,
             "mwm_sha256": ms,
         })
+    leaf_entries.append(entry)
+
+# Always list non-routable overlays from discovery even if absent from leafset.
+for leaf in sorted(NON_ROUTABLE_LEAVES):
+    if leaf in seen:
+        continue
+    if leaf not in (discovery.get("leaves") or {}):
+        continue
+    entry = non_routable_catalog_entry(leaf, discovery["leaves"][leaf])
+    entry["elevation_policy_version"] = None
     leaf_entries.append(entry)
 
 attr_src = version / "attribution.json"
@@ -157,6 +183,8 @@ if sidecars_only:
         },
         "shared_leaves": shared,
         "world_leaf_count": len((discovery.get("leaves") or {})),
+        "elevation_policy_version": policy_version,
+        "non_routable_leaves": sorted(NON_ROUTABLE_LEAVES),
     }
 else:
     catalog = {

@@ -8,7 +8,8 @@
     "dump": 0.1,
     "annotate": 8.2,
     "elevation": 2.0,
-    "bake": 0.2
+    "bake": 0.2,
+    "leaf_self": 1.1
   },
   "stage_max_observed_gib": {
     "dump": 0.065,

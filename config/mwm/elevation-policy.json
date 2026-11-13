@@ -1,0 +1,24 @@
+{
+  "schema": "navi-mwm-elevation-policy/v1",
+  "default_policy_version": 1,
+  "notes": "v1 = uniform 2.0 m (release 261105). v2 becomes default from the next CoMaps release after 261105. Copernicus-only leaves entirely below 60N use 5.0 m under v2; >=60N and all other Mapterhorn classes keep 2.0 m.",
+  "versions": {
+    "1": {
+      "threshold_m_default": 2.0,
+      "description": "Uniform 2.0 m |Mapterhorn - CoMaps| override threshold."
+    },
+    "2": {
+      "threshold_m_default": 2.0,
+      "copernicus_only_below_60n_m": 5.0,
+      "description": "Copernicus-only + lat_max < 60 uses 5.0 m; otherwise 2.0 m."
+    }
+  },
+  "mapterhorn_class_method": "scripts/mwm/lib/elevation_policy.py::classify_mapterhorn_leaf — prefix rules from Mapterhorn source coverage (national LiDAR / aalv+nosvalbard 20 m / mixed overseas / glo30-only). Regenerate by re-running classification over countries.txt leaf ids after reviewing download.mapterhorn.com attribution / source-catalog.",
+  "lat_max_method": "Prefer per-leaf lat_max from dump stats (max road-point latitude). Fallback heuristics in leaf_below_60n() treat northern Scandinavia/Russia/Canada/Alaska/etc. as not-below-60.",
+  "classes": {
+    "high_res": "National/regional DEM <= 10 m in Mapterhorn",
+    "high_res_20m": "National 20 m DTM (Latvia aalv, Norway_Svalbard nosvalbard)",
+    "mixed": "Partial high-res / overseas mix (Australia, Canada, microstates, Portugal_Islands, …)",
+    "copernicus_only": "Mapterhorn glo30 (Copernicus GLO-30) only"
+  }
+}

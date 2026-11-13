@@ -83,6 +83,9 @@ def main() -> int:
         "navi": {
             "label": "Navi",
             "note": "Wetland Soft/Hard edge costs, boardwalk flags, and Mapterhorn elevation overrides in Navi sidecars",
+            "elevation_policy_version": int(
+                __import__("os").environ.get("NAVI_MWM_ELEV_POLICY_VERSION", "1") or "1"
+            ),
         },
         "osm": {
             "license": "ODbL",

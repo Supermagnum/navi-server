@@ -109,7 +109,18 @@ recall of this proxy is ~25% (see routing-hooks).
 ## 4. `elevation_overrides` body
 
 Integer **decimetres** (0.1 m). Only points where
-`|Mapterhorn − CoMaps| > threshold` (default **2.0 m**) are stored.
+`|Mapterhorn − CoMaps| > threshold` are stored.
+
+**Elevation policy version** (also in catalog + `attribution.json` →
+`navi.elevation_policy_version`):
+
+| Version | Rule |
+|--------:|------|
+| **1** (release `261105`) | Uniform **2.0 m** threshold for every leaf |
+| **2** (default from the next CoMaps release) | Copernicus-only leaves with `lat_max < 60°N` use **5.0 m**; ≥60°N and all other Mapterhorn classes keep **2.0 m** |
+
+Clients apply overrides the same way regardless of policy version; only the
+set of stored points changes. One CoMaps release = one policy version.
 
 ```
 feature_count   u32

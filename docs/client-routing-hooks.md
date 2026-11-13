@@ -50,8 +50,15 @@ For each `elevation_overrides` feature:
    at that point with `altitude_dm / 10.0` metres.
 3. Points without overrides keep CoMaps altitudes.
 
-Threshold at bake: store only when `|Mapterhorn − CoMaps| > 2.0 m`
-(`NAVI_MWM_ELEV_THRESHOLD_M`). Zoom default **12**.
+Threshold at bake depends on **elevation policy version** (catalog +
+attribution `navi.elevation_policy_version`):
+
+- **v1** (`261105`): `|Δh| > 2.0 m` for all leaves
+- **v2** (next CoMaps release default): Copernicus-only leaves below 60°N use
+  `|Δh| > 5.0 m`; ≥60°N and other Mapterhorn classes keep 2.0 m
+
+Zoom default **12**. Clients need no code change when the policy version
+bumps — they still replace altitudes at `(feature_id, point_index)`.
 
 **Drape** (terrain mesh) stays **client-side** (Mapterhorn / other DEM); the
 sidecar only corrects **routable** altitudes used by the cost function /
