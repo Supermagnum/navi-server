@@ -1,0 +1,9 @@
+{
+  "leafset": "nordic",
+  "description": "Nordic pilot generator profile for media-class hosts.",
+  "node_storage": "map",
+  "threads_features": 4,
+  "threads_count": 4,
+  "memory_max_hint": "24G",
+  "notes": "Measured 2026-11-11: NODE_STORAGE=raw increased Features MaxRSS (~20.9 GiB vs ~19.4 GiB map) and Preprocess wall (~1h19 vs ~4m). Keep map. Cap THREADS_COUNT=4 to limit concurrent StageMwm country jobs (uncapped auto=nproc can inflate peak during Mwm)."
+}

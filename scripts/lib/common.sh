@@ -47,6 +47,8 @@ load_config() {
   # Only this tree is safe to expose over HTTP (static GET/HEAD). Never put
   # scripts/, scratch/, staging/, state/, or systemd/ under it.
   : "${NAVI_PUBLISHED_DIR:=${NAVI_PACK_ROOT}/published}"
+  # Shared exclusive lock with MWM sidecar bake (scripts/mwm uses the same path).
+  : "${NAVI_PACK_PIPELINE_LOCK:=${NAVI_STATE_DIR}/pack-pipeline.lock}"
   : "${NAVI_PROFILES:=car,foot}"
   : "${NAVI_ELEV_DIR:=${NAVI_PACK_ROOT}/elevation}"
   # Planet-leaves / planet-smoke standing tree (may --evict). Weekly must NOT

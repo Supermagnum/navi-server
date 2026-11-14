@@ -92,7 +92,13 @@ unconditional fallback and is untouched by this tree.
 | Doc | Contents |
 |---|---|
 | [`docs/pack-formats.md`](docs/pack-formats.md) | Binary and JSON pack formats, what they contain, and how to read them |
-| [`docs/client-fetch.md`](docs/client-fetch.md) | Future client HTTP GET contract and exposure surface |
+| [`docs/client-fetch.md`](docs/client-fetch.md) | Future client HTTP GET contract and exposure surface (`.rkyv`) |
+| [`docs/mwm-pipeline.md`](docs/mwm-pipeline.md) | Operator guide: CoMaps-release MWM sidecars (modes, config, timers, lock) |
+| [`docs/client-fetch-mwm.md`](docs/client-fetch-mwm.md) | Client contract: CoMaps MWMs + Navi sidecars + catalog v2 |
+| [`docs/sidecar-format.md`](docs/sidecar-format.md) | Byte-level `{leaf}.navi-sidecar.v1.zst` (NVSC) spec |
+| [`docs/client-routing-hooks.md`](docs/client-routing-hooks.md) | Wetland Soft/Hard, boardwalk, elevation hooks |
+| [`docs/client-migration-from-rkyv.md`](docs/client-migration-from-rkyv.md) | Client migration plan from `.rkyv` to MWM |
+| [`docs/mwm-planet.md`](docs/mwm-planet.md) | Generate-mode planet notes (**test-only**) |
 | [`docs/datex-npra.md`](docs/datex-npra.md) | Optional DATEX NPRA redistribution (**off by default**) |
 | [`docs/repeater-mirror.md`](docs/repeater-mirror.md) | Optional RepeaterBook + RadioID mirrors for CAT (**off by default**) |
 | [`docs/datex-open-feeds.md`](docs/datex-open-feeds.md) | Survey of open DATEX II feeds that need **no registration** |

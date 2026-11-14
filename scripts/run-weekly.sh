@@ -57,6 +57,17 @@ RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 LOG_FILE="${NAVI_LOG_DIR}/weekly-${RUN_ID}.log"
 mkdir -p "$NAVI_LOG_DIR"
 
+# Share pack-pipeline.lock with the MWM sidecar pipeline so the two never overlap.
+: "${NAVI_PACK_PIPELINE_LOCK:=${NAVI_STATE_DIR}/pack-pipeline.lock}"
+mkdir -p "$(dirname "$NAVI_PACK_PIPELINE_LOCK")"
+exec 9>"${NAVI_PACK_PIPELINE_LOCK}"
+if ! flock -n 9; then
+  die "pack-pipeline.lock busy (${NAVI_PACK_PIPELINE_LOCK}) — MWM bake may be running"
+fi
+# Advertise lock path for MWM schedule-guard consumers that watch the weekly lock file.
+export NAVI_MWM_WEEKLY_BAKE_LOCK="${NAVI_PACK_PIPELINE_LOCK}"
+log_info "acquired pack-pipeline.lock ${NAVI_PACK_PIPELINE_LOCK}"
+
 atomic_log_begin "$LOG_FILE"
 
 log_info "==== navi pack bake start run_id=${RUN_ID} ===="

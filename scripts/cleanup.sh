@@ -40,6 +40,7 @@ esac
 
 KEEP="${NAVI_KEEP_GENERATIONS}"
 REPORT_ONLY=0
+DRY_RUN=0
 SKIP_QUOTA_GATE=0
 
 while [[ $# -gt 0 ]]; do
@@ -48,6 +49,7 @@ while [[ $# -gt 0 ]]; do
     --no-extracts) PRUNE_EXTRACTS=0; shift ;;
     --keep) KEEP="$2"; shift 2 ;;
     --report-only) REPORT_ONLY=1; shift ;;
+    --dry-run) DRY_RUN=1; shift ;;
     --skip-quota-gate) SKIP_QUOTA_GATE=1; shift ;;
     -h|--help)
       sed -n '2,22p' "$0"
@@ -82,6 +84,29 @@ scrub_fail() {
 trap scrub_fail EXIT
 
 log_info "==== scrub start run_id=${RUN_ID} keep_gens=${KEEP} log_days=${LOG_KEEP_DAYS} convert_days=${CONVERT_KEEP_DAYS} extract_days=${EXTRACT_KEEP_DAYS} ===="
+
+# .rkyv scrub allow-list: packs/ + published/.staging only. Never touch mwm/.
+python3 - "$NAVI_PUBLISHED_DIR" "${SCRIPT_DIR}/lib" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[2])
+from rkyv_published_guard import assert_rkyv_mutation_allowed, packs_root, mwm_root, MWM_OWNED_MARKER
+published = Path(sys.argv[1])
+packs = packs_root(published)
+mwm = mwm_root(published)
+print(f"scrub allow-list packs={packs}")
+assert_rkyv_mutation_allowed(packs, published_dir=published)
+if mwm.is_dir() or (mwm / MWM_OWNED_MARKER).is_file():
+    print(f"scrub: mwm tree present at {mwm} — will not touch")
+# Probe that a bad path would be refused (self-check; does not mutate).
+try:
+    assert_rkyv_mutation_allowed(mwm / "probe", published_dir=published)
+    raise SystemExit("scrub guard failed: mwm probe was allowed")
+except Exception as e:
+    if "refusing" not in str(e):
+        raise
+    print(f"scrub guard ok: {e}")
+PY
 
 if [[ "$REPORT_ONLY" -eq 1 ]]; then
   "${SCRIPT_DIR}/check-disk-quota.sh" --report-only
@@ -119,27 +144,62 @@ for g in "${gens[@]}"; do
     log_info "keep ${g}"
     continue
   fi
-  log_info "prune generation ${g}"
-  rm -rf "$g"
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    log_info "dry-run: would prune generation ${g}"
+  else
+    log_info "prune generation ${g}"
+    rm -rf "$g"
+  fi
   gen_name="$(basename "$g")"
   if [[ -d "${NAVI_PUBLISHED_DIR}/packs" ]]; then
+    # Explicit packs/ allow-list only (never published/mwm/).
     find "${NAVI_PUBLISHED_DIR}/packs" -mindepth 2 -maxdepth 2 -type d -name "$gen_name" -print | while read -r pd; do
-      log_info "prune published ${pd}"
-      rm -rf "$pd"
+      python3 - "$NAVI_PUBLISHED_DIR" "$pd" "${SCRIPT_DIR}/lib" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[3])
+from rkyv_published_guard import assert_rkyv_mutation_allowed
+assert_rkyv_mutation_allowed(Path(sys.argv[2]), published_dir=Path(sys.argv[1]))
+print(sys.argv[2])
+PY
+      if [[ "$DRY_RUN" -eq 1 ]]; then
+        log_info "dry-run: would prune published ${pd}"
+      else
+        log_info "prune published ${pd}"
+        rm -rf "$pd"
+      fi
     done
   fi
 done
 
-# Staging leftovers from crashed runs.
+# Staging leftovers from crashed runs (scratch staging, not published/mwm).
 if [[ -d "$NAVI_STAGING_DIR" ]]; then
   find "$NAVI_STAGING_DIR" -mindepth 1 -maxdepth 1 -type d -mtime "+${STAGING_KEEP_DAYS}" -print | while read -r d; do
-    log_info "prune stale staging ${d}"
-    rm -rf "$d"
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      log_info "dry-run: would prune stale staging ${d}"
+    else
+      log_info "prune stale staging ${d}"
+      rm -rf "$d"
+    fi
   done
 fi
 
+# rkyv-only leftover under published/.staging (NOT published/mwm/.staging).
 if [[ -d "${NAVI_PUBLISHED_DIR}/.staging" ]]; then
-  rm -rf "${NAVI_PUBLISHED_DIR}/.staging"
+  python3 - "$NAVI_PUBLISHED_DIR" "${SCRIPT_DIR}/lib" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[2])
+from rkyv_published_guard import assert_rkyv_mutation_allowed
+p = Path(sys.argv[1]) / ".staging"
+assert_rkyv_mutation_allowed(p, published_dir=Path(sys.argv[1]))
+print(f"prune rkyv staging {p}")
+PY
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    log_info "dry-run: would prune ${NAVI_PUBLISHED_DIR}/.staging"
+  else
+    rm -rf "${NAVI_PUBLISHED_DIR}/.staging"
+  fi
 fi
 
 # Convert scratch (tiled spills, incomplete regions).

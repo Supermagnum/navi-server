@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Navi CoMaps release check timer (disabled until installed+enabled)
+
+[Timer]
+OnCalendar=*-*-* 04:15:00
+Persistent=true
+Unit=navi-mwm-check.service
+
+[Install]
+WantedBy=timers.target

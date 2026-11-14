@@ -1,0 +1,9 @@
+{
+  "leafset": "planet",
+  "description": "Planet profile for mapgen-class hosts (not media).",
+  "node_storage": "mem",
+  "threads_features": 0,
+  "threads_count": 0,
+  "memory_max_hint": "256G",
+  "notes": "CoMaps production uses NODE_STORAGE=mem (~100GiB class) and high THREADS_COUNT on mapgen-fi-1 (48c/256GiB). media (92GiB/130GiB free) cannot host a full planet run."
+}

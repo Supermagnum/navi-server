@@ -1,0 +1,37 @@
+# Nordic pilot leaf set (NO+SE+DK+FI + Svalbard/Jan Mayen).
+# Excludes Norway_Bouvet Island. One generator run = one release.
+# Cross-border routing out of this set is unsupported in the pilot.
+Denmark_Capital Region of Denmark
+Denmark_Central Denmark Region
+Denmark_North Denmark Region
+Denmark_Region Zealand
+Denmark_Region of Southern Denmark
+Finland_Eastern Finland_North
+Finland_Eastern Finland_South
+Finland_Northern Finland
+Finland_Southern Finland_Helsinki
+Finland_Southern Finland_Lappeenranta
+Finland_Southern Finland_West
+Finland_Western Finland_Jyvaskyla
+Finland_Western Finland_Tampere
+Norway_Central
+Norway_Hedmark
+Norway_Hordaland
+Norway_Jan Mayen
+Norway_Nordland
+Norway_North Trondelag
+Norway_Northern
+Norway_Oppland
+Norway_Rogaland
+Norway_South Trondelag
+Norway_Southern
+Norway_Svalbard
+Norway_Western
+Sweden_Bergslagen
+Sweden_Malardalen
+Sweden_Mellannorrland
+Sweden_Norra Sverige
+Sweden_Ostra Gotaland
+Sweden_Sodra Gotaland
+Sweden_Stockholm
+Sweden_Vastra Gotaland

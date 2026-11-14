@@ -1,0 +1,10 @@
+{
+  "tag": "v2026.11.07-16",
+  "sha": "fd11cc6f2256443d4d69112a3c22299d4e0664ce",
+  "repo": "https://codeberg.org/comaps/comaps.git",
+  "build_targets": [
+    "generator_tool",
+    "routes_builder_tool"
+  ],
+  "notes": "Server builds generator-side targets only. Do not build drape, rendering, UI, or Android."
+}
