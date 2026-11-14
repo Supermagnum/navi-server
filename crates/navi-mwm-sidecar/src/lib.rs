@@ -81,7 +81,12 @@ pub struct ElevationPoint {
     /// Index into the MWM feature geometry.
     pub point_index: u16,
     /// Absolute altitude in integer decimetres (0.1 m).
-    pub altitude_dm: i16,
+    ///
+    /// Stored as `i32` so peaks above 3276.7 m (and deep bathymetry) round-trip.
+    /// Wire format: `elevation_overrides` body magic `EL02` with zigzag-i32
+    /// deltas (see `elevation_body`). Legacy v1 bodies used `i16` and are still
+    /// readable.
+    pub altitude_dm: i32,
 }
 
 /// Elevation overrides for one feature (only points that differ from CoMaps).
@@ -138,7 +143,7 @@ pub struct Sidecar {
 #[derive(Debug, Deserialize)]
 struct ElevationPointJson {
     point_index: u16,
-    altitude_dm: i16,
+    altitude_dm: i32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -425,7 +430,7 @@ pub fn load_wetland_jsonl(path: &Path, ambiguous_threshold: u32) -> Result<Vec<W
 
 /// Load elevation override JSONL. A missing file yields an empty list.
 ///
-/// Each line: `{"feature_id":u32,"point_count":u16,"points":[{"point_index":u16,"altitude_dm":i16},...]}`.
+/// Each line: `{"feature_id":u32,"point_count":u16,"points":[{"point_index":u16,"altitude_dm":i32},...]}`.
 pub fn load_elevation_jsonl(path: &Path) -> Result<Vec<ElevationFeature>> {
     if !path.exists() {
         return Ok(Vec::new());
@@ -581,11 +586,19 @@ fn boardwalk_body(records: &[BoardwalkRecord]) -> Result<Vec<u8>> {
     Ok(body)
 }
 
-/// Elevation body: feature count, then per feature:
+/// Magic for elevation body schema v2 (`EL02` little-endian).
+///
+/// v2 stores absolute altitudes as zigzag-delta **i32** (u32 on the wire) so
+/// values above ±3276.7 m round-trip. Legacy v1 bodies have no magic and use
+/// zigzag-delta i16 (u16 on the wire); absolute values were capped at i16.
+pub const ELEVATION_BODY_MAGIC_V2: u32 = 0x3230_4C45; // bytes E L 0 2 little-endian
+
+/// Elevation body (v2): magic `EL02`, feature count, then per feature:
 /// `feature_id u32`, `point_count u16`, `n u16`, then n times delta(`point_index`)
-/// as u16 and zigzag-delta(`altitude_dm`) as u16.
+/// as u16 and zigzag-delta(`altitude_dm` as i32) as u32.
 fn elevation_body(features: &[ElevationFeature]) -> Result<Vec<u8>> {
     let mut body = Vec::new();
+    body.extend_from_slice(&ELEVATION_BODY_MAGIC_V2.to_le_bytes());
     write_count(&mut body, features.len())?;
     for feat in features {
         body.extend_from_slice(&feat.feature_id.to_le_bytes());
@@ -593,7 +606,7 @@ fn elevation_body(features: &[ElevationFeature]) -> Result<Vec<u8>> {
         let n = u16::try_from(feat.points.len()).context("too many elevation points")?;
         body.extend_from_slice(&n.to_le_bytes());
         let mut prev_idx = 0u16;
-        let mut prev_alt = 0i16;
+        let mut prev_alt = 0i32;
         for (i, p) in feat.points.iter().enumerate() {
             let idx_delta = if i == 0 {
                 p.point_index
@@ -603,8 +616,8 @@ fn elevation_body(features: &[ElevationFeature]) -> Result<Vec<u8>> {
                     .context("elevation point_index not ascending")?
             };
             body.extend_from_slice(&idx_delta.to_le_bytes());
-            let alt_delta = i16::wrapping_sub(p.altitude_dm, prev_alt);
-            let zz = zigzag_encode_i16(alt_delta);
+            let alt_delta = p.altitude_dm.wrapping_sub(prev_alt);
+            let zz = zigzag_encode_i32(alt_delta);
             body.extend_from_slice(&zz.to_le_bytes());
             prev_idx = p.point_index;
             prev_alt = p.altitude_dm;
@@ -617,6 +630,72 @@ fn parse_elevation_body(data: &[u8]) -> Result<Vec<ElevationFeature>> {
     if data.len() < 4 {
         bail!("elevation body too short");
     }
+    let first = read_u32(data, 0)?;
+    if first == ELEVATION_BODY_MAGIC_V2 {
+        parse_elevation_body_v2(&data[4..])
+    } else {
+        // Legacy v1: first word is feature_count; altitudes were i16.
+        parse_elevation_body_v1(data)
+    }
+}
+
+fn parse_elevation_body_v2(data: &[u8]) -> Result<Vec<ElevationFeature>> {
+    if data.len() < 4 {
+        bail!("elevation v2 body too short");
+    }
+    let count = usize::try_from(read_u32(data, 0)?).context("elevation feature count")?;
+    let mut off = 4usize;
+    let mut out = Vec::with_capacity(count);
+    for _ in 0..count {
+        if off + 4 + 2 + 2 > data.len() {
+            bail!("truncated elevation feature header");
+        }
+        let feature_id = read_u32(data, off)?;
+        off += 4;
+        let point_count = read_u16(data, off)?;
+        off += 2;
+        let n = usize::from(read_u16(data, off)?);
+        off += 2;
+        let mut points = Vec::with_capacity(n);
+        let mut prev_idx = 0u16;
+        let mut prev_alt = 0i32;
+        for i in 0..n {
+            if off + 2 + 4 > data.len() {
+                bail!("truncated elevation point");
+            }
+            let idx_delta = read_u16(data, off)?;
+            off += 2;
+            let zz = read_u32(data, off)?;
+            off += 4;
+            let point_index = if i == 0 {
+                idx_delta
+            } else {
+                prev_idx
+                    .checked_add(idx_delta)
+                    .context("elevation point_index overflow")?
+            };
+            let alt_delta = zigzag_decode_i32(zz);
+            let altitude_dm = prev_alt.wrapping_add(alt_delta);
+            points.push(ElevationPoint {
+                point_index,
+                altitude_dm,
+            });
+            prev_idx = point_index;
+            prev_alt = altitude_dm;
+        }
+        out.push(ElevationFeature {
+            feature_id,
+            point_count,
+            points,
+        });
+    }
+    if off != data.len() {
+        bail!("elevation trailing bytes");
+    }
+    Ok(out)
+}
+
+fn parse_elevation_body_v1(data: &[u8]) -> Result<Vec<ElevationFeature>> {
     let count = usize::try_from(read_u32(data, 0)?).context("elevation feature count")?;
     let mut off = 4usize;
     let mut out = Vec::with_capacity(count);
@@ -649,13 +728,13 @@ fn parse_elevation_body(data: &[u8]) -> Result<Vec<ElevationFeature>> {
                     .context("elevation point_index overflow")?
             };
             let alt_delta = zigzag_decode_i16(zz);
-            let altitude_dm = i16::wrapping_add(prev_alt, alt_delta);
+            let altitude_dm_i16 = prev_alt.wrapping_add(alt_delta);
             points.push(ElevationPoint {
                 point_index,
-                altitude_dm,
+                altitude_dm: i32::from(altitude_dm_i16),
             });
             prev_idx = point_index;
-            prev_alt = altitude_dm;
+            prev_alt = altitude_dm_i16;
         }
         out.push(ElevationFeature {
             feature_id,
@@ -669,12 +748,16 @@ fn parse_elevation_body(data: &[u8]) -> Result<Vec<ElevationFeature>> {
     Ok(out)
 }
 
-fn zigzag_encode_i16(v: i16) -> u16 {
-    ((v << 1) ^ (v >> 15)) as u16
-}
-
 fn zigzag_decode_i16(v: u16) -> i16 {
     ((v >> 1) as i16) ^ -((v & 1) as i16)
+}
+
+fn zigzag_encode_i32(v: i32) -> u32 {
+    ((v << 1) ^ (v >> 31)) as u32
+}
+
+fn zigzag_decode_i32(v: u32) -> i32 {
+    ((v >> 1) as i32) ^ -((v & 1) as i32)
 }
 
 fn write_count(body: &mut Vec<u8>, len: usize) -> Result<()> {
@@ -899,6 +982,40 @@ mod tests {
         assert_eq!(sc.elevation[0].points.len(), 2);
         assert_eq!(sc.elevation[0].points[0].altitude_dm, 1234);
         assert_eq!(sc.elevation[0].points[1].altitude_dm, 1200);
+        // Absolute elevations must round-trip across the old i16 boundary.
+        let want_dm = [-5000, 0, 32767, 32768, 53000, 88480]; // m: -500,0,3276.7,3276.8,5300,8848
+        let high = vec![ElevationFeature {
+            feature_id: 99,
+            point_count: want_dm.len() as u16,
+            points: want_dm
+                .iter()
+                .enumerate()
+                .map(|(i, &dm)| ElevationPoint {
+                    point_index: i as u16,
+                    altitude_dm: dm,
+                })
+                .collect(),
+        }];
+        let bytes_hi = build_sidecar_bytes(
+            "tag",
+            "sha",
+            [1u8; 32],
+            1,
+            Vec::new(),
+            Vec::new(),
+            high,
+            "{}",
+        )
+        .unwrap();
+        let path_hi = dir.path().join("hi.navi-sidecar.v1.zst");
+        write_sidecar(&path_hi, &bytes_hi).unwrap();
+        let sc_hi = read_sidecar(&path_hi).unwrap();
+        let got: Vec<i32> = sc_hi.elevation[0]
+            .points
+            .iter()
+            .map(|p| p.altitude_dm)
+            .collect();
+        assert_eq!(got, want_dm);
         assert!(sc.attribution_json.contains("Mapterhorn"));
         assert_eq!(
             sc.sections

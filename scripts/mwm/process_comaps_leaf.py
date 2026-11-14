@@ -356,7 +356,16 @@ def main() -> int:
             ]
             gcache = os.environ.get("NAVI_MWM_GEOMETRY_CACHE", "").strip()
             if gcache:
-                elev_cmd.extend(["--geometry-cache", gcache, "--geometry-cache-write"])
+                elev_cmd.extend(
+                    [
+                        "--geometry-cache",
+                        gcache,
+                        "--geometry-cache-write",
+                        "--leaf",
+                        leaf,
+                    ]
+                )
+                os.environ["NAVI_MWM_LEAF"] = leaf
             if os.environ.get("NAVI_MWM_CACHE_PARENT_EVICT", "0").strip() == "1":
                 elev_cmd.append("--no-evict")
             if args.elev_zoom > 0:
@@ -394,6 +403,7 @@ def main() -> int:
                     Path(gcache_path),
                     zoom=int(os.environ.get("NAVI_MWM_MAPTERHORN_ZOOM", "12") or "12"),
                 )
+                gc.open_leaf(leaf)
                 wet_by_fid: dict[int, list[dict]] = {}
                 bw_by_fid: dict[int, list[dict]] = {}
                 for line in wjson.read_text().splitlines():
@@ -444,6 +454,7 @@ def main() -> int:
                         )
                 if updates:
                     gc.put_roads_many(updates)
+                    gc.flush_leaf()
                 gc.close()
             except Exception as e:  # noqa: BLE001 — cache write must not fail the leaf
                 print(json.dumps({"geometry_cache_wetland_warn": str(e)}), flush=True)

@@ -936,12 +936,17 @@ def main() -> int:
         "--geometry-cache",
         type=Path,
         default=None,
-        help="SQLite geometry-hash cache (absolute MH samples). Empty/omit = disabled.",
+        help="Geometry-hash cache directory (per-leaf files). Empty/omit = disabled.",
     )
     ap.add_argument(
         "--geometry-cache-write",
         action="store_true",
         help="Populate geometry cache with absolute samples for misses/all features.",
+    )
+    ap.add_argument(
+        "--leaf",
+        default="",
+        help="Leaf id for per-leaf geometry-cache file (required when cache enabled).",
     )
     args = ap.parse_args()
 
@@ -1010,7 +1015,12 @@ def main() -> int:
             road_geometry_hash,
         )
 
+        leaf_id = args.leaf or os.environ.get("NAVI_MWM_LEAF", "").strip()
+        if not leaf_id:
+            # Derive from roads filename stem when possible.
+            leaf_id = args.roads_jsonl.stem.replace(".roads", "")
         gcache = GeometryResultCache(Path(gcache_path), zoom=zoom)
+        gcache.open_leaf(leaf_id)
         if args.geometry_cache_write or os.environ.get(
             "NAVI_MWM_GEOMETRY_CACHE_WRITE", "1"
         ).strip() not in ("0", "false", "no", "off"):
@@ -1111,8 +1121,7 @@ def main() -> int:
                         if abs(mh - comaps) <= args.threshold_m:
                             continue
                         dm = int(round(mh * 10.0))
-                        if dm < -32768 or dm > 32767:
-                            continue
+                        # i32 absolute dm (sidecar elevation body v2 / EL02).
                         overrides.append({"point_index": idx, "altitude_dm": dm})
 
                 override_points += len(overrides)
@@ -1132,6 +1141,7 @@ def main() -> int:
                 features_out += 1
         if gcache is not None and pending_cache_writes:
             gcache.put_roads_many(pending_cache_writes)
+            gcache.flush_leaf()
         elev_sample_s = time.monotonic() - t_sample0
 
         if miss_roads_path is not None:

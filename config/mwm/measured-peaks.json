@@ -29,5 +29,7 @@
   "recommended_mapterhorn_cache_default_gib": 54.72,
   "recommended_mapterhorn_cache_max_bytes": 58755104232,
   "recommended_ram_headroom_gib": 16,
-  "expected_process_concurrency_on_media": 6
+  "max_process_concurrency": 6,
+  "expected_process_concurrency_on_media": 6,
+  "concurrency_notes": "leaf_self (~1.1 GiB) is added per worker. Elevation peak uses measured stage peak unless a per-leaf unique_tiles estimate is supplied. Do not floor every worker at the full tile-mem-cache decode ceiling (that previously forced concurrency to 4 on media)."
 }

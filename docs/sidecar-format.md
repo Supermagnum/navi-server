@@ -122,7 +122,15 @@ Integer **decimetres** (0.1 m). Only points where
 Clients apply overrides the same way regardless of policy version; only the
 set of stored points changes. One CoMaps release = one policy version.
 
+### Body schema v2 (`EL02`, current writers)
+
+Absolute altitudes are **i32 decimetres** on the logical model. The wire
+stores zigzag-deltas of those absolutes (first point’s delta is from
+`prev_alt = 0`, so the first override is an absolute). Values above
+±3276.7 m (the old i16 cap) round-trip correctly.
+
 ```
+magic           u32     # 0x32304C45 ("EL02" little-endian)
 feature_count   u32
 for each feature:
   feature_id    u32
@@ -130,17 +138,35 @@ for each feature:
   n             u16     # number of sparse overrides
   for i in 0..n:
     idx_delta   u16     # point_index if i==0 else point_index − prev
-    alt_zz      u16     # zigzag(altitude_dm − prev_alt); prev_alt starts 0
+    alt_zz      u32     # zigzag_i32(altitude_dm − prev_alt); prev_alt starts 0
+```
+
+Zigzag (i32 ↔ u32): encode `((v << 1) ^ (v >> 31)) as u32`;
+decode `((v >> 1) as i32) ^ -((v & 1) as i32)`.
+
+### Legacy body schema v1 (release `261105` and earlier)
+
+No magic word; first field is `feature_count`. Altitudes were zigzag-delta
+**i16** (`alt_zz` as `u16`). Absolute values outside ±3276.7 m were
+**silently omitted** at bake (not wrapped). Readers must still accept v1.
+
+```
+feature_count   u32
+for each feature:  # same layout as v2, but alt_zz is u16 (zigzag i16)
 ```
 
 Zigzag (i16 ↔ u16): encode `((v << 1) ^ (v >> 15)) as u16`;
 decode `((v >> 1) as i16) ^ -((v & 1) as i16)`.
 
+Readers: if the first `u32` of the elevation body equals `EL02`, parse as
+v2; otherwise parse as v1.
+
 Features sorted by `feature_id`; points ascending `point_index`.
 
 Client: replace CoMaps altitude at `(feature_id, point_index)` with
 `altitude_dm / 10.0` metres when an override exists; leave other points
-unchanged.
+unchanged. Logical `altitude_dm` is always treated as a signed integer
+decimetre (i32); clients should not assume i16.
 
 ---
 

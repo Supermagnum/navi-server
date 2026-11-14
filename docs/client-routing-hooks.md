@@ -47,7 +47,10 @@ For each `elevation_overrides` feature:
 
 1. Align with MWM geometry via `feature_id` and `point_count`.
 2. For each sparse `(point_index, altitude_dm)`, replace the CoMaps altitude
-   at that point with `altitude_dm / 10.0` metres.
+   at that point with `altitude_dm / 10.0` metres. Treat `altitude_dm` as a
+   signed integer decimetre (**i32**); body schema v2 (`EL02`) encodes
+   zigzag-i32 deltas so values above ±3276.7 m are valid. Legacy v1 bodies
+   used zigzag-i16 and omitted out-of-range absolutes at bake.
 3. Points without overrides keep CoMaps altitudes.
 
 Threshold at bake depends on **elevation policy version** (catalog +

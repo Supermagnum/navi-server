@@ -167,8 +167,9 @@ class TestGeometryCache(unittest.TestCase):
         self.assertNotIn("threshold", ep1)
 
         with tempfile.TemporaryDirectory() as td:
-            db = Path(td) / "g.sqlite"
-            gc = GeometryResultCache(db, epoch=ep1)
+            root = Path(td) / "gcache"
+            gc = GeometryResultCache(root, epoch=ep1)
+            gc.open_leaf("Norway_Hedmark")
             samples = [1234, 1250]
             gc.put_road(
                 RoadCacheEntry(
@@ -179,13 +180,16 @@ class TestGeometryCache(unittest.TestCase):
                     boardwalk=[{"segment_index": 0, "direction": 1, "flag": 1}],
                 )
             )
-            hit = gc.get_road(h1)
+            gc.flush_leaf()
+            gc.close()
+            gc2 = GeometryResultCache(root, epoch=ep1)
+            gc2.open_leaf("Norway_Hedmark")
+            hit = gc2.get_road(h1)
             self.assertIsNotNone(hit)
             assert hit is not None
             # Remap onto a new feature_id at bake time: samples stay, FID is external.
             ovr_2m = overrides_from_samples(hit.samples_dm, [123.4, 124.0], 2.0)
             ovr_5m = overrides_from_samples(hit.samples_dm, [123.4, 124.0], 5.0)
-            # |123.4 - 123.4|=0, |125.0 - 124.0|=1.0 → neither exceeds 2m? 125.0-124=1 <=2
             # samples_dm 1234 → 123.4 m; 1250 → 125.0 m. deltas 0 and 1.0 → empty at 2m and 5m
             self.assertEqual(ovr_2m, [])
             self.assertEqual(ovr_5m, [])
@@ -197,18 +201,35 @@ class TestGeometryCache(unittest.TestCase):
             ovr10 = overrides_from_samples([1234, 1300], [123.4, 124.0], 10.0)
             self.assertEqual(ovr10, [])
             self.assertEqual(hit.wetland[0]["class"], 1)
-            gc.close()
+            # High absolute dm (above i16) must persist in the leaf file.
+            hi = RoadCacheEntry(
+                geom_hash=b"\x11" * 16,
+                n_points=6,
+                samples_dm=[-5000, 0, 32767, 32768, 53000, 88480],
+            )
+            gc2.put_road(hi)
+            gc2.flush_leaf()
+            gc2.close()
+            gc3 = GeometryResultCache(root, epoch=ep1)
+            gc3.open_leaf("Norway_Hedmark")
+            hit_hi = gc3.get_road(b"\x11" * 16)
+            self.assertEqual(
+                hit_hi.samples_dm, [-5000, 0, 32767, 32768, 53000, 88480]
+            )
+            gc3.close()
 
     def test_miss_on_epoch_change(self):
         with tempfile.TemporaryDirectory() as td:
-            db = Path(td) / "g.sqlite"
+            root = Path(td) / "gcache"
             pts = [{"lat": 1.0, "lon": 2.0, "alt_m": 0.0}]
             h = road_geometry_hash(pts)
-            gc = GeometryResultCache(db, epoch=policy_epoch(zoom=12))
+            gc = GeometryResultCache(root, epoch=policy_epoch(zoom=12))
+            gc.open_leaf("X")
             gc.put_road(RoadCacheEntry(geom_hash=h, n_points=1, samples_dm=[0]))
-            self.assertIsNotNone(gc.get_road(h))
+            gc.flush_leaf()
             gc.close()
-            gc2 = GeometryResultCache(db, epoch=policy_epoch(zoom=15))
+            gc2 = GeometryResultCache(root, epoch=policy_epoch(zoom=15))
+            gc2.open_leaf("X")
             self.assertIsNone(gc2.get_road(h))
             gc2.close()
 
@@ -260,21 +281,33 @@ class TestConcurrencyLeafSelf(unittest.TestCase):
             "bake": 0.2,
             "leaf_self": 1.1,
         }
-        # Without leaf_self historically more workers fit; with leaf_self + mem-cache
-        # elev ceiling, concurrency must stay finite and >= 1.
+        # Corrected RAM: leaf_self + measured elev peak (no full mem-cache floor).
+        # On media (~63 GiB free, 16 GiB headroom) this returns 6 when capped.
         n = stage_aware_process_concurrency(
             stage_peaks_gib=peaks,
             annotate_concurrency=2,
             headroom_gib=16.0,
             available_gib=63.0,
             tile_mem_cache=4096,
+            max_concurrency=6,
         )
-        self.assertGreaterEqual(n, 1)
-        self.assertLessEqual(n, 8)
+        self.assertEqual(n, 6)
         est = estimate_elevation_rss_gib(342691, mem_tiles=4096)
         # Cap at mem cache → ~3 GiB decode + base
         self.assertLess(est, 4.0)
         self.assertGreater(est, 2.0)
+        # Per-leaf unique_tiles estimate can still tighten below the max.
+        n_tight = stage_aware_process_concurrency(
+            stage_peaks_gib=peaks,
+            annotate_concurrency=2,
+            headroom_gib=16.0,
+            available_gib=63.0,
+            tile_mem_cache=4096,
+            elev_unique_tiles=342691,
+            max_concurrency=6,
+        )
+        self.assertGreaterEqual(n_tight, 1)
+        self.assertLessEqual(n_tight, 6)
 
 
 if __name__ == "__main__":

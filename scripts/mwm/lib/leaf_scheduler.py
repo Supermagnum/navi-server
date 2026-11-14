@@ -180,17 +180,16 @@ def stage_aware_process_concurrency(
     )
     elev_measured = max(0.1, float(stage_peaks_gib.get("elevation", 1.8)))
     if elev_unique_tiles is not None:
+        # Per-leaf estimate from unique tiles × decode size, capped by mem cache.
         elev_est = estimate_elevation_rss_gib(
             int(elev_unique_tiles), mem_tiles=mem_tiles
         )
         elev_peak = max(elev_measured, elev_est)
     else:
-        # Without a per-leaf tile count, keep measured peak but never under-budget
-        # the mem-cache decode ceiling (worst-case full mem cache resident).
-        elev_peak = max(
-            elev_measured,
-            estimate_elevation_rss_gib(mem_tiles, mem_tiles=mem_tiles),
-        )
+        # Do NOT assume every worker holds a full mem-cache of decoded tiles —
+        # that floor forced concurrency down to 4 on media. Use measured
+        # elevation peak; callers with known unique_tiles tighten further.
+        elev_peak = elev_measured
 
     ann_peak = max(0.1, float(stage_peaks_gib.get("annotate", DEFAULT_PER_LEAF_GIB))) + self_gib
     other_peak = (
@@ -342,9 +341,15 @@ def resolve_process_concurrency(
     stage_peaks = load_stage_peaks_gib(measured_peaks_path=measured_peaks_path, stats_dir=stats_dir)
     if stage_peaks is not None:
         ann_n = resolve_annotate_concurrency(measured_peaks_path=measured_peaks_path)
-        max_raw = os.environ.get("NAVI_MWM_MAX_PROCESS_CONCURRENCY", "").strip()
-        max_n = int(max_raw) if max_raw and int(max_raw) > 0 else None
         peaks_json = _load_measured_peaks_json(measured_peaks_path)
+        max_raw = os.environ.get("NAVI_MWM_MAX_PROCESS_CONCURRENCY", "").strip()
+        if max_raw and int(max_raw) > 0:
+            max_n = int(max_raw)
+        else:
+            try:
+                max_n = int(peaks_json.get("max_process_concurrency") or 0) or None
+            except (ValueError, TypeError):
+                max_n = None
         mem_tiles = int(
             os.environ.get(
                 "NAVI_MWM_TILE_MEM_CACHE",

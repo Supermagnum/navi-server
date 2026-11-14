@@ -414,9 +414,9 @@ class TestProcessedRaceAndScheduler(unittest.TestCase):
 
     def test_stage_aware_concurrency_and_annotate_semaphore(self):
         # 41 GiB avail, 16 headroom -> 25 usable.
-        # With leaf_self 1.1 + elev mem-cache ceiling (~3.3), peaks become
-        # ann=9.3 / other=4.4 → 2*9.3 + 1*4.4 = 23 <= 25 → concurrency 3
-        # (was 6 before leaf_self / elev RSS accounting).
+        # leaf_self 1.1; elev uses measured peak (no full mem-cache floor) →
+        # ann=9.3 / other=2.9 → 2*9.3 + 2*2.9 = 24.4 <= 25 → concurrency 4.
+        # (Previously the mem-cache floor forced other≈4.4 and concurrency 3.)
         n = stage_aware_process_concurrency(
             stage_peaks_gib={
                 "dump": 0.5,
@@ -430,7 +430,7 @@ class TestProcessedRaceAndScheduler(unittest.TestCase):
             available_gib=41.0,
             tile_mem_cache=4096,
         )
-        self.assertEqual(n, 3)
+        self.assertEqual(n, 4)
 
         with tempfile.TemporaryDirectory() as td:
             peaks_file = Path(td) / "peaks.json"
@@ -446,6 +446,7 @@ class TestProcessedRaceAndScheduler(unittest.TestCase):
                         },
                         "annotate_concurrency": 2,
                         "tile_mem_cache": 4096,
+                        "max_process_concurrency": 6,
                     }
                 )
             )
@@ -458,7 +459,7 @@ class TestProcessedRaceAndScheduler(unittest.TestCase):
                     "NAVI_MWM_MEASURED_PEAKS": str(peaks_file),
                 },
             ):
-                self.assertEqual(resolve_process_concurrency(available_gib=41.0), 3)
+                self.assertEqual(resolve_process_concurrency(available_gib=41.0), 4)
 
             lock_dir = Path(td) / "ann_locks"
             mgr = multiprocessing.Manager()
