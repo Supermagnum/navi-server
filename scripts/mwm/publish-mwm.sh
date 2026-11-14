@@ -23,6 +23,14 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -n "$VERSION_DIR" && -d "$VERSION_DIR" ]] || mwm_die "need --version-dir"
 mkdir -p "$PUBLISH_ROOT"
+# Ownership marker so .rkyv scrub/publish refuse to touch this tree.
+python3 - "$PUBLISH_ROOT" "${SCRIPT_DIR}/../lib" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[2])
+from rkyv_published_guard import ensure_mwm_owned_marker
+print("mwm marker", ensure_mwm_owned_marker(Path(sys.argv[1])))
+PY
 
 TAG="$(mwm_pin_field tag)"
 SHA="$(mwm_pin_field sha)"

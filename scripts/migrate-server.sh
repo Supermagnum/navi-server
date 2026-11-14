@@ -437,7 +437,23 @@ fi
 if want_component packs; then
   [[ -d "${SRC_DATA}/published" ]] || die "missing ${SRC_DATA}/published"
   remote_cmd "mkdir -p $(printf '%q' "${DEST_ROOT}/data/published")"
-  rsync_path "${SRC_DATA}/published" "data/published"
+  # published/mwm is owned by the MWM pipeline (.navi-mwm-owned). Exclude it so
+  # pack migration never overwrites or deletes CoMaps sidecars.
+  log "rsync published/ excluding mwm/ (MWM-owned tree)"
+  _mig_args=(-a --exclude 'mwm/' --exclude 'mwm')
+  [[ "$DRY_RUN" -eq 1 ]] && _mig_args+=(--dry-run)
+  if is_local; then
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      log "dry-run local: ${SRC_DATA}/published -> ${DEST_ROOT}/data/published (exclude mwm/)"
+    else
+      mkdir -p "${DEST_ROOT}/data/published"
+      "$RSYNC_BIN" "${_mig_args[@]}" "${SRC_DATA}/published/" "${DEST_ROOT}/data/published/"
+    fi
+  else
+    log "rsync ${SRC_DATA}/published -> ${DEST_HOST}:${DEST_ROOT}/data/published (exclude mwm/)"
+    "$RSYNC_BIN" "${_mig_args[@]}" -e "$SSH_CMD ${SSH_OPTS[*]}" \
+      "${SRC_DATA}/published/" "${DEST_HOST}:${DEST_ROOT}/data/published/"
+  fi
 fi
 
 if want_component secrets; then

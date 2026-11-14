@@ -19,7 +19,13 @@ Finland_Western Finland_Tampere
 Finland_Eastern Finland_North
 #
 # Informational (outside Europe):
+# LA → Sacramento corridor (endpoints alone yield RouteFileNotExist).
 US_California_LA
+US_California_LA North
+US_California_Bakersfield_Lancaster
+US_California_Bakersfield_Bakersfield
+US_California_Sacramento_Fresno
+US_California_Sacramento_Stockton
 US_California_Sacramento_Sacramento
 Japan_Kanto_Tokyo
 Japan_Kanto_Kanagawa

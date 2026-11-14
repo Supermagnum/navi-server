@@ -18,15 +18,19 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-python3 - "$PUBLISH_ROOT" "${NAVI_MWM_GRACE_DAYS}" "${NAVI_MWM_KEEP_RELEASES}" "$PROTECT" <<'PY'
+python3 - "$PUBLISH_ROOT" "${NAVI_MWM_GRACE_DAYS}" "${NAVI_MWM_KEEP_RELEASES}" "$PROTECT" "${SCRIPT_DIR}/../lib" <<'PY'
 import json, os, shutil, sys, time
 from pathlib import Path
+
+sys.path.insert(0, sys.argv[5])
+from rkyv_published_guard import ensure_mwm_owned_marker, MWM_OWNED_MARKER
 
 root = Path(sys.argv[1])
 grace_days = int(sys.argv[2])
 keep = max(2, int(sys.argv[3]))
 protect = sys.argv[4] or None
 root.mkdir(parents=True, exist_ok=True)
+ensure_mwm_owned_marker(root)
 
 current_ver = None
 cur = root / "current.json"
@@ -41,6 +45,8 @@ for p in root.iterdir():
     if not p.is_dir():
         continue
     if p.name.startswith("."):
+        continue
+    if p.name == MWM_OWNED_MARKER:
         continue
     releases.append(p)
 

@@ -1,5 +1,5 @@
 [Unit]
-Description=Navi MWM CoMaps release check (daily); bake when new
+Description=Navi MWM CoMaps release check (daily); bake only when enabled
 Documentation=file:docs/client-fetch-mwm.md
 After=network-online.target
 Wants=network-online.target
@@ -7,15 +7,16 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 # Restart on failure so a mid-leaf crash resumes via processed.json; flock
-# on pack-pipeline.lock is held only for the duration of ExecStart.
+# on pack-pipeline.lock is held only for the duration of a bake ExecStart.
 Restart=on-failure
 RestartSec=120
 Environment=NAVI_MWM_ENABLED=0
 Environment=NAVI_MWM_MODE=comaps-release
 EnvironmentFile=-/etc/navi/mwm.env
 WorkingDirectory=/opt/navi/navi-server
-# Exit 10 from check => new release; run bake. Other non-zero fails the unit.
-ExecStart=/bin/bash -c '/opt/navi/navi-server/scripts/mwm/check-comaps-release.sh; ec=$?; if [ $ec -eq 10 ]; then exec /opt/navi/navi-server/scripts/mwm/run-mwm-bake.sh; fi; exit $ec'
+# Detect-only when NAVI_MWM_ENABLED=0 (default). Never starts bake/publish
+# unless enabled=1 and check reports a new CoMaps release (exit 10).
+ExecStart=/opt/navi/navi-server/scripts/mwm/check-or-bake.sh
 Nice=10
 
 [Install]

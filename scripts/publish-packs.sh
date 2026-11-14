@@ -314,6 +314,7 @@ from pathlib import Path
 
 sys.path.insert(0, sys.argv[6])
 from published_tree import complete_gens, rebuild_current_json
+from rkyv_published_guard import assert_rkyv_mutation_allowed, packs_root as guarded_packs_root
 
 final = Path(sys.argv[1])
 gen_id = sys.argv[2]
@@ -327,8 +328,9 @@ for line in Path(sys.argv[5]).read_text(encoding="utf-8").splitlines():
     bake_id, rel = line.split("\t", 1)
     path_map[bake_id] = rel
 
-packs_root = published / "packs"
+packs_root = guarded_packs_root(published)
 packs_root.mkdir(parents=True, exist_ok=True)
+assert_rkyv_mutation_allowed(packs_root, published_dir=published)
 
 gen_man_path = final / "generation-manifest.json"
 gen_man = json.loads(gen_man_path.read_text(encoding="utf-8"))
@@ -366,6 +368,7 @@ for region in gen_man.get("regions", []):
     region_root.mkdir(parents=True, exist_ok=True)
 
     dst = region_root / gen_id
+    assert_rkyv_mutation_allowed(dst if dst.exists() else region_root, published_dir=published)
     if dst.exists():
         shutil.rmtree(dst)
     dst.mkdir(parents=True)
@@ -428,6 +431,7 @@ for region in gen_man.get("regions", []):
     verify_pack_dir(dst, "post-write-new")
 
     for stale in complete_gens(region_root)[1 + keep_prior :]:
+        assert_rkyv_mutation_allowed(stale, published_dir=published)
         shutil.rmtree(stale, ignore_errors=True)
 
     print(f"published packs/{relpath}/{gen_id}/ bake_id={bake_id} files={len(file_digests)}")
