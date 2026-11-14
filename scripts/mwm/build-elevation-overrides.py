@@ -33,6 +33,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
+_SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(_SCRIPT_DIR / "lib"))
+
 DEFAULT_UA = (
     "navi-server-mwm/1.0 (+https://github.com/Supermagnum/navi-server; "
     "contact=mwm-pipeline)"
@@ -894,8 +897,11 @@ def collect_unique_tiles(
             if not line.strip():
                 continue
             feat = json.loads(line)
+            from geometry_cache import sample_latlon_for_hash  # noqa: E402
+
             for p in feat["points"]:
-                x, y = latlon_to_tile(float(p["lat"]), float(p["lon"]), zoom)
+                slat, slon = sample_latlon_for_hash(float(p["lat"]), float(p["lon"]))
+                x, y = latlon_to_tile(slat, slon, zoom)
                 unique.add((zoom, x, y))
     return unique
 
@@ -1013,6 +1019,7 @@ def main() -> int:
             RoadCacheEntry,
             overrides_from_samples,
             road_geometry_hash,
+            sample_latlon_for_hash,
         )
 
         leaf_id = args.leaf or os.environ.get("NAVI_MWM_LEAF", "").strip()
@@ -1089,23 +1096,26 @@ def main() -> int:
                     else:
                         samples_dm = []
                         for p in points:
-                            mh = cache.sample(float(p["lat"]), float(p["lon"]))
+                            # Sample at quantised cell centre so hash-equivalent
+                            # geometries share one DEM pixel (tile-edge safe).
+                            slat, slon = sample_latlon_for_hash(
+                                float(p["lat"]), float(p["lon"])
+                            )
+                            mh = cache.sample(slat, slon)
                             if mh is None:
                                 samples_dm.append(None)
                             else:
                                 samples_dm.append(int(round(mh * 10.0)))
                         if args.geometry_cache_write:
-                            prev = gcache.get_road(gh)
+                            # First writer for a geom_hash wins (put_road keeps it).
                             pending_cache_writes.append(
                                 RoadCacheEntry(
                                     geom_hash=gh,
                                     n_points=point_count,
                                     samples_dm=samples_dm,
-                                    wetland=prev.wetland if prev else [],
-                                    boardwalk=prev.boardwalk if prev else [],
-                                    wetland_touch_hashes=(
-                                        prev.wetland_touch_hashes if prev else b""
-                                    ),
+                                    wetland=[],
+                                    boardwalk=[],
+                                    wetland_touch_hashes=b"",
                                 )
                             )
                     overrides = overrides_from_samples(
@@ -1114,7 +1124,10 @@ def main() -> int:
                 else:
                     overrides = []
                     for idx, p in enumerate(points):
-                        mh = cache.sample(float(p["lat"]), float(p["lon"]))
+                        slat, slon = sample_latlon_for_hash(
+                            float(p["lat"]), float(p["lon"])
+                        )
+                        mh = cache.sample(slat, slon)
                         if mh is None:
                             continue
                         comaps = float(p.get("alt_m", 0))

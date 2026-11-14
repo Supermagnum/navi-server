@@ -179,6 +179,25 @@ PARALLEL_ARGS=(
 [[ -n \"\${NAVI_MWM_MAPTERHORN_ZOOM:-}\" && \"\${NAVI_MWM_MAPTERHORN_ZOOM}\" != \"0\" ]] && \
   PARALLEL_ARGS+=(--elev-zoom \"\${NAVI_MWM_MAPTERHORN_ZOOM}\")
 
+# Next-release geometry-cache identity gate (cold vs warm data sections).
+# Default on; set NAVI_MWM_CACHE_IDENTITY_GATE=0 to skip.
+if [[ \"\${NAVI_MWM_CACHE_IDENTITY_GATE:-1}\" != \"0\" ]]; then
+  mwm_log \"cache identity gate starting\"
+  GATE_ARGS=(
+    --work \"\$WORK\"
+    --discovery \"\$WORK/meta/discovery.json\"
+    --dump-bin \"\$DUMP_BIN\"
+    --sidecar-bin \"\$SIDECAR_BIN\"
+    --resources-path \"\${NAVI_MWM_COMAPS_ROOT}/data\"
+    --attribution \"\$ATTR_JSON\"
+  )
+  [[ -n \"\${NAVI_MWM_CACHE_IDENTITY_LEAVES:-}\" ]] && \
+    GATE_ARGS+=(--leaves-file \"\${NAVI_MWM_CACHE_IDENTITY_LEAVES}\")
+  \"\$PYTHON\" \"\${SCRIPT_DIR}/cache-identity-gate.py\" \"\${GATE_ARGS[@]}\" \\
+    || mwm_die \"cache identity gate failed\"
+  mwm_log \"cache identity gate passed\"
+fi
+
 mwm_log \"parallel leaf bake starting (lock held for whole run)\"
 \"\$PYTHON\" \"\${SCRIPT_DIR}/run_parallel_leaves.py\" \"\${PARALLEL_ARGS[@]}\"
 

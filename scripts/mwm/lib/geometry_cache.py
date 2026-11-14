@@ -53,6 +53,9 @@ DUMP_SCHEMA = "dump_mwm_roads/v1"
 WETLAND_POLICY = "soft=bog,string_bog,fen,untyped;hard=swamp,reedbed;omit=marsh"
 BOARDWALK_RULE = "bridge_types_proxy/v1"
 MAPTERHORN_DATASET = "glo30+national/terrarium-z"
+# Sample Mapterhorn at the quantised cell centre so hash-equivalent geometries
+# always see the same DEM pixel (avoids tile-edge drift under 1e-5 collisions).
+SAMPLE_AT = "quantum_cell"
 DEFAULT_ZOOM = 12
 LEAF_MAGIC = b"GH01"
 MISSING_DM = -2147483648  # i32 min
@@ -71,16 +74,36 @@ def policy_epoch(
     wetland_policy: str = WETLAND_POLICY,
     boardwalk_rule: str = BOARDWALK_RULE,
     dump_schema: str = DUMP_SCHEMA,
+    sample_at: str = SAMPLE_AT,
 ) -> str:
     q = f"{quantum:.0e}" if quantum != QUANTUM_DEG else "1e-5"
     return (
         f"q={q}|mh={mapterhorn_dataset}|z={int(zoom)}|"
-        f"wet={wetland_policy}|bw={boardwalk_rule}|dump={dump_schema}"
+        f"wet={wetland_policy}|bw={boardwalk_rule}|dump={dump_schema}|"
+        f"sample={sample_at}"
     )
 
 
 def quantise_coord(value: float, quantum: float = QUANTUM_DEG) -> int:
     return int(round(float(value) / quantum))
+
+
+def dequantise_coord(quantised: int, quantum: float = QUANTUM_DEG) -> float:
+    """Centre of the quantum cell (matches ``quantise_coord`` round-trip)."""
+    return float(quantised) * quantum
+
+
+def sample_latlon_for_hash(
+    lat: float,
+    lon: float,
+    *,
+    quantum: float = QUANTUM_DEG,
+) -> tuple[float, float]:
+    """Lat/lon used for DEM sampling — must match geometry-hash quantisation."""
+    return (
+        dequantise_coord(quantise_coord(lat, quantum), quantum),
+        dequantise_coord(quantise_coord(lon, quantum), quantum),
+    )
 
 
 def road_geometry_hash(
@@ -95,7 +118,6 @@ def road_geometry_hash(
         alt_dm = int(round(float(p.get("alt_m", 0.0)) * 10.0))
         h.update(struct.pack("<iii", qlat, qlon, alt_dm))
     return h.digest()
-
 
 def pack_samples_dm(samples: list[int | None]) -> bytes:
     """Pack absolute Mapterhorn samples as little-endian i32 dm."""
@@ -280,6 +302,37 @@ class GeometryResultCache:
     def put_road(self, entry: RoadCacheEntry, *, epoch: str | None = None) -> None:
         if epoch is not None and epoch != self.epoch:
             return
+        prev = self._entries.get(entry.geom_hash)
+        if prev is not None:
+            # Keep first absolute samples for a hash; later writers may only
+            # attach wetland/boardwalk (or refresh if samples were missing).
+            if prev.samples_dm and any(s is not None for s in prev.samples_dm):
+                if entry.samples_dm != prev.samples_dm and any(
+                    s is not None for s in (entry.samples_dm or [])
+                ):
+                    # Hash collision with divergent full-precision samples —
+                    # preserve the first samples; merge annotations.
+                    entry = RoadCacheEntry(
+                        geom_hash=entry.geom_hash,
+                        n_points=prev.n_points,
+                        samples_dm=prev.samples_dm,
+                        wetland=entry.wetland or prev.wetland,
+                        boardwalk=entry.boardwalk or prev.boardwalk,
+                        wetland_touch_hashes=(
+                            entry.wetland_touch_hashes or prev.wetland_touch_hashes
+                        ),
+                    )
+                else:
+                    entry = RoadCacheEntry(
+                        geom_hash=entry.geom_hash,
+                        n_points=prev.n_points,
+                        samples_dm=prev.samples_dm,
+                        wetland=entry.wetland or prev.wetland,
+                        boardwalk=entry.boardwalk or prev.boardwalk,
+                        wetland_touch_hashes=(
+                            entry.wetland_touch_hashes or prev.wetland_touch_hashes
+                        ),
+                    )
         self._entries[entry.geom_hash] = entry
         self._dirty = True
 
