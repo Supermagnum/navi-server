@@ -97,6 +97,7 @@ unconditional fallback and is untouched by this tree.
 | [`docs/client-fetch.md`](docs/client-fetch.md) | Future client HTTP GET contract and exposure surface (`.rkyv`) |
 | [`docs/mwm-pipeline.md`](docs/mwm-pipeline.md) | Operator guide: CoMaps-release MWM sidecars (modes, config, timers, lock) |
 | [`docs/client-fetch-mwm.md`](docs/client-fetch-mwm.md) | Client contract: CoMaps MWMs + Navi sidecars + catalog v2 |
+| [`docs/region-mapping.md`](docs/region-mapping.md) | Navi `.rkyv` ↔ CoMaps leaf migration + country UI; generator + live publish |
 | [`docs/sidecar-format.md`](docs/sidecar-format.md) | Byte-level `{leaf}.navi-sidecar.v1.zst` (NVSC) spec |
 | [`docs/client-routing-hooks.md`](docs/client-routing-hooks.md) | Wetland Soft/Hard, boardwalk, elevation hooks |
 | [`docs/client-migration-from-rkyv.md`](docs/client-migration-from-rkyv.md) | Client migration plan from `.rkyv` to MWM |
@@ -187,6 +188,22 @@ only deliberately: `NAVI_RKYV_ALLOW_FROZEN=1` or `--allow-frozen`.
 
 Do **not** delete published `.rkyv` generations until the Navi client has
 switched to MWM ([docs/client-migration-from-rkyv.md](docs/client-migration-from-rkyv.md)).
+
+### Region mapping (Navi ↔ CoMaps leaves)
+
+Each CoMaps release can regenerate a **region → leaf** migration table and a
+**country-grouped** leaf list for the download UI
+(`scripts/mwm/build-region-mapping.py`; wired when `NAVI_MWM_BORDERS_DIR`,
+`NAVI_MWM_EXTRACTS_DIR`, and `NAVI_MWM_REGIONS_JSON` are set). Catalog artifacts
+live under `config/mwm/catalog/` (`region-migration.json`,
+`country_groups.json`, `region_leaf_mapping.json`,
+`display_name_overrides.json`).
+
+Live catalog-only publish (no sidecars / no `.rkyv`) is the host script
+`/tmp/navi-region-mapping-publish.sh` (root; ZFS snapshot of **`Mypool/navi`**,
+or auto-detect / `ZFS_DATASET` override). Full usage, env vars, and rollback:
+[docs/region-mapping.md](docs/region-mapping.md). Client field meanings:
+[docs/client-fetch-mwm.md](docs/client-fetch-mwm.md#5-region-ui-country_groups-vs-rkyv-migration-region_to_leaves).
 
 **Published size (live, 2026-11-15):** `.rkyv` packs ≈ **1.7 TiB** logical /
 **~656 GiB** on disk (ZFS); MWM sidecars (`published/mwm/`, release 261105) ≈
