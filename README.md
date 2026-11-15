@@ -101,10 +101,11 @@ unconditional fallback and is untouched by this tree.
 | [`docs/client-routing-hooks.md`](docs/client-routing-hooks.md) | Wetland Soft/Hard, boardwalk, elevation hooks |
 | [`docs/client-migration-from-rkyv.md`](docs/client-migration-from-rkyv.md) | Client migration plan from `.rkyv` to MWM |
 | [`docs/mwm-planet.md`](docs/mwm-planet.md) | Generate-mode planet notes (**test-only**) |
-| [`docs/datex-npra.md`](docs/datex-npra.md) | Optional DATEX NPRA redistribution (**off by default**) |
+| [`docs/datex-providers.md`](docs/datex-providers.md) | Multi-provider DATEX (toml + `datex-provider.sh`) |
+| [`docs/datex-npra.md`](docs/datex-npra.md) | Vegvesen/NPRA detail (client paths `/datex/npra/`) |
 | [`docs/repeater-mirror.md`](docs/repeater-mirror.md) | Optional RepeaterBook + RadioID mirrors for CAT (**off by default**) |
 | [`docs/datex-open-feeds.md`](docs/datex-open-feeds.md) | Survey of open DATEX II feeds that need **no registration** |
-| [`docs/datex-adding-sources.md`](docs/datex-adding-sources.md) | How to add another DATEX provider plugin |
+| [`docs/datex-adding-sources.md`](docs/datex-adding-sources.md) | Legacy plugin stubs (prefer datex-providers.md) |
 | [`docs/incremental-geofabrik.md`](docs/incremental-geofabrik.md) | Geofabrik `.osc.gz` incremental extract updates (**wired into `run-weekly.sh` for all conf regions**; planet-leaves unchanged) |
 | [`docs/server-migrate.md`](docs/server-migrate.md) | SSH migrate packs / jobs / secrets to another host |
 
