@@ -1,0 +1,32 @@
+{
+  "_comment": "Abbreviated real CoMaps countries.txt JSON shape (release 261105). Full file is ~315504 bytes and signed with countries.txt.sig.",
+  "id": "Countries",
+  "v": 261105,
+  "map_series": "2026.10.27",
+  "g": [
+    {
+      "id": "World",
+      "s": 53603821,
+      "sha1_base64": "PhigTK7lCDTJ7lL+SPdIGK8BEd8="
+    },
+    {
+      "id": "WorldCoasts",
+      "s": 8491926,
+      "sha1_base64": "pMgTV1362dlV60bFMC76+l487oY="
+    },
+    {
+      "id": "Norway",
+      "g": [
+        {
+          "id": "Norway_Hedmark",
+          "affiliations": [
+            "Hedmark",
+            "Norge"
+          ],
+          "s": 102194292,
+          "sha1_base64": "SYcBVbtm7e8BwcOGWpo0WV8bFK4="
+        }
+      ]
+    }
+  ]
+}

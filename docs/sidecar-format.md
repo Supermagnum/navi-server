@@ -165,6 +165,14 @@ JSON. Show offline (OSM, CoMaps, Mapterhorn, Navi).
 
 ## 6. Worked example — Norway_Hedmark (release 261105)
 
+Regenerated from the live sidecar
+`https://navigate-me.duckdns.org/mwm/261105/Norway_Hedmark.navi-sidecar.v1.zst`.
+Checked-in fixture:
+[examples/fixtures/Norway_Hedmark.navi-sidecar.v1.zst](examples/fixtures/Norway_Hedmark.navi-sidecar.v1.zst)
+with metadata
+[examples/fixtures/Norway_Hedmark.sidecar.meta.json](examples/fixtures/Norway_Hedmark.sidecar.meta.json).
+CI fails if the docs/example catalog drift from that fixture.
+
 ### Inspect tool output
 
 ```json
@@ -190,8 +198,10 @@ JSON. Show offline (OSM, CoMaps, Mapterhorn, Navi).
 }
 ```
 
-Outer `.zst` size: **261797** bytes. Logical blob after outer decompress:
-**323816** bytes. Payload starts at logical offset **377**.
+Outer `.zst` size: **267737** bytes
+(`sha256=4feb60e8441eee228bb77d5d028e49c3a47e7cae5105e4d0a12e0485ee98363f`).
+Logical blob after outer decompress: **329757** bytes. Payload starts at
+logical offset **377**.
 
 ### Hex — start of logical blob (first 160 bytes)
 
@@ -228,8 +238,8 @@ Section sizes (Hedmark):
 |---------|-------------:|-----------:|---------------:|
 | wetland_edges | 784660 | 202498 | 0 |
 | boardwalk_flags | 1764 | 491 | 202498 |
-| elevation_overrides | 181884 | 106432 | 202989 |
-| attribution | 104266 | 14018 | 309421 |
+| elevation_overrides | 232440 | 112359 | 202989 |
+| attribution | 104301 | 14032 | 315348 |
 
 ---
 

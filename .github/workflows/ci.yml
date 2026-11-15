@@ -85,6 +85,10 @@ jobs:
         run: |
           python3 -m unittest discover -s scripts/mwm/tests -p 'test_catalog_v2_example.py' -v
 
+      - name: Docs Hedmark sidecar fixture vs examples
+        run: |
+          python3 -m unittest discover -s scripts/mwm/tests -p 'test_hedmark_sidecar_docs.py' -v
+
       - name: Repeater mirror fixture dry-run (both sources)
         run: ./scripts/test-repeater-mirror.sh
 
