@@ -2,7 +2,8 @@
 
 Step-by-step plan for the Navi Android/client team. Server keeps **serving**
 frozen `.rkyv` under `published/current.json` until you retire regions; MWM
-sidecars live under `published/mwm/` (weekly `.rkyv` bake is frozen; MWM bake
+sidecars live under filesystem `published/mwm/` and are served as `/mwm/`
+(weekly `.rkyv` bake is frozen; MWM bake
 stays gated by **`NAVI_MWM_ENABLED=0`** until operators flip it on).
 
 **Server footprint (why cutover matters):** published `.rkyv` packs are on the
@@ -51,7 +52,8 @@ release `261105` (or current catalog version).
 
 ## Step 3 — Add sidecar fetch + fingerprint
 
-- `GET published/mwm/current.json`; download sidecars; verify SHA-256.
+- `GET /mwm/current.json` (public base
+  `https://navigate-me.duckdns.org/mwm/`); download sidecars; verify SHA-256.
 - Enforce MWM size + SHA-256 fingerprint before applying layers.
 - On mismatch / missing sidecar: route on MWM only; warn “Navi layers off”.
 

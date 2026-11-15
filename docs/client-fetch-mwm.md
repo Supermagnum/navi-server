@@ -7,9 +7,10 @@ offline attribution from this file alone (plus
 [client-routing-hooks.md](client-routing-hooks.md)).
 
 Server-side bake stays off by default (`NAVI_MWM_ENABLED=0`). Missing
-`published/mwm/current.json` means “MWM sidecars not offered yet”.
+`/mwm/current.json` on the public host means “MWM sidecars not offered yet”.
 
-The existing `.rkyv` catalog (`published/current.json`) is **unchanged**.
+The existing `.rkyv` catalog (`/current.json`, filesystem
+`published/current.json`) is **unchanged**.
 
 ---
 
@@ -19,7 +20,7 @@ The existing `.rkyv` catalog (`published/current.json`) is **unchanged**.
 |-------|--------|-------|
 | Base map `{Leaf}.mwm` | CoMaps mirrors | Discovered via metaserver; never mixed across releases |
 | Sidecar `{Leaf}.navi-sidecar.v1.zst` | navi-server | Wetland Soft/Hard, boardwalk proxy, elevation overrides |
-| Catalog + attribution | navi-server | `published/mwm/current.json`, `attribution.json`, `ATTRIBUTION.md` |
+| Catalog + attribution | navi-server | `/mwm/current.json`, `/mwm/{version}/attribution.json`, `ATTRIBUTION.md` |
 
 **Never mix releases across leaves.** Every leaf in a Navi region must come from
 the same CoMaps `release_version` (catalog `version`, e.g. `261105`). Mixing
@@ -29,8 +30,15 @@ leaves from two releases breaks routing topology and sidecar fingerprints.
 
 ## 2. Published layout and URLs
 
+### Public HTTP (DocumentRoot)
+
+Apache `DocumentRoot` is the server’s `data/published/` directory. Clients must
+use **DocumentRoot-relative** paths under **`/mwm/`**, never `/published/mwm/`.
+
+**Public base URL (live):** `https://navigate-me.duckdns.org/mwm/`
+
 ```
-{navi-origin}/published/mwm/
+https://navigate-me.duckdns.org/mwm/
   current.json                 # atomic pointer (written last)
   {version}/                   # e.g. 261105
     catalog.json
@@ -38,29 +46,40 @@ leaves from two releases breaks routing topology and sidecar fingerprints.
     ATTRIBUTION.md
     checksums.sha256
     discovery.json             # optional; mirrors server discovery metadata
+    country_groups.json
+    region-migration.json
     {Leaf}.navi-sidecar.v1.zst
 ```
 
-Examples (scratch host paths map the same URL shapes on live):
-
 | Resource | Example |
 |----------|---------|
-| Current catalog | `GET …/published/mwm/current.json` |
-| Versioned catalog | `GET …/published/mwm/261105/catalog.json` |
-| Sidecar | `GET …/published/mwm/261105/Norway_Hedmark.navi-sidecar.v1.zst` |
-| Attribution JSON | `GET …/published/mwm/261105/attribution.json` |
-| Human attribution | `GET …/published/mwm/261105/ATTRIBUTION.md` |
+| Current catalog | `GET https://navigate-me.duckdns.org/mwm/current.json` |
+| Versioned catalog | `GET https://navigate-me.duckdns.org/mwm/261105/catalog.json` |
+| Sidecar | `GET https://navigate-me.duckdns.org/mwm/261105/Norway_Hedmark.navi-sidecar.v1.zst` |
+| Attribution JSON | `GET https://navigate-me.duckdns.org/mwm/261105/attribution.json` |
+| Human attribution | `GET https://navigate-me.duckdns.org/mwm/261105/ATTRIBUTION.md` |
 
 Relative `sidecar_url` in the catalog is under the version directory
-(e.g. `261105/Norway_Hedmark.navi-sidecar.v1.zst`). Resolve against
-`…/published/mwm/`.
+(e.g. `261105/Norway_Hedmark.navi-sidecar.v1.zst`). Resolve against the public
+base `https://navigate-me.duckdns.org/mwm/` (or `{navi-origin}/mwm/` on another
+host with the same DocumentRoot layout).
+
+`GET …/published/mwm/…` returns **404** on the live host — that prefix is the
+on-disk tree name under DocumentRoot, not part of the URL.
+
+### On-disk tree (operators)
+
+Filesystem publish root remains `data/published/mwm/` (`NAVI_MWM_PUBLISHED_ROOT`).
+That is what Apache serves as `/mwm/`.
 
 ---
 
 ## 3. Catalog schema `navi-mwm-catalog/v2`
 
 Normative example (subset): [examples/catalog-v2.example.json](examples/catalog-v2.example.json).
-CI validates that example against the field rules below.
+CI validates that example against the field rules below. Hedmark sidecar
+bytes/SHA in the example are pinned to a checked-in fixture (see
+[sidecar-format.md](sidecar-format.md) §6).
 
 ### Top level
 
@@ -101,12 +120,12 @@ CI validates that example against the field rules below.
 | Field | Type | Meaning |
 |-------|------|---------|
 | `id` | string | CoMaps leaf id (`Norway_Hedmark`) |
-| `sidecar_url` | string | Relative URL under `published/mwm/` |
+| `sidecar_url` | string | Relative URL under `/mwm/` (e.g. `261105/Norway_Hedmark.navi-sidecar.v1.zst`) |
 | `sidecar_bytes` | number | Sidecar size |
 | `sidecar_sha256` | string | SHA-256 of sidecar bytes |
 | `comaps_file` | string | `{id}.mwm` |
-| `comaps_bytes` | number | Expected MWM size from `countries.txt` |
-| `comaps_sha1_base64` | string | CoMaps SHA-1 (base64) for the MWM |
+| `comaps_bytes` | number | Expected MWM size from `countries.txt` (`s`) |
+| `comaps_sha1_base64` | string | CoMaps SHA-1 (base64) for the MWM (`sha1_base64`) |
 | `mwm_bytes` | number | Fingerprint size of the MWM used at bake |
 | `mwm_sha256` | string | Fingerprint SHA-256 of that MWM |
 | `mwm_fingerprint` | object | `{size, sha256}` — same values; prefer for checks |
@@ -142,7 +161,8 @@ Mirror the CoMaps app. Do **not** hard-code a mirror list.
 
 1. `GET {metaserver}/meta/maps.json` → read `map-series[{series}].latest` = `V`.
 2. `GET {metaserver}/servers` with header `X-OM-DataVersion: V` (and a normal
-   User-Agent) → ordered mirror list (best first).
+   User-Agent) → **JSON array of mirror base URLs**, ordered **best-first**
+   (see §4.1).
 3. `GET {mirror}/maps/{series}/{V}/countries.txt` and
    `GET …/countries.txt.sig` (exactly **64** bytes).
 4. Verify Ed25519:
@@ -150,10 +170,60 @@ Mirror the CoMaps app. Do **not** hard-code a mirror list.
      (CoMaps `COUNTRIES_TXT_SIGNATURE_HEX` / `private.h`; also in catalog
      `comaps.countries_txt_pubkey_hex`).
    - Message = raw `countries.txt` bytes; signature = raw `.sig` bytes.
-5. Parse leaf `id`, `size`, `sha1_base64` from `countries.txt`.
+5. Parse leaf `id`, size (`s`), and `sha1_base64` from `countries.txt` (JSON —
+   see §4.2).
 6. Download `GET {mirror}/maps/{series}/{V}/{UrlEncode(id)}.mwm`.
    - URL-encode like CoMaps (`quote` with safe `-_.`); spaces become `%20`.
 7. Verify **size** and **SHA-1 (base64)** against `countries.txt` / catalog.
+
+### 4.1 `/servers` response
+
+Live metaserver returns a **JSON array of strings** (mirror base URLs), for
+example:
+
+```json
+[
+  "https://cdn-fi-1.comaps.app/",
+  "https://cdn-us-2.comaps.tech/",
+  "https://comaps.firewall-gateway.de/",
+  "https://comaps-it1.unfoxo.it/",
+  "https://comaps.openstreetmap.fr/"
+]
+```
+
+**Order matters:** index `0` is the preferred mirror; try mirrors in array
+order. On hard failure (DNS/connect/HTTP 5xx after retries), fail over to the
+next URL. Do not shuffle or hard-code a different preference unless product
+policy says otherwise. Soft failures (429) should backoff on the current mirror
+before skipping.
+
+### 4.2 `countries.txt` format (JSON)
+
+Despite the historic `.txt` name, the CoMaps body is **JSON** (UTF-8). Release
+`261105` is about **315504** bytes; SHA-256 must match
+`comaps.countries_txt_sha256` in the catalog.
+
+Top-level object:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `id` | string | Root id (`"Countries"`) |
+| `v` | number | Release version (`261105`) |
+| `map_series` | string | Series string (e.g. `2026.10.27`) |
+| `g` | array | Hierarchy of groups and leaves |
+
+Each node in `g` (and nested `g`) may include:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `id` | string | Group or leaf id (`Norway_Hedmark`) |
+| `s` | number | MWM byte size (leaves) |
+| `sha1_base64` | string | MWM SHA-1, base64 (leaves) |
+| `affiliations` | string[] | Optional display / search strings |
+| `g` | array | Optional nested children |
+
+Clients need leaf `id` + `s` + `sha1_base64` for download verify. Abbreviated
+real excerpt: [examples/countries-txt.excerpt.json](examples/countries-txt.excerpt.json).
 
 ### Polite-client rules
 
@@ -163,7 +233,7 @@ Mirror the CoMaps app. Do **not** hard-code a mirror list.
 | Concurrency | ≤ 2 MWM downloads at once (navi-server uses 2) |
 | Resume | HTTP Range / `.part` files; retry on transient errors |
 | Backoff | Exponential backoff with jitter on 429/5xx |
-| Failover | Try next mirror from `/servers` on hard failure |
+| Failover | Try next mirror from `/servers` (array order) on hard failure |
 
 ---
 
@@ -223,13 +293,14 @@ Server source files: `config/mwm/catalog/region_leaf_mapping.json`,
 pipeline (with a diff against the previous `region-migration.json`).
 
 Until MWM is the sole client path, `.rkyv` packs stay served from
-`published/current.json`. See [client-migration-from-rkyv.md](client-migration-from-rkyv.md).
+`/current.json` (filesystem `published/current.json`). See
+[client-migration-from-rkyv.md](client-migration-from-rkyv.md).
 
 ---
 
 ## 6. Release switching
 
-1. Read new `current.json` (or poll `comaps.release_version`).
+1. Read new `/mwm/current.json` (or poll `comaps.release_version`).
 2. Resolve the region’s leaf list for the **new** version.
 3. Download **all** new `.mwm` files (CoMaps) + matching sidecars (navi-server)
    into a staging directory.
@@ -299,7 +370,7 @@ Do not strip credits from the attribution section of the sidecar.
 
 ### New install / region UI
 
-1. `GET …/mwm/current.json`
+1. `GET https://navigate-me.duckdns.org/mwm/current.json` (or `{origin}/mwm/current.json`)
 2. Present `country_groups` (apply `display_name_overrides`)
 3. User picks leaves (or a whole country/subgroup)
 4. Discover CoMaps mirrors; download each `{leaf}.mwm`; verify size + SHA-1

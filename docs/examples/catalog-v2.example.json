@@ -60,8 +60,8 @@
           "display_name_overridden": true,
           "comaps_bytes": 102194292,
           "mwm_bytes": 102194292,
-          "sidecar_bytes": 261797,
-          "total_bytes": 102456089
+          "sidecar_bytes": 267737,
+          "total_bytes": 102462029
         },
         {
           "id": "Norway_Oppland",
@@ -70,8 +70,8 @@
           "display_name_overridden": true,
           "comaps_bytes": 100044396,
           "mwm_bytes": 100044396,
-          "sidecar_bytes": 1,
-          "total_bytes": 100044397
+          "sidecar_bytes": 440385,
+          "total_bytes": 100484781
         }
       ],
       "subgroups": []
@@ -103,10 +103,16 @@
   "leaves": [
     {
       "id": "Norway_Hedmark",
-      "sidecar_sha256": "593e2ec42bf6827763a4707b356d80f4e43d993c68a4a8ee93cac094a033d200",
-      "sidecar_bytes": 261797,
+      "sidecar_sha256": "4feb60e8441eee228bb77d5d028e49c3a47e7cae5105e4d0a12e0485ee98363f",
+      "sidecar_bytes": 267737,
       "sidecar_url": "261105/Norway_Hedmark.navi-sidecar.v1.zst",
-      "shared": false,
+      "shared": true,
+      "shared_with_regions": [
+        "europe_norway_ostlandet",
+        "europe_sweden_dalarna",
+        "europe_sweden_varmland",
+        "hedmark"
+      ],
       "no_sidecar": false,
       "elevation_policy_version": 1,
       "comaps_file": "Norway_Hedmark.mwm",
@@ -121,8 +127,8 @@
     },
     {
       "id": "Sweden_Stockholm",
-      "sidecar_sha256": "ec3acf9756639033a5b00ff74bf91aad5e46775c85caa95b5d41af514c408f50",
-      "sidecar_bytes": 531934,
+      "sidecar_sha256": "bbad1734ff0593043c8fe5a1561e0cbdfa86ce09f5ad5463fe59bbd18d2eb7ea",
+      "sidecar_bytes": 563569,
       "sidecar_url": "261105/Sweden_Stockholm.navi-sidecar.v1.zst",
       "shared": false,
       "comaps_file": "Sweden_Stockholm.mwm",
