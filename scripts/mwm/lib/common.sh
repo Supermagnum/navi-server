@@ -32,6 +32,11 @@ mwm_load_defaults() {
   : "${NAVI_MWM_PIN_JSON:=${root}/config/mwm/comaps-pin.json}"
   : "${NAVI_MWM_MEASURED_PEAKS:=${root}/config/mwm/measured-peaks.json}"
   : "${NAVI_MWM_REGION_MAP:=${root}/config/mwm/catalog/region_leaf_mapping.json}"
+  : "${NAVI_MWM_DISPLAY_OVERRIDES:=${root}/config/mwm/catalog/display_name_overrides.json}"
+  # Region↔leaf mapping inputs (read-only). Empty → bake skips mapping step.
+  : "${NAVI_MWM_BORDERS_DIR:=}"
+  : "${NAVI_MWM_EXTRACTS_DIR:=${NAVI_EXTRACTS_DIR:-}}"
+  : "${NAVI_MWM_REGIONS_JSON:=}"
   : "${NAVI_MWM_METASERVER:=https://cdn-us-1.comaps.app}"
   : "${NAVI_MWM_MAP_SERIES:=2026.10.27}"
   : "${NAVI_MWM_COMAPS_VERSION:=}"

@@ -73,8 +73,12 @@ CI validates that example against the field rules below.
 | `generator` | object | Navi sidecar tool pin: `tag`, `sha`, `role` |
 | `limitation` | string | Human note about shared leaves / coverage |
 | `leaves` | array | One entry per published leaf (see below) |
-| `region_to_leaves` | object | Navi region id → list of CoMaps leaf ids |
-| `shared_leaves` | object | Leaf id → list of Navi regions that share it |
+| `region_to_leaves` | object | Navi `.rkyv` bake_id → list of CoMaps leaf ids (migration only) |
+| `shared_leaves` | object | Leaf id → list of Navi bake_ids that share it |
+| `country_groups` | array | Country-grouped leaf list for the **region UI** (see §5) |
+| `country_groups_url` | string\|null | `{version}/country_groups.json` (same payload; optional fetch) |
+| `display_name_overrides` | object | Leaf id → current display name / notes (Norway seeded) |
+| `region_migration_url` | string\|null | `{version}/region-migration.json` (overlap detail for migrators) |
 | `world_leaf_count` | number | Count of leaves in the CoMaps `countries.txt` for this release |
 
 ### `comaps` object
@@ -163,30 +167,62 @@ Mirror the CoMaps app. Do **not** hard-code a mirror list.
 
 ---
 
-## 5. Navi region → CoMaps leaf-set
+## 5. Region UI (`country_groups`) vs `.rkyv` migration (`region_to_leaves`)
 
-Source of truth on the server:
-`config/mwm/catalog/region_leaf_mapping.json`.
+Two related structures — **do not mix their roles**.
 
-Published as:
+### 5a. Country-grouped leaf list (primary region UI)
 
-- `region_to_leaves[region_id] = ["LeafA", "LeafB", …]`
-- `shared_leaves[Leaf] = [region_id, …]`
+**Use `country_groups` (or `country_groups_url`) for the download UI.**
 
-### UI presentation
+Built from CoMaps `countries.txt` hierarchy each release:
 
-- Show the **Navi region** name the user already knows (e.g. Østlandet).
-- Download the **union** of CoMaps leaves for that region.
-- If a leaf is `shared`, download it once; reuse across regions.
-- Coverage notes in the mapping file explain ocean/fjord gaps; for
-  cross-border routing, include neighbour leaves the route needs (same
-  release).
+| Field | Meaning |
+|-------|---------|
+| `id` / `display_name` | CoMaps country or subgroup name |
+| `parent_groups` | Parent ids as CoMaps defines them (e.g. state under USA) |
+| `leaves[]` | Routable leaves: `id`, `display_name`, `mwm_bytes`, `sidecar_bytes`, `total_bytes`, … |
+| `subgroups[]` | Nested groups (US states, etc.) with the same shape |
+| `leaf_count` / `total_*_bytes` | Rollups |
 
-### Migration from `.rkyv` region IDs
+`display_name_overrides` (catalog top-level, and in `country_groups.json`) maps
+CoMaps leaf ids to **current** names where CoMaps still ships outdated labels.
+Norway is seeded (Hedmark/Oppland → Innlandet, Hordaland → Vestland, Nord-/Sør-Trøndelag → Trøndelag). Other countries with likely outdated names are listed under `likely_outdated_elsewhere` **without** guessed overrides — review before adding.
 
-Keep the same Navi region string ids (e.g. `europe_norway_ostlandet`). The
-mapping file lists which CoMaps leaves replace the old single `.rkyv` pack for
-that region. Until MWM is enabled for a region, continue serving `.rkyv` from
+A few disputed territories appear under more than one parent in `countries.txt`
+(Crimea, Abkhazia, …). Treat the **unique** leaf id as one download; the
+hierarchy may show the leaf in multiple groups for navigation.
+
+### 5b. `.rkyv` → leaves migration table
+
+**Use only when moving users who already downloaded a Navi `.rkyv` pack.**
+
+| Artifact | Role |
+|----------|------|
+| `region_to_leaves[bake_id]` | Compact leaf id list (also in catalog) |
+| `shared_leaves[leaf]` | bake_ids that share that leaf |
+| `region_migration_url` → `region-migration.json` | Full overlap detail |
+
+`region-migration.json` schema `navi-mwm-region-migration/v1` (per region / bake_id):
+
+| Field | Meaning |
+|-------|---------|
+| `region_id` | Geofabrik-style path (`europe/norway/ostlandet`) |
+| `display_name` | Human label |
+| `union_coverage_pct` / `uncovered_pct` | Land overlap vs gap (ocean/fjord often explains gaps) |
+| `comaps_leaves[]` | `leaf`, `coverage_of_region_pct`, `overspill_pct`, `include_reason`, `shared_with_navi_regions` |
+| `shared_leaves` / `review` | Cross-region shares; gaps & “too many leaves” for operators |
+
+**Include threshold (default 0.5% of region area):** below that, numeric border
+noise dominates. CoMaps borders are land-only, so stable land overlaps ≥ 0.05%
+are also kept (`micro_land_overlap`) as a proxy for border roads/places. Both
+are configurable on the generator (`build-region-mapping.py`).
+
+Server source files: `config/mwm/catalog/region_leaf_mapping.json`,
+`display_name_overrides.json`; regenerated every CoMaps release by the MWM
+pipeline (with a diff against the previous `region-migration.json`).
+
+Until MWM is the sole client path, `.rkyv` packs stay served from
 `published/current.json`. See [client-migration-from-rkyv.md](client-migration-from-rkyv.md).
 
 ---
@@ -259,11 +295,21 @@ Do not strip credits from the attribution section of the sidecar.
 
 ---
 
-## 10. Fetch order (one region)
+## 10. Fetch order
+
+### New install / region UI
 
 1. `GET …/mwm/current.json`
-2. `leaves = region_to_leaves[region_id]`
-3. Discover CoMaps mirrors; download each `{leaf}.mwm`; verify size + SHA-1
-4. Download each sidecar; verify SHA-256
-5. Enforce fingerprint (§7)
-6. Apply wetland / boardwalk / elevation per [client-routing-hooks.md](client-routing-hooks.md)
+2. Present `country_groups` (apply `display_name_overrides`)
+3. User picks leaves (or a whole country/subgroup)
+4. Discover CoMaps mirrors; download each `{leaf}.mwm`; verify size + SHA-1
+5. Download each sidecar; verify SHA-256
+6. Enforce fingerprint (§7)
+7. Apply wetland / boardwalk / elevation per [client-routing-hooks.md](client-routing-hooks.md)
+
+### Migrating an existing `.rkyv` download
+
+1. `GET …/mwm/current.json`
+2. `leaves = region_to_leaves[bake_id]` (optional: read `region_migration_url` for coverage)
+3. Same download / verify steps as above
+4. Keep the `.rkyv` pack until the user confirms MWM works

@@ -64,7 +64,7 @@ jobs:
 
       - name: MWM Python test deps
         run: |
-          python3 -m pip install --user pillow zstandard pynacl
+          python3 -m pip install --user pillow zstandard pynacl shapely
 
       - name: DATEX + repeater mirror unit tests
         run: |

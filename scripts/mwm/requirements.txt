@@ -1,3 +1,4 @@
 pillow>=10.0
 zstandard>=0.22
 pynacl>=1.5
+shapely>=2.0
