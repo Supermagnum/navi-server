@@ -134,6 +134,19 @@ die() {
   exit 1
 }
 
+# Refuse .rkyv bake/publish/prune while published/.navi-rkyv-frozen exists.
+# Override: NAVI_RKYV_ALLOW_FROZEN=1 or pass --allow-frozen (caller sets env).
+refuse_if_rkyv_frozen() {
+  local entry="${1:-rkyv-entry}"
+  local marker="${NAVI_PUBLISHED_DIR}/.navi-rkyv-frozen"
+  case "${NAVI_RKYV_ALLOW_FROZEN:-0}" in
+    1|true|TRUE|yes|YES|on|ON) return 0 ;;
+  esac
+  if [[ -f "$marker" ]]; then
+    die "${entry}: refusing to run — ${marker} exists (serving-only freeze). Override with NAVI_RKYV_ALLOW_FROZEN=1 or --allow-frozen only for deliberate maintenance."
+  fi
+}
+
 # Atomic log capture: stream to ${path}.partial, rename into place on success.
 # Stale *.partial files are scrubbed by cleanup.sh. Callers:
 #   atomic_log_begin /path/to/run.log

@@ -29,6 +29,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --skip-validate) SKIP_VALIDATE=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
+    --allow-frozen) export NAVI_RKYV_ALLOW_FROZEN=1; shift ;;
     --region) FILTER_IDS+=("$2"); shift 2 ;;
     -h|--help)
       sed -n '2,12p' "$0"
@@ -37,6 +38,8 @@ while [[ $# -gt 0 ]]; do
     *) FILTER_IDS+=("$1"); shift ;;
   esac
 done
+
+refuse_if_rkyv_frozen "publish-packs.sh"
 
 GEN_ID="$(generation_id)"
 STAGE="${NAVI_STAGING_DIR}/${GEN_ID}"

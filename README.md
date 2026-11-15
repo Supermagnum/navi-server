@@ -164,6 +164,21 @@ whether to set up a DATEX provider; answer **no** to leave it off, or **yes**
 and supply username/password. You can also enable later with `--apply-datex`
 (same yes/no + credentials prompts).
 
+### `.rkyv` serving-only freeze (current production)
+
+Live packs under `data/published/packs/` and root `current.json` stay served
+for existing Navi clients. Weekly bake and daily scrub are **disabled** (not
+masked) and `data/published/.navi-rkyv-frozen` blocks accidental
+`run-weekly.sh` / `publish-packs.sh` / `cleanup.sh` / smoke publish. Override
+only deliberately: `NAVI_RKYV_ALLOW_FROZEN=1` or `--allow-frozen`.
+
+Do **not** delete published `.rkyv` generations until the Navi client has
+switched to MWM ([docs/client-migration-from-rkyv.md](docs/client-migration-from-rkyv.md)).
+
+**Unfreeze** (need a bake before client cutover): remove `.navi-rkyv-frozen`,
+then `systemctl enable --now navi-pack-bake.timer navi-pack-scrub.timer`
+(helper: `/tmp/navi-rkyv-unfreeze.sh` on the host).
+
 ### Docker / Linux containers
 
 There is **no first-party container image in this repo yet**. The supported

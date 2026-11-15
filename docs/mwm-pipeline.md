@@ -3,10 +3,22 @@
 Scratch-first. Default **`NAVI_MWM_ENABLED=0`**. Live bake stays off until
 `/tmp/navi-mwm-apply.sh` (or equivalent) is reviewed.
 
-Does **not** touch weekly `.rkyv` bake, scrub, or live `published/current.json`.
+Does **not** touch live `.rkyv` `published/current.json` or `published/packs/`.
 Shares `pack-pipeline.lock` with the `.rkyv` pipeline — never run MWM bake while
-the weekly bake holds the lock. Pause MWM world runs within **6 hours** of
-Monday **00:00 UTC** weekly bake.
+that lock is held.
+
+**`.rkyv` status (serving-only freeze):** weekly bake and daily scrub timers are
+disabled on the live host; published packs stay served unchanged. MWM schedule
+guard pauses around Monday **00:00 UTC** **only while** `navi-pack-bake.timer`
+is enabled (or `NAVI_MWM_RKYV_BAKE_TIMER_ENABLED=1`). When the timer is disabled
+or `published/.navi-rkyv-frozen` exists, the Monday pause is skipped. Full
+removal of `.rkyv` publish comes **after** the Navi client has switched to MWM
+(see [client-migration-from-rkyv.md](client-migration-from-rkyv.md)).
+
+**Unfreeze (operator):** remove `published/.navi-rkyv-frozen`, then
+`systemctl enable --now navi-pack-bake.timer navi-pack-scrub.timer` (or run
+`/tmp/navi-rkyv-unfreeze.sh`). Deliberate bake while frozen needs
+`NAVI_RKYV_ALLOW_FROZEN=1` / `--allow-frozen`.
 
 ---
 
@@ -49,7 +61,8 @@ Defaults from `scripts/mwm/lib/common.sh` / `config/mwm/measured-peaks.json`.
 | `NAVI_MWM_TILE_MEM_CACHE` | `4096` | Decoded RGB tile LRU capacity per worker |
 | `NAVI_MWM_PREFETCH_DISK_BUDGET_GIB` | `20` | Disk budget for prefetched MWMs in `tmp/_downloads` |
 | `NAVI_MWM_DOWNLOAD_CONCURRENCY` | `2` | Parallel MWM HTTP downloads |
-| `NAVI_MWM_SCHEDULE_GUARD` | `1` | Pause 6h before Monday 00:00 UTC weekly bake |
+| `NAVI_MWM_SCHEDULE_GUARD` | `1` | Pause around weekly `.rkyv` bake when that timer is active |
+| `NAVI_MWM_RKYV_BAKE_TIMER_ENABLED` | (auto) | `0`/`1` override; else frozen marker / `systemctl is-enabled navi-pack-bake.timer` |
 | `NAVI_MWM_WEEKLY_BAKE_WEEKDAY` | `0` | UTC weekday of weekly bake (`0`=Mon) |
 | `NAVI_MWM_WEEKLY_BAKE_UTC` | `00:00` | UTC `HH:MM` of weekly bake |
 | `NAVI_MWM_PAUSE_BEFORE_HOURS` | `6` | Hours before weekly bake to pause starting new leaves |

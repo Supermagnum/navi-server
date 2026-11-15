@@ -16,6 +16,7 @@ from __future__ import annotations
 import fcntl
 import json
 import os
+import sys
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -549,6 +550,21 @@ def _is_flock_held(lock_path: Path) -> bool:
         return False
 
 
+def _rkyv_bake_timer_active_for_guard() -> bool:
+    """True when MWM should still pause around the weekly .rkyv bake.
+
+    Follows ``rkyv_bake_timer_enabled`` (env override, frozen marker, then
+    ``systemctl is-enabled navi-pack-bake.timer``). Default True if unknown.
+    """
+    scripts_lib = Path(__file__).resolve().parents[2] / "lib"
+    lib_s = str(scripts_lib)
+    if lib_s not in sys.path:
+        sys.path.insert(0, lib_s)
+    from rkyv_freeze import rkyv_bake_timer_enabled  # noqa: WPS433
+
+    return bool(rkyv_bake_timer_enabled())
+
+
 def evaluate_schedule_guard(
     now_utc: datetime | None = None,
     cfg: ScheduleGuardConfig | None = None,
@@ -558,6 +574,9 @@ def evaluate_schedule_guard(
     Pauses from `pause_before_hours` before weekly UTC bake until either:
     - `done_marker_path` is touched at/after bake start, OR
     - `pause_after_hours` past bake start elapses (and external `lock_path` is not held).
+
+    When the .rkyv bake timer is disabled / tree is frozen, returns no pause
+    (unless ``lock_path`` is held — still honour an in-flight bake lock).
     """
     cfg = cfg or load_schedule_guard_config()
     if not cfg.enabled:
@@ -571,6 +590,9 @@ def evaluate_schedule_guard(
 
     if cfg.lock_path is not None and _is_flock_held(cfg.lock_path):
         return True, f"weekly_bake_lock_held:{cfg.lock_path}", None
+
+    if not _rkyv_bake_timer_active_for_guard():
+        return False, "rkyv_bake_timer_inactive", None
 
     days_since = (now.weekday() - cfg.weekly_weekday_utc) % 7
     base_day = (now - timedelta(days=days_since)).replace(
