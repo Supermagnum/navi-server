@@ -24,6 +24,8 @@ free disk) is a separate deliberate step documented in
 `region-migration.json`, `country_groups.json`, and catalog fields
 `country_groups` / `region_migration_url` / `display_name_overrides`. Diff vs
 the previous release’s migration is written as `region-migration-diff.json`.
+Operator detail (generator, thresholds, live `/tmp` publish, ZFS dataset):
+[region-mapping.md](region-mapping.md).
 
 **Unfreeze (operator):** remove `published/.navi-rkyv-frozen`, then
 `systemctl enable --now navi-pack-bake.timer navi-pack-scrub.timer` (or run
