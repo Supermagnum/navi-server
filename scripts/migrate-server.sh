@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 # Migrate navi-server runtime data to another host over SSH (rsync).
 #
+# For MWM-only copies (published/mwm + optional caches; never .rkyv packs),
+# use scripts/migrate-mwm.sh instead.
+#
 # Transfers (source tree → destination):
 #   packs    data/published/     (HTTP DocumentRoot: packs, datex, repeaters, …)
+#            NOTE: published/mwm/ is EXCLUDED (MWM-owned); use migrate-mwm.sh
 #   jobs     data/state/, config.env, regions*.conf, CURRENT_GENERATION,
 #            optional plugin work dirs (datex_npra, radioid, repeaterbook),
 #            plus a systemd enablement inventory for remote re-enable
 #   secrets  data/secrets/       (rsync -a preserves mode 0600; never logged)
 #
 # Skipped by default (large / dangerous):
-#   scratch/, staging/, generations/, elevation*/
+#   scratch/, staging/, generations/, elevation*/, published/mwm/
 #   data/live and data/previous absolute symlinks (see docs/vps-prelaunch-checklist.md)
 #
 # Usage:

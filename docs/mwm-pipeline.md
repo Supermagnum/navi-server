@@ -134,6 +134,58 @@ Install only after apply review. Check timer may run with bake still gated by
 
 ---
 
+## Install (new host)
+
+```bash
+# Non-root: dirs, venv, cargo build (convert + navi-mwm-sidecar)
+./scripts/setup-server.sh --dry-run    # preview
+./scripts/setup-server.sh
+
+# Root: Apache DocumentRoot = data/published (serves /mwm/ + /packs/ if present)
+sudo ./scripts/setup-server.sh --apply-apache
+# Root: service user, MWM check timer (ENABLED=0), .rkyv bake/scrub installed but disabled
+sudo ./scripts/setup-server.sh --apply-service
+# Opt-in weekly .rkyv bake (not default):
+# sudo ./scripts/setup-server.sh --apply-service --enable-rkyv-bake
+
+./scripts/setup-server.sh --check
+```
+
+`routes_builder_tool` is optional (route validation only); build with
+`scripts/mwm/build-generator.sh` when needed.
+
+## Migrate MWM data only (`scripts/migrate-mwm.sh`)
+
+Copies **only** allow-listed MWM paths. Dry-run by default.
+
+| Copied | Not copied |
+|--------|------------|
+| `data/published/mwm/**` (sidecars, checksums, catalog, attribution, provenance, `current.json`, `.navi-mwm-owned`) | `.rkyv` `packs/`, generations, root `published/current.json` |
+| `config/mwm/**` (pipeline config) | scratch, staging, logs, locks, CoMaps leaf `.mwm` downloads |
+| Optional: `--with-mapterhorn-cache`, `--with-geometry-cache`, `--with-secrets` | old elevation datasets (Copernicus/SRTM/…) |
+
+```bash
+# Preview exact file list + size (holds pack-pipeline.lock on source)
+./scripts/migrate-mwm.sh --source /media/navi/navi-server --dest /path/to/new-root
+
+# Apply + SHA-256 verify (current.json copied last)
+./scripts/migrate-mwm.sh --source /media/navi/navi-server --dest /path/to/new-root --apply
+
+# Optional caches (can be large — dry-run first)
+./scripts/migrate-mwm.sh --source … --dest … --with-mapterhorn-cache --dry-run
+```
+
+Full-server migrate (packs/datex/secrets, **excludes** `mwm/`): `scripts/migrate-server.sh`.
+
+### New host bring-up
+
+1. Install OS deps + clone repo → `setup-server.sh` → `--apply-apache` → `--apply-service`
+2. `migrate-mwm.sh --apply` from the live source (or rsync over ssh)
+3. `setup-server.sh --check` + curl `/mwm/current.json`
+4. Switch DNS / DuckDNS to the new host
+
+---
+
 ## Enable on live (after review)
 
 1. Review and run `/tmp/navi-mwm-apply.sh` (or operator equivalent): paths,

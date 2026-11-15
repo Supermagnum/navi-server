@@ -74,7 +74,9 @@ unconditional fallback and is untouched by this tree.
 | `scripts/*.sh` | Fetch / convert / validate / publish / scrub / weekly + planet-leaf orchestrators |
 | `scripts/lib/published_tree.py` | Nested `packs/` catalog rebuild (`current.json`) |
 | `scripts/migrate-published-to-geofabrik-paths.sh` | One-shot flat → Geofabrik-path published layout |
-| `scripts/migrate-server.sh` | SSH/rsync migrate packs + jobs + secrets to another host; verify working order |
+| `scripts/migrate-mwm.sh` | MWM-only migrate (allow-list; dry-run default; never `.rkyv` packs) |
+| `scripts/test-migrate-mwm.sh` | Fixture smoke for migrate-mwm allow-list / negatives |
+| `scripts/migrate-server.sh` | SSH/rsync migrate packs + jobs + secrets (excludes `published/mwm/`) |
 | `scripts/test-migrate-server.sh` | Smoke test for migrate-server (`--local-dest`; no network) |
 | `scripts/run-planet-leaves-batched.sh` | Preferred full-leaf bake (batch, pause on fail) |
 | `scripts/start-planet-leaves-screen.sh` | Detached screen launcher (safe wrapper; `--resume`) |
@@ -144,25 +146,35 @@ success).
 ## One-time setup
 
 ```bash
-/media/navi/navi-server/scripts/setup-server.sh
+/media/navi/navi-server/scripts/setup-server.sh --dry-run   # preview
+/media/navi/navi-server/scripts/setup-server.sh             # dirs, venv, cargo build
 # Apache + dedicated service user (needs your sudo password):
 sudo /media/navi/navi-server/scripts/setup-server.sh --apply-apache --apply-service
 # Verify:
 /media/navi/navi-server/scripts/setup-server.sh --check
 
-# Build the in-repo convert binary (pack-convert-core; no Navi tree required):
+# Binaries (also attempted by setup): convert + MWM sidecar
 . "$HOME/.cargo/env"
 cd /media/navi/navi-server
-cargo build --release -p navi-indexed-convert
+cargo build --release -p navi-indexed-convert -p navi-mwm-sidecar
 ```
 
 `--apply-service` creates system user **`navit-server`**, owns `data/`, installs
-`navit-server.service` / bake + scrub units, and **enables** both scheduled
-jobs: daily `navi-pack-scrub.timer` and weekly `navi-pack-bake.timer` (Monday
-00:00 UTC). On a full interactive `sudo setup-server.sh` run you are asked
-whether to set up a DATEX provider; answer **no** to leave it off, or **yes**
-and supply username/password. You can also enable later with `--apply-datex`
-(same yes/no + credentials prompts).
+pack bake/scrub **and** MWM check/bake units. **Default:** `.rkyv` bake/scrub
+timers stay **disabled** (`--rkyv-frozen` / `.navi-rkyv-frozen`); MWM check
+timer is enabled with `NAVI_MWM_ENABLED=0` (detect-only). Opt in to weekly
+`.rkyv` with `--enable-rkyv-bake`. On a full interactive `sudo setup-server.sh`
+run you are asked whether to set up a DATEX provider; answer **no** to leave
+it off, or **yes** and supply username/password.
+
+**Migrate MWM only** to another host (never copies `.rkyv` packs):
+
+```bash
+./scripts/migrate-mwm.sh --source /media/navi/navi-server --dest /path/to/new-root
+./scripts/migrate-mwm.sh --source /media/navi/navi-server --dest /path/to/new-root --apply
+```
+
+See [docs/mwm-pipeline.md](docs/mwm-pipeline.md) for install → migrate → DNS.
 
 ### `.rkyv` serving-only freeze (current production)
 
