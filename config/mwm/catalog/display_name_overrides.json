@@ -1,0 +1,48 @@
+{
+  "schema": "navi-mwm-display-name-overrides/v1",
+  "notes": "Reviewable CoMaps leaf display-name overrides for the country-grouped UI. CoMaps still uses pre-reform names in countries.txt / borders; clients show display_name when overridden.",
+  "leaves": {
+    "Norway_Hedmark": {
+      "display_name": "Innlandet (Hedmark)",
+      "note": "Norwegian county reform 2020: Hedmark + Oppland merged into Innlandet. CoMaps still ships separate Hedmark/Oppland MWMs."
+    },
+    "Norway_Oppland": {
+      "display_name": "Innlandet (Oppland)",
+      "note": "Norwegian county reform 2020: Hedmark + Oppland merged into Innlandet. CoMaps still ships separate Hedmark/Oppland MWMs."
+    },
+    "Norway_Hordaland": {
+      "display_name": "Vestland (Hordaland)",
+      "note": "Norwegian county reform 2020: Hordaland merged into Vestland (with Sogn og Fjordane). CoMaps leaf id unchanged."
+    },
+    "Norway_North Trondelag": {
+      "display_name": "Trøndelag (Nord-Trøndelag)",
+      "note": "Nord- and Sør-Trøndelag merged into Trøndelag (2018). CoMaps still ships separate leaves."
+    },
+    "Norway_South Trondelag": {
+      "display_name": "Trøndelag (Sør-Trøndelag)",
+      "note": "Nord- and Sør-Trøndelag merged into Trøndelag (2018). CoMaps still ships separate leaves."
+    }
+  },
+  "likely_outdated_elsewhere": [
+    {
+      "country": "France",
+      "note": "CoMaps may still use pre-2016 région names in leaf/group labels; review against current INSEE régions before adding overrides."
+    },
+    {
+      "country": "United Kingdom",
+      "note": "Ceremonial vs ceremonial/admin county naming drifts; review English ceremonial counties and Welsh/Scottish council areas before overrides."
+    },
+    {
+      "country": "Germany",
+      "note": "Some Regierungsbezirk / Kreis groupings may lag Land reforms; review before overrides."
+    },
+    {
+      "country": "Poland",
+      "note": "Voivodeship leaf labels may not match the latest GUS naming; review before overrides."
+    },
+    {
+      "country": "India",
+      "note": "State and UT splits (e.g. Jammu and Kashmir / Ladakh) may lag in CoMaps borders; review before overrides."
+    }
+  ]
+}

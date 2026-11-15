@@ -11,9 +11,19 @@ that lock is held.
 disabled on the live host; published packs stay served unchanged. MWM schedule
 guard pauses around Monday **00:00 UTC** **only while** `navi-pack-bake.timer`
 is enabled (or `NAVI_MWM_RKYV_BAKE_TIMER_ENABLED=1`). When the timer is disabled
-or `published/.navi-rkyv-frozen` exists, the Monday pause is skipped. Full
-removal of `.rkyv` publish comes **after** the Navi client has switched to MWM
-(see [client-migration-from-rkyv.md](client-migration-from-rkyv.md)).
+or `published/.navi-rkyv-frozen` exists, the Monday pause is skipped.
+
+**Do not retire `.rkyv` until the Navi client is tested on MWM.** Freeze ≠
+delete. Retirement (stop serving → remove `published/packs/` + old bake code →
+free disk) is a separate deliberate step documented in
+[client-migration-from-rkyv.md](client-migration-from-rkyv.md#step-8--retire-rkyv-packs-server-later--deliberate).
+
+**Region mapping (each CoMaps release):** when `NAVI_MWM_BORDERS_DIR`,
+`NAVI_MWM_EXTRACTS_DIR`, and `NAVI_MWM_REGIONS_JSON` are set, the bake runs
+`build-region-mapping.py` (read-only polys) and publish attaches
+`region-migration.json`, `country_groups.json`, and catalog fields
+`country_groups` / `region_migration_url` / `display_name_overrides`. Diff vs
+the previous release’s migration is written as `region-migration-diff.json`.
 
 **Unfreeze (operator):** remove `published/.navi-rkyv-frozen`, then
 `systemctl enable --now navi-pack-bake.timer navi-pack-scrub.timer` (or run
@@ -81,7 +91,11 @@ Defaults from `scripts/mwm/lib/common.sh` / `config/mwm/measured-peaks.json`.
 | `NAVI_MWM_CACHE_IDENTITY_GATE` | `1` | Before a full comaps-release bake, cold-vs-cache-hit identity on ~20 leaves (data sections). `0`/`false`/`off` skips |
 | `NAVI_MWM_CACHE_IDENTITY_LEAVES` | (built-in ~20) | Optional leaf list file for the identity gate |
 | `NAVI_MWM_ELEV_POLICY_VERSION` | `1` | `1` = uniform 2 m; `2` = Copernicus-only &lt;60°N uses 5 m (next release default) |
-| `NAVI_MWM_REGION_MAP` | `config/mwm/catalog/region_leaf_mapping.json` | Region→leaf |
+| `NAVI_MWM_REGION_MAP` | `config/mwm/catalog/region_leaf_mapping.json` | Region→leaf (migration) |
+| `NAVI_MWM_DISPLAY_OVERRIDES` | `config/mwm/catalog/display_name_overrides.json` | Leaf display-name overrides |
+| `NAVI_MWM_BORDERS_DIR` | empty | CoMaps `data/borders` (read-only; enables mapping step) |
+| `NAVI_MWM_EXTRACTS_DIR` | `$NAVI_EXTRACTS_DIR` | Geofabrik `.poly` extracts (read-only) |
+| `NAVI_MWM_REGIONS_JSON` | empty | Published `.rkyv` `current.json` (region list) |
 
 Auto concurrency:
 

@@ -93,6 +93,23 @@ class TestCatalogV2Example(unittest.TestCase):
         self.assertIsInstance(cat["leaves"], list)
         self.assertGreaterEqual(len(cat["leaves"]), 1)
 
+        # Optional v2 extensions (region UI + migration).
+        if "country_groups" in cat:
+            self.assertIsInstance(cat["country_groups"], list)
+            self.assertGreaterEqual(len(cat["country_groups"]), 1)
+            norway = next(
+                (g for g in cat["country_groups"] if g.get("id") == "Norway"), None
+            )
+            self.assertIsNotNone(norway)
+            self.assertIsInstance(norway["leaves"], list)
+        if "display_name_overrides" in cat:
+            self.assertIn("leaves", cat["display_name_overrides"])
+            self.assertIn("Norway_Hedmark", cat["display_name_overrides"]["leaves"])
+        if "region_migration_url" in cat:
+            self.assertTrue(str(cat["region_migration_url"]).endswith("region-migration.json"))
+        if "country_groups_url" in cat:
+            self.assertTrue(str(cat["country_groups_url"]).endswith("country_groups.json"))
+
         for leaf in cat["leaves"]:
             missing_leaf = REQUIRED_LEAF - set(leaf.keys())
             self.assertFalse(missing_leaf, f"{leaf.get('id')}: {sorted(missing_leaf)}")

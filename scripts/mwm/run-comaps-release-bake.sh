@@ -226,6 +226,48 @@ cp -a \"\$STATE\" \"\$VERSION_DIR/processed.json\"
 if [[ \"\$SKIP_VALIDATE\" != \"1\" ]]; then
   \"\${SCRIPT_DIR}/validate-comaps-release.sh\" --version-dir \"\$VERSION_DIR\" --work-dir \"\$WORK\" || mwm_die \"validate failed\"
 fi
+
+# Region↔leaf migration + country_groups (catalog UI). Borders/extracts are
+# read-only; outputs land in the version staging dir for publish-mwm.
+BORDERS=\"\${NAVI_MWM_BORDERS_DIR:-}\"
+EXTRACTS=\"\${NAVI_MWM_EXTRACTS_DIR:-\${NAVI_EXTRACTS_DIR:-}}\"
+REGIONS_JSON=\"\${NAVI_MWM_REGIONS_JSON:-}\"
+COUNTRIES_TXT=\"\$WORK/meta/countries.txt\"
+if [[ -z \"\$COUNTRIES_TXT\" || ! -f \"\$COUNTRIES_TXT\" ]]; then
+  COUNTRIES_TXT=\"\$(find \"\$WORK\" -name countries.txt -type f | head -1)\"
+fi
+if [[ -n \"\$BORDERS\" && -d \"\$BORDERS\" && -n \"\$EXTRACTS\" && -d \"\$EXTRACTS\" && -n \"\$REGIONS_JSON\" && -f \"\$REGIONS_JSON\" && -n \"\$COUNTRIES_TXT\" && -f \"\$COUNTRIES_TXT\" ]]; then
+  MAP_OUT=\"\$WORK/region-mapping\"
+  mkdir -p \"\$MAP_OUT\"
+  MAP_ARGS=()
+  if [[ -f \"\$PUBLISH_ROOT/current.json\" ]]; then
+    PREV_VER=\$(python3 -c \"import json,sys; print(json.load(open(sys.argv[1])).get('version') or '')\" \"\$PUBLISH_ROOT/current.json\" || true)
+    if [[ -n \"\$PREV_VER\" && -f \"\$PUBLISH_ROOT/\$PREV_VER/region-migration.json\" ]]; then
+      MAP_ARGS+=(--prev-migration \"\$PUBLISH_ROOT/\$PREV_VER/region-migration.json\")
+    fi
+  fi
+  if [[ -f \"\$PUBLISH_ROOT/\$VER/catalog.json\" ]]; then
+    MAP_ARGS+=(--catalog \"\$PUBLISH_ROOT/\$VER/catalog.json\")
+  elif [[ -f \"\$PUBLISH_ROOT/current.json\" ]]; then
+    MAP_ARGS+=(--catalog \"\$PUBLISH_ROOT/current.json\")
+  fi
+  mwm_log \"building region↔leaf mapping + country_groups\"
+  \"\$PYTHON\" \"\${SCRIPT_DIR}/build-region-mapping.py\" \\
+    --regions-json \"\$REGIONS_JSON\" \\
+    --extracts-dir \"\$EXTRACTS\" \\
+    --borders-dir \"\$BORDERS\" \\
+    --countries-txt \"\$COUNTRIES_TXT\" \\
+    --out-dir \"\$MAP_OUT\" \\
+    --region-map-out \"\${NAVI_MWM_REGION_MAP}\" \\
+    --comaps-release \"\$VER\" \\
+    \"\${MAP_ARGS[@]}\" || mwm_die \"region mapping failed\"
+  cp -a \"\$MAP_OUT/region-migration.json\" \"\$VERSION_DIR/\"
+  cp -a \"\$MAP_OUT/country_groups.json\" \"\$VERSION_DIR/\"
+  [[ -f \"\$MAP_OUT/region-migration-diff.json\" ]] && cp -a \"\$MAP_OUT/region-migration-diff.json\" \"\$VERSION_DIR/\"
+else
+  mwm_log \"WARN skip region mapping (set NAVI_MWM_BORDERS_DIR, NAVI_MWM_EXTRACTS_DIR, NAVI_MWM_REGIONS_JSON)\"
+fi
+
 if [[ \"\$SKIP_PUBLISH\" != \"1\" ]]; then
   \"\${SCRIPT_DIR}/publish-mwm.sh\" --version-dir \"\$VERSION_DIR\" --publish-root \"\$PUBLISH_ROOT\" --sidecars-only
 fi

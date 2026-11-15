@@ -160,9 +160,43 @@ for e in leaf_entries:
         e["shared"] = True
         e["shared_with_regions"] = shared[e["id"]]
 
+# Optional region-migration + country_groups produced by build-region-mapping.py
+# (copied into the version dir before publish, or next to region_map).
+migration_src = version / "region-migration.json"
+if not migration_src.is_file():
+    migration_src = region_map.parent / "region-migration.json"
+country_src = version / "country_groups.json"
+if not country_src.is_file():
+    country_src = region_map.parent / "country_groups.json"
+overrides_src = Path(os.environ.get(
+    "NAVI_MWM_DISPLAY_OVERRIDES",
+    str(script_dir.parent.parent / "config" / "mwm" / "catalog" / "display_name_overrides.json"),
+))
+country_groups = None
+display_overrides = None
+if country_src.is_file():
+    cg = json.loads(country_src.read_text())
+    country_groups = cg.get("countries") if isinstance(cg, dict) and "countries" in cg else cg
+    display_overrides = cg.get("display_name_overrides") if isinstance(cg, dict) else None
+if display_overrides is None and overrides_src.is_file():
+    ov = json.loads(overrides_src.read_text())
+    display_overrides = {
+        "leaves": ov.get("leaves") or {},
+        "likely_outdated_elsewhere": ov.get("likely_outdated_elsewhere") or [],
+    }
+if migration_src.is_file():
+    shutil.copy2(migration_src, staging / "region-migration.json")
+if country_src.is_file():
+    shutil.copy2(country_src, staging / "country_groups.json")
+
 (staging / "checksums.sha256").write_text(
     "".join(f"{h}  {name}\n" for name, h in sorted(checksums.items()))
 )
+
+region_to_leaves = {
+    rid: [c["leaf"] for c in (meta.get("comaps_leaves") or [])]
+    for rid, meta in (mapping.get("navi_region_to_comaps_leaves") or {}).items()
+}
 
 if sidecars_only:
     catalog = {
@@ -185,15 +219,19 @@ if sidecars_only:
         "limitation": mapping.get("limitation")
             or "Base MWMs come from a single CoMaps planet release; Navi publishes sidecars only.",
         "leaves": leaf_entries,
-        "region_to_leaves": {
-            rid: [c["leaf"] for c in (meta.get("comaps_leaves") or [])]
-            for rid, meta in (mapping.get("navi_region_to_comaps_leaves") or {}).items()
-        },
+        "region_to_leaves": region_to_leaves,
         "shared_leaves": shared,
         "world_leaf_count": len((discovery.get("leaves") or {})),
         "elevation_policy_version": policy_version,
         "non_routable_leaves": sorted(NON_ROUTABLE_LEAVES),
     }
+    if country_groups is not None:
+        catalog["country_groups"] = country_groups
+        catalog["country_groups_url"] = None  # filled after version is known
+    if display_overrides is not None:
+        catalog["display_name_overrides"] = display_overrides
+    if migration_src.is_file():
+        catalog["region_migration_url"] = None  # filled after version is known
 else:
     catalog = {
         "schema": "navi-mwm-catalog/v1",
@@ -203,10 +241,7 @@ else:
         "limitation": mapping.get("limitation")
             or "Cross-border routing out of the Nordic leaf set is not supported in the pilot.",
         "leaves": leaf_entries,
-        "region_to_leaves": {
-            rid: [c["leaf"] for c in (meta.get("comaps_leaves") or [])]
-            for rid, meta in (mapping.get("navi_region_to_comaps_leaves") or {}).items()
-        },
+        "region_to_leaves": region_to_leaves,
         "shared_leaves": shared,
     }
 (staging / "catalog.body.json").write_text(json.dumps(catalog, indent=2) + "\n")
@@ -220,6 +255,11 @@ staging = Path(sys.argv[1])
 ver = sys.argv[2]
 body = json.loads((staging / "catalog.body.json").read_text())
 body["version"] = ver
+if body.get("schema") == "navi-mwm-catalog/v2":
+    if (staging / "region-migration.json").is_file():
+        body["region_migration_url"] = f"{ver}/region-migration.json"
+    if (staging / "country_groups.json").is_file():
+        body["country_groups_url"] = f"{ver}/country_groups.json"
 (staging / "catalog.json").write_text(json.dumps(body, indent=2) + "\n")
 (staging / "catalog.body.json").unlink()
 PY

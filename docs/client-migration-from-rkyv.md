@@ -104,18 +104,27 @@ leaves previous release active.
 
 ---
 
-## Step 8 — Retire `.rkyv` packs (server, later)
+## Step 8 — Retire `.rkyv` packs (server, later — deliberate)
 
-Server may stop baking a region’s `.rkyv` only when:
+Frozen `.rkyv` packs stay **served** until the new Navi client has been tested
+and works correctly on MWM + sidecars. Freeze (timers off +
+`published/.navi-rkyv-frozen`) is **not** retirement.
 
-1. Client release with MWM path is shipped and adopted for that region.
-2. MWM catalog covers the region’s leaf set for a current CoMaps release.
-3. Operators confirm grace + rollback docs.
+Only after client adoption, operators retire `.rkyv` as a **separate** step:
 
-Until then, **do not** remove published `.rkyv` packs. The live host may
-**freeze** bake/scrub (timers disabled + `published/.navi-rkyv-frozen`) while
-still serving existing packs for current clients. Full pipeline removal is
-Step 8 after client adoption.
+1. Confirm MWM catalog `country_groups` + `region_to_leaves` cover needed areas
+   for a current CoMaps release; client release shipped and validated.
+2. **Stop serving** `.rkyv`: remove/disable the HTTP aliases that expose
+   `published/packs/` and `published/current.json` region manifests (keep a
+   rollback snapshot).
+3. **Remove the `.rkyv` tree** under `published/packs/` (and obsolete manifests)
+   after the grace window; free disk (~1.7 TiB logical / ~656 GiB ZFS today).
+4. **Remove old bake code / timers** (`navi-pack-bake`, scrub, convert-region
+   paths) from the live host once no rollback is required.
+5. Document the cutover in the operator log; keep MWM publish + CoMaps discovery
+   as the sole map path.
+
+Until steps 1–2, **do not** delete published `.rkyv` packs.
 
 ---
 
