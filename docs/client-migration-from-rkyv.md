@@ -1,9 +1,15 @@
 # Client migration — `.rkyv` packs → CoMaps MWMs + Navi sidecars
 
-Step-by-step plan for the Navi Android/client team. Server keeps publishing
-`.rkyv` under `published/current.json` until you retire regions; MWM sidecars
-live under `published/mwm/` with **`NAVI_MWM_ENABLED=0`** until operators flip
-bake on.
+Step-by-step plan for the Navi Android/client team. Server keeps **serving**
+frozen `.rkyv` under `published/current.json` until you retire regions; MWM
+sidecars live under `published/mwm/` (weekly `.rkyv` bake is frozen; MWM bake
+stays gated by **`NAVI_MWM_ENABLED=0`** until operators flip it on).
+
+**Server footprint (why cutover matters):** published `.rkyv` packs are on the
+order of **~1.7 TiB** logical (~656 GiB compressed on the live pool); the
+published MWM sidecar tree for a full world release is about **~2.1 GiB**.
+Clients still download CoMaps leaf `.mwm` files from the CoMaps CDN separately.
+See [mwm-pipeline.md](mwm-pipeline.md#disk-rkyv-old-vs-mwm-sidecars-new).
 
 ---
 

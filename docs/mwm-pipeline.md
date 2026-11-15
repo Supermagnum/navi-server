@@ -92,14 +92,37 @@ max(1, floor( (MemAvailable_GiB − RAM_HEADROOM_GIB) / PER_LEAF_GIB ))
 On media (~41 GiB MemAvailable idle): **3**. Explicit
 `NAVI_MWM_PROCESS_CONCURRENCY=N` wins.
 
-### Disk budget (Mypool/navi)
+### Disk: `.rkyv` (old) vs MWM sidecars (new)
+
+Measured on the live media host (`/media/navi/navi-server`, 2026-11-15).
+CoMaps leaf `.mwm` files are **not** published by Navi (clients fetch those
+from the CoMaps CDN); Navi only publishes NVSC sidecars + catalog.
+
+| Tree | What | Logical size (`du --apparent-size` / file sum) | On disk (`du`, ZFS compressed) | Files / regions |
+|------|------|-----------------------------------------------|--------------------------------|-----------------|
+| **`.rkyv` packs** | `data/published/packs/` + root `current.json` | **~1.65–1.7 TiB** | **~656 GiB** | ~100k files / 540 regions |
+| **MWM publish** | `data/published/mwm/` (release `261105`) | **~2.06 GiB** | **~2.1 GiB** | ~1168 files / world leaf set |
+| Ratio | published Navi payload | MWM ≈ **1/800** of `.rkyv` logical | MWM ≈ **1/300** of `.rkyv` on disk | — |
+
+**Planning a new host**
+
+| Path | Need roughly |
+|------|----------------|
+| Serve `.rkyv` + MWM (current freeze) | ≥ **~700 GiB** free for published trees alone (packs compressed + mwm); prefer **≥ 2 TiB** pool if storing uncompressed logical / extra gens |
+| MWM-only after client cutover | **~3–5 GiB** for publish + headroom (one release ≈ 2.1 GiB; keep 2 releases + grace) |
+| Optional geometry-hash cache | up to **~13 GiB** (scratch world measured) |
+| Mapterhorn tile cache | cap **54.72 GiB** (`NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES`) |
+| migrate-mwm (no caches) | transfer **~2.06 GiB** (1180 files including `config/mwm`) |
+| migrate-server packs component | transfer **~1.7 TiB** logical `.rkyv` (exclude `mwm/`) |
+
+### Disk budget (bake host)
 
 | Item | Budget / note |
 |------|----------------|
-| Pool | 1.0 TiB total; leave headroom for `.rkyv` + scratch |
-| Mapterhorn cache default | **54.72 GiB** (`58755104232` B) — fits; Nordic end ~8.5 GiB; 261105 world end 45.60 GiB (post-LRU) + 20% |
-| World work tree | MWMs deleted after each leaf; sidecars + stats remain |
-| Publish | Sidecars only (~tens of MiB Nordic; world scales with leaf count) |
+| Pool | Size for chosen path above; leave headroom for scratch / downloads |
+| Mapterhorn cache default | **54.72 GiB** (`58755104232` B) — Nordic end ~8.5 GiB; 261105 world end 45.60 GiB (post-LRU) + 20% |
+| World work tree | CoMaps MWMs deleted after each leaf; sidecars + stats remain |
+| Publish | Sidecars only (~2.1 GiB world release `261105`; Nordic much smaller) |
 
 ---
 
@@ -160,7 +183,7 @@ Copies **only** allow-listed MWM paths. Dry-run by default.
 
 | Copied | Not copied |
 |--------|------------|
-| `data/published/mwm/**` (sidecars, checksums, catalog, attribution, provenance, `current.json`, `.navi-mwm-owned`) | `.rkyv` `packs/`, generations, root `published/current.json` |
+| `data/published/mwm/**` (sidecars, checksums, catalog, attribution, provenance, `current.json`, `.navi-mwm-owned`) — **~2.1 GiB** world release | `.rkyv` `packs/` (**~1.7 TiB** logical) , generations, root `published/current.json` |
 | `config/mwm/**` (pipeline config) | scratch, staging, logs, locks, CoMaps leaf `.mwm` downloads |
 | Optional: `--with-mapterhorn-cache`, `--with-geometry-cache`, `--with-secrets` | old elevation datasets (Copernicus/SRTM/…) |
 
