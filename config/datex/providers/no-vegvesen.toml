@@ -1,0 +1,48 @@
+# Statens vegvesen / NPRA DATEX II v3.1 (Basic auth).
+# Public client paths stay under /datex/npra/ (publish_id).
+# Secrets: /etc/navi-server/datex/no-vegvesen.env (or legacy data/secrets/datex_npra.env).
+
+id = "no-vegvesen"
+publish_id = "npra"
+display_name = "NPRA (Statens vegvesen)"
+country = "NO"
+attribution = "Road information redistributed from NPRA DATEX II without distortion. NPRA must be acknowledged as the source."
+licence = "NLOD 2.0"
+source_label = "Statens vegvesen (Norwegian Public Roads Administration / NPRA)"
+datex_version = "3.1"
+auth_type = "basic"
+enabled = true
+user_agent = "navi-server-datex/0.1 (contact: replace-me@example.com)"
+timeout_secs = 60
+# Prefer new location; fetcher also falls back to NAVI_DATEX_NPRA_SECRETS_FILE / data/secrets/datex_npra.env
+secrets_file = "/etc/navi-server/datex/no-vegvesen.env"
+# Legacy enable flag still honoured when this file is loaded.
+legacy_enabled_env = "NAVI_DATEX_NPRA_ENABLED"
+
+[[publications]]
+name = "GetSituation"
+url = "https://datex-server-get-v3-1.atlas.vegvesen.no/datexapi/GetSituation/pullsnapshotdata"
+interval_secs = 300
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "GetTravelTimeData"
+url = "https://datex-server-get-v3-1.atlas.vegvesen.no/datexapi/GetTravelTimeData/pullsnapshotdata"
+interval_secs = 300
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "GetMeasuredWeatherData"
+url = "https://datex-server-get-v3-1.atlas.vegvesen.no/datexapi/GetMeasuredWeatherData/pullsnapshotdata"
+interval_secs = 600
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "GetCCTVSiteTable"
+url = "https://datex-server-get-v3-1.atlas.vegvesen.no/datexapi/GetCCTVSiteTable/pullsnapshotdata"
+interval_secs = 43200
+enabled = true
+use_conditional = true

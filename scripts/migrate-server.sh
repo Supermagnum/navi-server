@@ -11,6 +11,8 @@
 #            optional plugin work dirs (datex_npra, radioid, repeaterbook),
 #            plus a systemd enablement inventory for remote re-enable
 #   secrets  data/secrets/       (rsync -a preserves mode 0600; never logged)
+#            Also document /etc/navi-server/datex/*.env (multi-provider); copy
+#            those only with an explicit ops step — never into git.
 #
 # Skipped by default (large / dangerous):
 #   scratch/, staging/, generations/, elevation*/, published/mwm/

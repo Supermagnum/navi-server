@@ -1,10 +1,10 @@
 # Adding a DATEX source to navi-server
 
-**Status:** operator / developer guide.  
-The only implemented provider today is **NPRA** ([datex-npra.md](datex-npra.md)).
-Open anonymous feeds are catalogued in [datex-open-feeds.md](datex-open-feeds.md);
-they are **not** automatically polled. The shared framework under
-`plugins/datex_common/` is ready when you add a plugin later.
+**Status:** operator / developer guide (legacy plugin stubs).  
+**Preferred path:** add a provider with `scripts/datex-provider.sh` and a
+`config/datex/providers/<id>.toml` — see [datex-providers.md](datex-providers.md).
+Vegvesen ships as `no-vegvesen` (client paths still `/datex/npra/`).
+Open feed catalogue: [datex-open-feeds.md](datex-open-feeds.md).
 
 Goal: keep **credentials and upstream polling on the server**; Navi clients only
 `GET` cached files from the DocumentRoot (same model as packs).

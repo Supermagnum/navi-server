@@ -55,6 +55,7 @@ DDNS_ENV="${DATA}/ddns.env"
 DATEX_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navi-datex-npra.service"
 DATEX_TIMER_SRC="${NAVI_SERVER_ROOT}/systemd/navi-datex-npra.timer"
 DATEX_SECRETS="${DATA}/secrets/datex_npra.env"
+DATEX_SECRETS_DIR="/etc/navi-server/datex"
 RB_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navi-repeaterbook.service"
 RB_TIMER_SRC="${NAVI_SERVER_ROOT}/systemd/navi-repeaterbook.timer"
 RB_SECRETS="${DATA}/secrets/repeaterbook.env"
@@ -423,6 +424,18 @@ print(out)
   chmod -R a+rX "$flat" 2>/dev/null || true
 }
 
+ensure_datex_secrets_dir() {
+  require_root "datex secrets dir"
+  mkdir -p "$DATEX_SECRETS_DIR"
+  chmod 0750 "$DATEX_SECRETS_DIR"
+  if id -u "$SERVICE_USER" >/dev/null 2>&1; then
+    chown "root:${SERVICE_USER}" "$DATEX_SECRETS_DIR"
+  else
+    chown root:root "$DATEX_SECRETS_DIR"
+  fi
+  log "ensured ${DATEX_SECRETS_DIR} (root:${SERVICE_USER} 0750)"
+}
+
 # Interactive DATEX NPRA enable: yes/no, then username + password.
 # Writes secrets (0600), flips NAVI_DATEX_NPRA_ENABLED=1, installs poll timer.
 # Other settings use defaults from config.example.env (edit config.env later).
@@ -516,6 +529,11 @@ path.chmod(0o600)
   password=""
   chown "${SERVICE_USER}:${SERVICE_USER}" "$DATEX_SECRETS"
   chmod 600 "$DATEX_SECRETS"
+  ensure_datex_secrets_dir
+  # Mirror into multi-provider secrets location (no-vegvesen); do not log contents.
+  install -m 0600 -o root -g "${SERVICE_USER}" "$DATEX_SECRETS" \
+    "${DATEX_SECRETS_DIR}/no-vegvesen.env"
+  log "DATEX secrets installed (legacy + ${DATEX_SECRETS_DIR}/no-vegvesen.env)"
 
   if [[ ! -f "${DATA}/config.env" ]]; then
     cp "${NAVI_SERVER_ROOT}/scripts/config.example.env" "${DATA}/config.env"

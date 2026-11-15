@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Thin wrapper: gate on NAVI_DATEX_NPRA_ENABLED before importing the Python poller.
-# Installed as navi-datex-npra.service only when setup --apply-datex succeeds.
+# Compatibility wrapper for navi-datex-npra.service.
+# Polls all enabled DATEX providers (toml). Vegvesen remains gated by
+# NAVI_DATEX_NPRA_ENABLED via config/datex/providers/no-vegvesen.toml.
 #
 # Usage:
 #   ./datex-npra-poll.sh
@@ -8,23 +9,19 @@
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NAVI_SERVER_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-# shellcheck source=lib/common.sh
-source "${SCRIPT_DIR}/lib/common.sh"
-load_config
 
-# HARD GATE — first behavioural check, before secrets or Python import side effects.
-enabled="${NAVI_DATEX_NPRA_ENABLED:-0}"
-case "${enabled}" in
-  1|true|TRUE|yes|YES|on|ON) ;;
-  *)
-    log_info "datex_npra disabled (NAVI_DATEX_NPRA_ENABLED=${enabled}); inert exit"
-    exit 0
-    ;;
-esac
+# --no-jitter kept for legacy callers; maps to default poll (jitter on).
+FORCE=0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-jitter) shift ;;
+    --force) FORCE=1; shift ;;
+    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+    *) echo "unknown arg: $1" >&2; exit 1 ;;
+  esac
+done
 
-export NAVI_PACK_ROOT="${NAVI_PACK_ROOT}"
-export NAVI_DATEX_NPRA_ENABLED
-export PYTHONPATH="${NAVI_SERVER_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
-
-exec python3 -m plugins.datex_npra.poll "$@"
+if [[ "$FORCE" -eq 1 ]]; then
+  exec "${SCRIPT_DIR}/datex-poll-all.sh" --force
+fi
+exec "${SCRIPT_DIR}/datex-poll-all.sh"
