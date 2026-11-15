@@ -7,15 +7,16 @@
 #
 # Usage:
 #   /media/navi/navi-server/scripts/setup-server.sh
-#   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-apache
-#   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-service
-#   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-ddns
-#   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-datex
-#   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-repeaterbook
-#   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-radioid
-#   sudo /media/navi/navi-server/scripts/setup-server.sh --apply-osm-repeaters
-#   /media/navi/navi-server/scripts/setup-server.sh --check
 #   /media/navi/navi-server/scripts/setup-server.sh --dry-run
+#   /media/navi/navi-server/scripts/setup-server.sh --check
+#   sudo …/setup-server.sh --apply-apache
+#   sudo …/setup-server.sh --apply-service          # MWM dirs + units; .rkyv frozen by default
+#   sudo …/setup-server.sh --apply-service --enable-rkyv-bake  # opt-in weekly .rkyv bake/scrub
+#   sudo …/setup-server.sh --apply-mwm              # install MWM check timer (ENABLED=0)
+#   sudo …/setup-server.sh --apply-ddns|--apply-datex|--apply-repeaterbook|--apply-radioid|--apply-osm-repeaters
+#
+# Default on new installs: .rkyv bake/scrub timers installed but disabled; MWM
+# check timer enabled (detect-only); NAVI_MWM_ENABLED=0. See docs/mwm-pipeline.md.
 # Uninstall helpers:
 #   sudo /media/navi/navi-server/scripts/uninstall-ddns.sh [--purge]
 #   sudo /media/navi/navi-server/scripts/uninstall-datex-npra.sh [--purge]
@@ -39,6 +40,14 @@ BAKE_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navi-pack-bake.service"
 BAKE_TIMER_SRC="${NAVI_SERVER_ROOT}/systemd/navi-pack-bake.timer"
 SCRUB_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navi-pack-scrub.service"
 SCRUB_TIMER_SRC="${NAVI_SERVER_ROOT}/systemd/navi-pack-scrub.timer"
+MWM_CHECK_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navi-mwm-check.service"
+MWM_CHECK_TIMER_SRC="${NAVI_SERVER_ROOT}/systemd/navi-mwm-check.timer"
+MWM_BAKE_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navi-mwm-bake.service"
+MWM_BAKE_TIMER_SRC="${NAVI_SERVER_ROOT}/systemd/navi-mwm-bake.timer"
+MWM_SIDECAR_BIN="${NAVI_SERVER_ROOT}/target/release/navi-mwm-sidecar"
+MWM_VENV="${NAVI_SERVER_ROOT}/.venv-mwm"
+MWM_REQUIREMENTS="${NAVI_SERVER_ROOT}/scripts/mwm/requirements.txt"
+MWM_ENV_DST="/etc/navi/mwm.env"
 DDNS_UNIT_SRC="${NAVI_SERVER_ROOT}/systemd/navi-ddns.service"
 DDNS_TIMER_SRC="${NAVI_SERVER_ROOT}/systemd/navi-ddns.timer"
 DDNS_ENV_EXAMPLE="${NAVI_SERVER_ROOT}/scripts/ddns.env.example"
@@ -54,6 +63,7 @@ SYSTEMD_DIR="/etc/systemd/system"
 
 APPLY_APACHE=0
 APPLY_SERVICE=0
+APPLY_MWM=0
 APPLY_DDNS=0
 APPLY_DATEX=0
 APPLY_REPEATERBOOK=0
@@ -61,19 +71,26 @@ APPLY_RADIOID=0
 APPLY_OSM_REPEATERS=0
 CHECK_ONLY=0
 DRY_RUN=0
+# Default: .rkyv bake/scrub stay disabled (serving-only / new installs).
+RKYV_FROZEN=1
+ENABLE_RKYV_BAKE=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --apply-apache) APPLY_APACHE=1; shift ;;
     --apply-service) APPLY_SERVICE=1; shift ;;
+    --apply-mwm) APPLY_MWM=1; shift ;;
     --apply-ddns) APPLY_DDNS=1; shift ;;
     --apply-datex) APPLY_DATEX=1; shift ;;
     --apply-repeaterbook) APPLY_REPEATERBOOK=1; shift ;;
     --apply-radioid) APPLY_RADIOID=1; shift ;;
     --apply-osm-repeaters) APPLY_OSM_REPEATERS=1; shift ;;
+    --rkyv-frozen) RKYV_FROZEN=1; shift ;;
+    --no-rkyv-frozen) RKYV_FROZEN=0; shift ;;
+    --enable-rkyv-bake) ENABLE_RKYV_BAKE=1; RKYV_FROZEN=0; shift ;;
     --check) CHECK_ONLY=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help)
-      sed -n '2,24p' "$0"
+      sed -n '2,28p' "$0"
       exit 0
       ;;
     *) echo "unknown arg: $1" >&2; exit 1 ;;
@@ -106,40 +123,34 @@ if [[ "$DRY_RUN" -eq 1 ]]; then
 == setup-server.sh dry-run (no changes) ==
 root: ${NAVI_SERVER_ROOT}
 data: ${DATA}
+RKYV_FROZEN=${RKYV_FROZEN} ENABLE_RKYV_BAKE=${ENABLE_RKYV_BAKE}
 
-Would install static landing page:
-  ${LANDING_SRC}
-    -> ${LANDING_DST}
-  (repo-owned; setup always overwrites; no Apache reload needed for the HTML file)
+Would ensure directories:
+  published/mwm (+ .navi-mwm-owned), published/packs (optional .rkyv),
+  elevation/mapterhorn-cache, elevation/geometry-hash-cache,
+  state/ (pack-pipeline.lock), logs/, scratch/, .venv-mwm/
+
+Would build (when cargo present):
+  navi-indexed-convert, navi-mwm-sidecar
+  optional: scripts/mwm/build-generator.sh (routes_builder_tool) — not required for serve
+
+Would install Python venv at ${MWM_VENV} from ${MWM_REQUIREMENTS}
 
 Full interactive sudo run would:
-  1. Enable Apache site apache-navi-packs on :80
-  2. Ensure service user ${SERVICE_USER} + bake/scrub systemd units
-     (enables navi-pack-scrub.timer daily + navi-pack-bake.timer weekly)
-  3. Offer DATEX (interactive TTY only):
-       Prompt: Do you want to set up a DATEX provider? [yes/no]
-       If no:  leave NAVI_DATEX_NPRA_ENABLED=0 (no secrets, no timer)
-       If yes: Prompt: DATEX username
-               Prompt: DATEX password (hidden)
-               Prompt: Confirm password (hidden)
-               Write:  ${DATEX_SECRETS} (mode 0600; NAV_DATEX_USERNAME / NAV_DATEX_PASSWORD)
-               Set:    NAVI_DATEX_NPRA_ENABLED=1 in ${DATA}/config.env
-               Install/enable: navi-datex-npra.timer (+ one poll start)
+  1. Enable Apache site apache-navi-packs on :80 (DocumentRoot serves /mwm/ and /packs/ if present)
+  2. Ensure service user ${SERVICE_USER} + systemd units:
+     - navi-mwm-check.timer enabled (detect-only; NAVI_MWM_ENABLED=0)
+     - navi-mwm-bake.service installed, timer not enabled
+     - navi-pack-bake/scrub units installed; timers DISABLED when RKYV_FROZEN=1 (default)
+  3. Write ${MWM_ENV_DST} with NAVI_MWM_ENABLED=0 + cache/concurrency defaults
+  4. If RKYV_FROZEN=1: write published/.navi-rkyv-frozen
+  5. Offer DATEX (interactive TTY only) — unchanged
 
---apply-datex alone would run only step 3 (same prompts).
-
---apply-repeaterbook would:
-  Prompt for server/backend app_ token (hidden), app name, contact, countries
-  Write:  ${RB_SECRETS} (mode 0600; REPEATERBOOK_APP_TOKEN)
-  Set:    NAVI_REPEATERBOOK_ENABLED=1 (does NOT set REPEATERBOOK_PERMISSION_CONFIRMED)
-  Install/enable: navi-repeaterbook.timer (Wed 03:30 UTC)
-  Reminder: set REPEATERBOOK_PERMISSION_CONFIRMED=1 only after written permission
-
-File edit instead of prompts (no interactive setup required):
-  See README.md "DATEX NPRA" / docs/repeaterbook-mirror.md.
+--apply-mwm: install MWM units + /etc/navi/mwm.env + dirs (no Apache).
+--enable-rkyv-bake: enable weekly .rkyv bake + daily scrub (not default).
 
 Current flags that would apply if not --dry-run:
-  APPLY_APACHE=${APPLY_APACHE} APPLY_SERVICE=${APPLY_SERVICE}
+  APPLY_APACHE=${APPLY_APACHE} APPLY_SERVICE=${APPLY_SERVICE} APPLY_MWM=${APPLY_MWM}
   APPLY_DDNS=${APPLY_DDNS} APPLY_DATEX=${APPLY_DATEX}
   APPLY_REPEATERBOOK=${APPLY_REPEATERBOOK}
   APPLY_RADIOID=${APPLY_RADIOID}
@@ -157,9 +168,107 @@ require_root() {
   [[ "$(id -u)" -eq 0 ]] || fail "${what} requires root (re-run with sudo)"
 }
 
-# Create dedicated system user + install systemd units so bake jobs run as
-# navit-server (not a login account). Enables daily scrub timer and weekly
-# bake timer (Mon 00:00 UTC — see systemd/navi-pack-bake.timer).
+ensure_mwm_dirs() {
+  mkdir -p \
+    "${DATA}/published/mwm" \
+    "${DATA}/published/packs" \
+    "${DATA}/elevation/mapterhorn-cache" \
+    "${DATA}/elevation/geometry-hash-cache" \
+    "${DATA}/elevation/copernicus" \
+    "${DATA}/elevation/viewfinder" \
+    "${DATA}/elevation/srtm" \
+    "${DATA}/scratch/extracts" \
+    "${DATA}/scratch/convert" \
+    "${DATA}/state" \
+    "${DATA}/staging" \
+    "${DATA}/generations" \
+    "${DATA}/logs"
+  : >>"${DATA}/state/pack-pipeline.lock"
+  if [[ ! -f "${DATA}/published/mwm/.navi-mwm-owned" ]]; then
+    cat >"${DATA}/published/mwm/.navi-mwm-owned" <<'EOF'
+owned-by=navi-mwm-pipeline
+do-not-touch-from=rkyv-scrub,cleanup,publish-packs,migrate-server
+EOF
+    log "wrote ${DATA}/published/mwm/.navi-mwm-owned"
+  fi
+  if [[ "$RKYV_FROZEN" -eq 1 ]]; then
+    if [[ ! -f "${DATA}/published/.navi-rkyv-frozen" ]]; then
+      cat >"${DATA}/published/.navi-rkyv-frozen" <<EOF
+frozen_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+reason=setup-server default (.rkyv serving-only; MWM is primary bake path)
+EOF
+      log "wrote ${DATA}/published/.navi-rkyv-frozen"
+    fi
+  fi
+}
+
+write_mwm_env() {
+  mkdir -p /etc/navi
+  if [[ ! -f "$MWM_ENV_DST" ]]; then
+    cat >"$MWM_ENV_DST" <<EOF
+# Written by setup-server.sh — override as needed.
+NAVI_MWM_ENABLED=0
+NAVI_MWM_MODE=comaps-release
+NAVI_MWM_PUBLISHED_ROOT=${DATA}/published/mwm
+NAVI_MWM_LOCK=${DATA}/state/pack-pipeline.lock
+NAVI_MWM_MAPTERHORN_CACHE=${DATA}/elevation/mapterhorn-cache
+NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES=58755104232
+NAVI_MWM_GEOMETRY_CACHE=${DATA}/elevation/geometry-hash-cache
+NAVI_MWM_PROCESS_CONCURRENCY=0
+NAVI_MWM_RAM_HEADROOM_GIB=16
+NAVI_MWM_ANNOTATE_CONCURRENCY=2
+NAVI_MWM_TILE_FETCH_CONCURRENCY=16
+NAVI_MWM_PREFETCH_DISK_BUDGET_GIB=20
+NAVI_MWM_DOWNLOAD_CONCURRENCY=2
+NAVI_MWM_GRACE_DAYS=7
+NAVI_MWM_KEEP_RELEASES=2
+EOF
+    chmod 644 "$MWM_ENV_DST"
+    log "wrote ${MWM_ENV_DST} (NAVI_MWM_ENABLED=0)"
+  else
+    log "${MWM_ENV_DST} already present — left unchanged"
+  fi
+}
+
+ensure_mwm_venv() {
+  if [[ ! -f "$MWM_REQUIREMENTS" ]]; then
+    warn "missing ${MWM_REQUIREMENTS} — skip venv"
+    return 0
+  fi
+  if [[ ! -x "${MWM_VENV}/bin/python" ]]; then
+    log "creating Python venv ${MWM_VENV}"
+    python3 -m venv "$MWM_VENV"
+  fi
+  # shellcheck disable=SC1091
+  "${MWM_VENV}/bin/pip" install -q -r "$MWM_REQUIREMENTS" || \
+    warn "pip install into ${MWM_VENV} failed — install deps manually"
+  log "MWM venv ready: ${MWM_VENV}"
+}
+
+# Install MWM systemd units + env. Check timer enabled (detect-only); bake timer off.
+mwm_units_apply() {
+  require_root "--apply-mwm/--apply-service"
+  command -v systemctl >/dev/null 2>&1 || fail "systemctl not found"
+  [[ -f "$MWM_CHECK_UNIT_SRC" ]] || fail "missing ${MWM_CHECK_UNIT_SRC}"
+  [[ -f "$MWM_CHECK_TIMER_SRC" ]] || fail "missing ${MWM_CHECK_TIMER_SRC}"
+  [[ -f "$MWM_BAKE_UNIT_SRC" ]] || fail "missing ${MWM_BAKE_UNIT_SRC}"
+  ensure_mwm_dirs
+  write_mwm_env
+  install -m 0644 "$MWM_CHECK_UNIT_SRC" "${SYSTEMD_DIR}/navi-mwm-check.service"
+  install -m 0644 "$MWM_CHECK_TIMER_SRC" "${SYSTEMD_DIR}/navi-mwm-check.timer"
+  install -m 0644 "$MWM_BAKE_UNIT_SRC" "${SYSTEMD_DIR}/navi-mwm-bake.service"
+  if [[ -f "$MWM_BAKE_TIMER_SRC" ]]; then
+    install -m 0644 "$MWM_BAKE_TIMER_SRC" "${SYSTEMD_DIR}/navi-mwm-bake.timer"
+  fi
+  systemctl daemon-reload
+  systemctl enable --now navi-mwm-check.timer
+  systemctl disable navi-mwm-bake.timer 2>/dev/null || true
+  log "enabled navi-mwm-check.timer (detect-only while NAVI_MWM_ENABLED=0)"
+  log "navi-mwm-bake.timer left disabled (hand-start bake.service or enable when ready)"
+}
+
+# Create dedicated system user + install systemd units.
+# Default: .rkyv bake/scrub installed but disabled; MWM check timer on.
 navit_server_apply() {
   require_root "--apply-service"
   command -v useradd >/dev/null 2>&1 || fail "useradd not found"
@@ -181,21 +290,11 @@ navit_server_apply() {
     log "system user ${SERVICE_USER} already exists"
   fi
 
-  # Runtime data owned by the service user; published stays world-readable for Apache.
-  # Skip chown of busy scratch if another bake owns open files — still set top-level.
-  mkdir -p \
-    "${DATA}/scratch/extracts" \
-    "${DATA}/scratch/convert" \
-    "${DATA}/state" \
-    "${DATA}/staging" \
-    "${DATA}/generations" \
-    "${DATA}/logs" \
-    "${DATA}/published/packs" \
-    "${DATA}/elevation/copernicus" \
-    "${DATA}/elevation/viewfinder" \
-    "${DATA}/elevation/srtm"
-  if pgrep -f '/scripts/run-planet-smoke\.sh|/scripts/run-weekly\.sh|navi-indexed-convert' >/dev/null 2>&1; then
-    warn "bake/smoke process running — deferring recursive chown of ${DATA} (user created; re-run --apply-service when idle)"
+  ensure_mwm_dirs
+  write_mwm_env
+
+  if pgrep -f '/scripts/run-planet-smoke\.sh|/scripts/run-weekly\.sh|navi-indexed-convert|run-mwm-bake|run-comaps-release' >/dev/null 2>&1; then
+    warn "bake process running — deferring recursive chown of ${DATA}"
     chown "${SERVICE_USER}:${SERVICE_USER}" "$DATA" 2>/dev/null || true
   else
     chown -R "${SERVICE_USER}:${SERVICE_USER}" "$DATA"
@@ -203,7 +302,6 @@ navit_server_apply() {
   chmod o+x /media/navi "$NAVI_SERVER_ROOT" "$DATA" 2>/dev/null || true
   chmod -R a+rX "${DATA}/published"
 
-  # Convert binary must be readable/executable by the service user.
   if [[ -x "$CONVERT_BIN" ]]; then
     chmod o+x /media/navi "$NAVI_SERVER_ROOT" \
       "${NAVI_SERVER_ROOT}/target" "${NAVI_SERVER_ROOT}/target/release" 2>/dev/null || true
@@ -211,20 +309,28 @@ navit_server_apply() {
   else
     warn "convert binary not built yet — ${SERVICE_USER} will need execute access after build"
   fi
+  if [[ -x "$MWM_SIDECAR_BIN" ]]; then
+    chmod o+rx "$MWM_SIDECAR_BIN" 2>/dev/null || true
+  fi
 
   install -m 0644 "$SERVICE_UNIT_SRC" "${SYSTEMD_DIR}/navit-server.service"
   install -m 0644 "$BAKE_UNIT_SRC" "${SYSTEMD_DIR}/navi-pack-bake.service"
   install -m 0644 "$BAKE_TIMER_SRC" "${SYSTEMD_DIR}/navi-pack-bake.timer"
   install -m 0644 "$SCRUB_UNIT_SRC" "${SYSTEMD_DIR}/navi-pack-scrub.service"
   install -m 0644 "$SCRUB_TIMER_SRC" "${SYSTEMD_DIR}/navi-pack-scrub.timer"
+  mwm_units_apply
+
   systemctl daemon-reload
-  # Scheduled jobs: daily scrub + weekly Geofabrik pack bake.
-  systemctl enable --now navi-pack-scrub.timer
-  systemctl enable --now navi-pack-bake.timer
-  log "installed systemd units: navit-server.service navi-pack-bake.service navi-pack-scrub.service (+ timers)"
-  log "enabled daily scrub: navi-pack-scrub.timer (systemctl list-timers navi-pack-scrub.timer)"
-  log "enabled weekly bake: navi-pack-bake.timer (Mon 00:00 UTC; systemctl list-timers navi-pack-bake.timer)"
-  log "hand-run bake as service: sudo systemctl start navi-pack-bake.service"
+  if [[ "$ENABLE_RKYV_BAKE" -eq 1 ]]; then
+    systemctl enable --now navi-pack-scrub.timer
+    systemctl enable --now navi-pack-bake.timer
+    log "enabled .rkyv scrub + bake timers (--enable-rkyv-bake)"
+  else
+    systemctl disable --now navi-pack-scrub.timer 2>/dev/null || true
+    systemctl disable --now navi-pack-bake.timer 2>/dev/null || true
+    log ".rkyv bake/scrub timers installed but disabled (RKYV_FROZEN=${RKYV_FROZEN}; use --enable-rkyv-bake to opt in)"
+  fi
+  log "installed systemd units: navit-server + pack bake/scrub + mwm check/bake"
 }
 
 # Install + enable Dynamic DNS timer (requires data/ddns.env credentials).
@@ -703,26 +809,54 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
   else
     echo "MISSING systemd unit navit-server.service"
   fi
+  if [[ -d "${DATA}/published/mwm" ]]; then
+    echo "OK published/mwm/"
+    [[ -f "${DATA}/published/mwm/.navi-mwm-owned" ]] && echo "OK .navi-mwm-owned" || echo "MISSING .navi-mwm-owned"
+  else
+    echo "MISSING published/mwm/"
+  fi
+  if [[ -f "${DATA}/published/.navi-rkyv-frozen" ]]; then
+    echo "OK .navi-rkyv-frozen (serving-only .rkyv)"
+  else
+    echo "NOTE .navi-rkyv-frozen absent (weekly .rkyv bake may be intended)"
+  fi
+  if [[ -x "$MWM_SIDECAR_BIN" ]]; then
+    echo "OK navi-mwm-sidecar (${MWM_SIDECAR_BIN})"
+  else
+    echo "MISSING navi-mwm-sidecar (cargo build --release -p navi-mwm-sidecar)"
+  fi
+  if [[ -x "${MWM_VENV}/bin/python" ]]; then
+    echo "OK MWM venv ${MWM_VENV}"
+  else
+    echo "MISSING MWM venv (re-run setup-server.sh)"
+  fi
+  if [[ -f "${SYSTEMD_DIR}/navi-mwm-check.timer" ]]; then
+    echo "OK mwm check timer installed (enabled=$(systemctl is-enabled navi-mwm-check.timer 2>/dev/null || echo no))"
+  else
+    echo "MISSING navi-mwm-check.timer (sudo $0 --apply-mwm)"
+  fi
   if [[ -f "${SYSTEMD_DIR}/navi-pack-scrub.service" && -f "${SYSTEMD_DIR}/navi-pack-scrub.timer" ]]; then
     echo "OK scrub units installed"
     if systemctl is-enabled navi-pack-scrub.timer >/dev/null 2>&1; then
       echo "OK navi-pack-scrub.timer enabled ($(systemctl is-enabled navi-pack-scrub.timer))"
     else
-      echo "MISSING scrub timer enable (sudo $0 --apply-service)"
+      echo "OK navi-pack-scrub.timer disabled (expected when .rkyv frozen)"
     fi
   else
     echo "MISSING scrub units (sudo $0 --apply-service)"
   fi
   if [[ -f "${SYSTEMD_DIR}/navi-pack-bake.service" && -f "${SYSTEMD_DIR}/navi-pack-bake.timer" ]]; then
-    echo "OK bake units installed"
+    echo "OK pack bake units installed"
     if systemctl is-enabled navi-pack-bake.timer >/dev/null 2>&1; then
       echo "OK navi-pack-bake.timer enabled ($(systemctl is-enabled navi-pack-bake.timer))"
     else
-      echo "MISSING bake timer enable (sudo $0 --apply-service)"
+      echo "OK navi-pack-bake.timer disabled (expected when .rkyv frozen)"
     fi
   else
-    echo "MISSING bake units (sudo $0 --apply-service)"
+    echo "MISSING pack bake units (sudo $0 --apply-service)"
   fi
+  code_mwm="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1/mwm/current.json || true)"
+  echo "GET /mwm/current.json -> ${code_mwm}"
   if [[ -f "${SYSTEMD_DIR}/navi-ddns.service" && -f "${SYSTEMD_DIR}/navi-ddns.timer" ]]; then
     echo "OK ddns units installed"
     if systemctl is-enabled navi-ddns.timer >/dev/null 2>&1; then
@@ -798,17 +932,8 @@ fi
 log "navi-server root=${NAVI_SERVER_ROOT}"
 
 # --- directories + config (no root) ---
-mkdir -p \
-  "${DATA}/scratch/extracts" \
-  "${DATA}/scratch/convert" \
-  "${DATA}/state" \
-  "${DATA}/staging" \
-  "${DATA}/generations" \
-  "${DATA}/logs" \
-  "${DATA}/published/packs" \
-  "${DATA}/elevation/copernicus" \
-  "${DATA}/elevation/viewfinder" \
-  "${DATA}/elevation/srtm"
+ensure_mwm_dirs
+ensure_mwm_venv || true
 
 install_published_landing
 
@@ -887,6 +1012,8 @@ apache_apply() {
 
 if [[ "$APPLY_SERVICE" -eq 1 ]]; then
   navit_server_apply
+elif [[ "$APPLY_MWM" -eq 1 ]]; then
+  mwm_units_apply
 fi
 
 if [[ "$APPLY_DDNS" -eq 1 ]]; then
@@ -912,7 +1039,7 @@ fi
 if [[ "$APPLY_APACHE" -eq 1 ]]; then
   require_root "--apply-apache"
   apache_apply
-elif [[ "$(id -u)" -eq 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 && "$APPLY_REPEATERBOOK" -eq 0 && "$APPLY_RADIOID" -eq 0 && "$APPLY_OSM_REPEATERS" -eq 0 ]]; then
+elif [[ "$(id -u)" -eq 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_MWM" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 && "$APPLY_REPEATERBOOK" -eq 0 && "$APPLY_RADIOID" -eq 0 && "$APPLY_OSM_REPEATERS" -eq 0 ]]; then
   # Full sudo run without flags: configure Apache + service user, then offer DATEX.
   apache_apply
   navit_server_apply
@@ -921,58 +1048,72 @@ elif [[ "$(id -u)" -eq 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$A
   else
     log "DATEX left disabled (non-interactive; re-run with --apply-datex on a TTY to enable)"
   fi
-elif [[ "$(id -u)" -ne 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_APACHE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 && "$APPLY_REPEATERBOOK" -eq 0 && "$APPLY_RADIOID" -eq 0 && "$APPLY_OSM_REPEATERS" -eq 0 ]]; then
+elif [[ "$(id -u)" -ne 0 && "$APPLY_SERVICE" -eq 0 && "$APPLY_MWM" -eq 0 && "$APPLY_APACHE" -eq 0 && "$APPLY_DDNS" -eq 0 && "$APPLY_DATEX" -eq 0 && "$APPLY_REPEATERBOOK" -eq 0 && "$APPLY_RADIOID" -eq 0 && "$APPLY_OSM_REPEATERS" -eq 0 ]]; then
   cat <<EOF
 
 Apache / dedicated service user / optional plugins are not configured by this non-root run. Apply with:
 
   sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-apache
   sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-service
+  # MWM units only (also included in --apply-service):
+  sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-mwm
+  # Opt-in weekly .rkyv bake (default is frozen/disabled):
+  sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-service --enable-rkyv-bake
   # Optional Dynamic DNS (edit data/ddns.env first):
   sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-ddns
-  sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-ddns.sh [--purge]
-  # Optional DATEX (asks yes/no, then username + password):
-  sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-datex
-  sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-datex-npra.sh [--purge]
-  # Optional RepeaterBook mirror (asks for app_ token; permission flag stays 0):
-  sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-repeaterbook
-  sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-repeaterbook.sh [--purge]
-  # Optional RadioID mirror (optional token; permission flag stays 0):
-  sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-radioid
-  sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-radioid.sh [--purge]
-  # Optional OSM amateur-radio extract (ODbL; no secrets; weekly soft-fail):
-  sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --apply-osm-repeaters
-  sudo ${NAVI_SERVER_ROOT}/scripts/uninstall-osm-repeaters.sh [--purge]
+  # Optional DATEX / RepeaterBook / RadioID / OSM repeaters: see --help
 
 Or full sudo setup (Apache + service + DATEX yes/no prompt):
 
   sudo ${NAVI_SERVER_ROOT}/scripts/setup-server.sh
 
+Migrate MWM data only (no .rkyv): scripts/migrate-mwm.sh — see docs/mwm-pipeline.md
+
 EOF
 fi
 
-# --- convert binary (in-repo pack-convert-core; no Navi tree required) ---
-if [[ ! -x "$CONVERT_BIN" ]]; then
-  cargo_bin=""
-  if command -v cargo >/dev/null 2>&1; then
-    cargo_bin="$(command -v cargo)"
-  elif [[ -x "${HOME}/.cargo/bin/cargo" ]]; then
-    cargo_bin="${HOME}/.cargo/bin/cargo"
-  fi
-  if [[ -n "$cargo_bin" ]]; then
-    log "building navi-indexed-convert (release) in ${NAVI_SERVER_ROOT}"
+# --- Rust binaries (pack convert + MWM sidecar) ---
+cargo_bin=""
+if command -v cargo >/dev/null 2>&1; then
+  cargo_bin="$(command -v cargo)"
+elif [[ -x "${HOME}/.cargo/bin/cargo" ]]; then
+  cargo_bin="${HOME}/.cargo/bin/cargo"
+fi
+if [[ -n "$cargo_bin" ]]; then
+  if [[ ! -x "$CONVERT_BIN" ]]; then
+    log "building navi-indexed-convert (release)"
     (cd "$NAVI_SERVER_ROOT" && CARGO_TARGET_DIR="${NAVI_SERVER_ROOT}/target" \
       "$cargo_bin" build --release -p navi-indexed-convert)
-  else
-    warn "navi-indexed-convert not built yet and cargo not found. Install Rust, then:"
-    warn "  . \"\$HOME/.cargo/env\" && cd ${NAVI_SERVER_ROOT} && cargo build --release -p navi-indexed-convert"
   fi
-fi
-if [[ -x "$CONVERT_BIN" ]]; then
-  log "convert binary present: ${CONVERT_BIN}"
+  if [[ ! -x "$MWM_SIDECAR_BIN" ]]; then
+    log "building navi-mwm-sidecar (release)"
+    (cd "$NAVI_SERVER_ROOT" && CARGO_TARGET_DIR="${NAVI_SERVER_ROOT}/target" \
+      "$cargo_bin" build --release -p navi-mwm-sidecar) || \
+      warn "navi-mwm-sidecar build failed"
+  fi
 else
-  warn "convert binary still missing after setup"
+  warn "cargo not found — build later: cargo build --release -p navi-indexed-convert -p navi-mwm-sidecar"
+fi
+[[ -x "$CONVERT_BIN" ]] && log "convert binary present: ${CONVERT_BIN}" || warn "convert binary missing"
+[[ -x "$MWM_SIDECAR_BIN" ]] && log "mwm sidecar present: ${MWM_SIDECAR_BIN}" || warn "navi-mwm-sidecar missing"
+if [[ -x "${NAVI_MWM_BUILD_DIR:-/var/lib/navi/mwm/omim-build-release}/routes_builder_tool" ]]; then
+  log "routes_builder_tool present (optional validation)"
+else
+  log "routes_builder_tool absent (optional; build via scripts/mwm/build-generator.sh when validating routes)"
 fi
 
-log "setup complete — verify with: ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --check"
-log "smoke test example: ${NAVI_SERVER_ROOT}/scripts/run-weekly.sh --region us_west_virginia"
+cat <<EOF
+
+== setup summary ==
+root:     ${NAVI_SERVER_ROOT}
+published/mwm + packs dirs: ensured
+.rkyv frozen default: RKYV_FROZEN=${RKYV_FROZEN} (bake/scrub disabled unless --enable-rkyv-bake)
+MWM:      NAVI_MWM_ENABLED=0 in ${MWM_ENV_DST} (when applied); check timer detect-only
+venv:     ${MWM_VENV}
+migrate:  ${NAVI_SERVER_ROOT}/scripts/migrate-mwm.sh --source … --dest …   # dry-run
+          ${NAVI_SERVER_ROOT}/scripts/migrate-mwm.sh --source … --dest … --apply
+verify:   ${NAVI_SERVER_ROOT}/scripts/setup-server.sh --check
+docs:     docs/mwm-pipeline.md
+
+EOF
+log "setup complete"

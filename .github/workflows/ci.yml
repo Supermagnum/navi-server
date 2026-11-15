@@ -93,3 +93,6 @@ jobs:
 
       - name: Server migrate smoke (local-dest)
         run: ./scripts/test-migrate-server.sh
+
+      - name: MWM-only migrate allow-list smoke
+        run: ./scripts/test-migrate-mwm.sh
