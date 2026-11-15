@@ -187,6 +187,11 @@ only deliberately: `NAVI_RKYV_ALLOW_FROZEN=1` or `--allow-frozen`.
 Do **not** delete published `.rkyv` generations until the Navi client has
 switched to MWM ([docs/client-migration-from-rkyv.md](docs/client-migration-from-rkyv.md)).
 
+**Published size (live, 2026-11-15):** `.rkyv` packs ≈ **1.7 TiB** logical /
+**~656 GiB** on disk (ZFS); MWM sidecars (`published/mwm/`, release 261105) ≈
+**2.1 GiB**. Full comparison and new-host disk planning:
+[docs/mwm-pipeline.md](docs/mwm-pipeline.md#disk-rkyv-old-vs-mwm-sidecars-new).
+
 **Unfreeze** (need a bake before client cutover): remove `.navi-rkyv-frozen`,
 then `systemctl enable --now navi-pack-bake.timer navi-pack-scrub.timer`
 (helper: `/tmp/navi-rkyv-unfreeze.sh` on the host).
