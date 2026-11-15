@@ -50,6 +50,7 @@ while [[ $# -gt 0 ]]; do
     --keep) KEEP="$2"; shift 2 ;;
     --report-only) REPORT_ONLY=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
+    --allow-frozen) export NAVI_RKYV_ALLOW_FROZEN=1; shift ;;
     --skip-quota-gate) SKIP_QUOTA_GATE=1; shift ;;
     -h|--help)
       sed -n '2,22p' "$0"
@@ -58,6 +59,12 @@ while [[ $# -gt 0 ]]; do
     *) die "unknown arg: $1" ;;
   esac
 done
+
+# report-only / dry-run still refuse when frozen (read-only report is OK for
+# disk quota, but prune path must not run). Allow report-only through.
+if [[ "$REPORT_ONLY" -eq 0 ]]; then
+  refuse_if_rkyv_frozen "cleanup.sh"
+fi
 
 [[ "$KEEP" -ge 2 ]] || die "NAVI_KEEP_GENERATIONS/keep must be >= 2 (live + previous)"
 

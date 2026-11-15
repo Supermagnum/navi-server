@@ -45,6 +45,7 @@ while [[ $# -gt 0 ]]; do
     --skip-publish) SKIP_PUBLISH=1; shift ;;
     --skip-cleanup) SKIP_CLEANUP=1; shift ;;
     --force-fetch) FORCE_FETCH=1; shift ;;
+    --allow-frozen) export NAVI_RKYV_ALLOW_FROZEN=1; shift ;;
     -h|--help)
       sed -n '2,26p' "$0"
       exit 0
@@ -52,6 +53,8 @@ while [[ $# -gt 0 ]]; do
     *) die "unknown arg: $1" ;;
   esac
 done
+
+refuse_if_rkyv_frozen "run-weekly.sh"
 
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 LOG_FILE="${NAVI_LOG_DIR}/weekly-${RUN_ID}.log"

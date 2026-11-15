@@ -15,6 +15,7 @@
 publish_single_region_safe() {
   local rid="$1"
   local gen_id="$2"
+  refuse_if_rkyv_frozen "publish-safe.sh"
   local src="${NAVI_CONVERT_DIR}/${rid}"
   local final="${NAVI_GENERATIONS_DIR}/${gen_id}"
   local relpath pub

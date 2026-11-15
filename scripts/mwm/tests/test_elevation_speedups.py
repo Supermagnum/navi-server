@@ -489,42 +489,54 @@ class TestProcessedRaceAndScheduler(unittest.TestCase):
                 lock_path=lock_file,
             )
 
-            # Sunday 2026-11-15 17:59 UTC -> outside window
-            p, _, _ = evaluate_schedule_guard(datetime(2026, 11, 15, 17, 59, tzinfo=timezone.utc), cfg)
-            self.assertFalse(p)
+            # Force bake-timer active so window logic is exercised in CI
+            # (hosts with navi-pack-bake.timer disabled skip the Monday pause).
+            with mock.patch(
+                "leaf_scheduler._rkyv_bake_timer_active_for_guard",
+                return_value=True,
+            ):
+                # Sunday 2026-11-15 17:59 UTC -> outside window
+                p, _, _ = evaluate_schedule_guard(
+                    datetime(2026, 11, 15, 17, 59, tzinfo=timezone.utc), cfg
+                )
+                self.assertFalse(p)
 
-            # Sunday 2026-11-15 18:00 UTC (6h before Mon 00:00) -> pause
-            p, reason, _ = evaluate_schedule_guard(
-                datetime(2026, 11, 15, 18, 0, tzinfo=timezone.utc), cfg
-            )
-            self.assertTrue(p, reason)
-
-            # Monday 2026-11-16 01:00 UTC -> pause
-            p, _, _ = evaluate_schedule_guard(datetime(2026, 11, 16, 1, 0, tzinfo=timezone.utc), cfg)
-            self.assertTrue(p)
-
-            # Touch done_marker after Monday 00:00 UTC -> resumes
-            done_marker.write_text("ok\n")
-            bake_ts = datetime(2026, 11, 16, 0, 20, tzinfo=timezone.utc).timestamp()
-            os.utime(done_marker, (bake_ts, bake_ts))
-            p, reason, _ = evaluate_schedule_guard(
-                datetime(2026, 11, 16, 1, 0, tzinfo=timezone.utc), cfg
-            )
-            self.assertFalse(p, reason)
-
-            # Monday 2026-11-16 06:00 UTC (past pause_after) -> outside window
-            done_marker.unlink()
-            p, _, _ = evaluate_schedule_guard(datetime(2026, 11, 16, 6, 0, tzinfo=timezone.utc), cfg)
-            self.assertFalse(p)
-
-            # External weekly lock held -> pauses even outside time window
-            with lock_file.open("w") as f:
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                # Sunday 2026-11-15 18:00 UTC (6h before Mon 00:00) -> pause
                 p, reason, _ = evaluate_schedule_guard(
-                    datetime(2026, 11, 18, 12, 0, tzinfo=timezone.utc), cfg
+                    datetime(2026, 11, 15, 18, 0, tzinfo=timezone.utc), cfg
                 )
                 self.assertTrue(p, reason)
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+                # Monday 2026-11-16 01:00 UTC -> pause
+                p, _, _ = evaluate_schedule_guard(
+                    datetime(2026, 11, 16, 1, 0, tzinfo=timezone.utc), cfg
+                )
+                self.assertTrue(p)
+
+                # Touch done_marker after Monday 00:00 UTC -> resumes
+                done_marker.write_text("ok\n")
+                bake_ts = datetime(2026, 11, 16, 0, 20, tzinfo=timezone.utc).timestamp()
+                os.utime(done_marker, (bake_ts, bake_ts))
+                p, reason, _ = evaluate_schedule_guard(
+                    datetime(2026, 11, 16, 1, 0, tzinfo=timezone.utc), cfg
+                )
+                self.assertFalse(p, reason)
+
+                # Monday 2026-11-16 06:00 UTC (past pause_after) -> outside window
+                done_marker.unlink()
+                p, _, _ = evaluate_schedule_guard(
+                    datetime(2026, 11, 16, 6, 0, tzinfo=timezone.utc), cfg
+                )
+                self.assertFalse(p)
+
+                # External weekly lock held -> pauses even outside time window
+                with lock_file.open("w") as f:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                    p, reason, _ = evaluate_schedule_guard(
+                        datetime(2026, 11, 18, 12, 0, tzinfo=timezone.utc), cfg
+                    )
+                    self.assertTrue(p, reason)
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
             # Disabled -> never pauses
             off_cfg = ScheduleGuardConfig(enabled=False)

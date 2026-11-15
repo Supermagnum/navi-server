@@ -106,7 +106,10 @@ Server may stop baking a region’s `.rkyv` only when:
 2. MWM catalog covers the region’s leaf set for a current CoMaps release.
 3. Operators confirm grace + rollback docs.
 
-Until then, **do not** remove `.rkyv` publish/bake/scrub.
+Until then, **do not** remove published `.rkyv` packs. The live host may
+**freeze** bake/scrub (timers disabled + `published/.navi-rkyv-frozen`) while
+still serving existing packs for current clients. Full pipeline removal is
+Step 8 after client adoption.
 
 ---
 

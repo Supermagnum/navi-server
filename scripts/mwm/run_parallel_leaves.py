@@ -6,8 +6,9 @@ budget (default 20 GiB).
 Processing: configurable; default derived from free RAM + per-stage peaks with
 a separate wetland annotate semaphore (default 2).
 Cache eviction: initialized once and evicted solely by the parent process.
-Schedule guard: pauses automatically around weekly .rkyv bake (default 6h
-before Monday 00:00 UTC until bake finished or pause window ends).
+Schedule guard: pauses around weekly .rkyv bake (default 6h before Monday
+00:00 UTC) only while navi-pack-bake.timer is enabled / not frozen; still
+pauses if pack-pipeline.lock is held.
 
 Leaves are ordered Nordic -> Europe -> World. Resume via processed.json.
 """
