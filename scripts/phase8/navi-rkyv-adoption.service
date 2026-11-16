@@ -1,0 +1,12 @@
+[Unit]
+Description=Navi Phase 8 .rkyv vs /mwm/ adoption measure (read-only)
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Edit these paths before enabling.
+WorkingDirectory=%h/navi-server
+Environment=NAVI_ADOPTION_OUT=%h/navi-rkyv-adoption
+# Environment=NAVI_ADOPTION_IP_SALT=replace-me
+ExecStart=%h/navi-server/scripts/phase8/measure-rkyv-adoption.py --log-glob /var/log/apache2/access.log* --out %h/navi-rkyv-adoption
+Nice=10
