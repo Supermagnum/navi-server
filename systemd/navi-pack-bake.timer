@@ -15,3 +15,5 @@ Unit=navi-pack-bake.service
 
 [Install]
 WantedBy=timers.target
+
+# Phase 8: disable and remove after G5 (docs/phase8-rkyv-server-retire.md).
