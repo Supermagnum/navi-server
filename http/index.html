@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>navi-server — routing packs</title>
+  <title>navi-server — routing packs and MWM</title>
   <style>
     :root {
       --ink: #1a1f1c;
@@ -90,9 +90,10 @@
   <main>
     <h1 class="brand">navi-server</h1>
     <p class="lede">
-      Pre-built routing packs for the Navi navigation app — graph, POI,
-      wetland/hazard, and elevation-aware costing — derived from OpenStreetMap
-      extracts. This host is not a general map-tile or basemap server.
+      Pre-built routing packs (<code>.rkyv</code>) and CoMaps leaf MWM
+      sidecars for the Navi navigation app — graph, POI, wetland/hazard, and
+      elevation-aware costing — derived from OpenStreetMap extracts. This host
+      is not a general map-tile or basemap server.
     </p>
 
     <h2>What you get</h2>
@@ -103,10 +104,22 @@
       barrier data, and wetland/hazard rings used in costing — not a
       Protomaps-style labeled-region or park-boundary basemap layer.
     </p>
+    <p>
+      The same DocumentRoot also serves <strong>MWM</strong>: CoMaps leaf
+      Navi sidecars and the MWM catalog under <code>/mwm/</code> (alongside
+      the older <code>.rkyv</code> packs under <code>/packs/</code>).
+      <code>*.rkyv</code> packs are being retired: they remain served for now
+      as a migration path, but the long-term path is MWM plus Navi sidecars;
+      deliberate removal comes later once clients are ready. Base
+      <code>.mwm</code> map files come from CoMaps mirrors; this host publishes
+      the matching Navi sidecars, catalog, and attribution.
+    </p>
     <p class="note">
       Format details live in the repo:
       <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/pack-formats.md"><code>docs/pack-formats.md</code></a>
-      (graph / POI-barrier / wetland archives and magic bytes).
+      (graph / POI-barrier / wetland archives and magic bytes) and
+      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/client-fetch-mwm.md"><code>docs/client-fetch-mwm.md</code></a>
+      (MWM catalog and sidecars).
     </p>
 
     <h2>URL layout</h2>
@@ -121,15 +134,21 @@ GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/manifest.json
 GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-manifest.json
 GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-graph-*.rkyv
 GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-poi-barrier.rkyv
-GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-wetland*.rkyv</pre>
+GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-wetland*.rkyv
+
+GET /mwm/current.json
+GET /mwm/&lt;version&gt;/catalog.json
+GET /mwm/&lt;version&gt;/&lt;Leaf&gt;.navi-sidecar.v1.zst
+GET /mwm/&lt;version&gt;/attribution.json</pre>
     <p>
       Start at <a href="/current.json"><code>/current.json</code></a> for the
-      live catalog (generation id and per-region
+      live <code>.rkyv</code> catalog (generation id and per-region
       <code>manifest_url</code>). Then fetch that region’s
       <code>manifest.json</code> and the files it lists (sha256 digests
       included). The convert-style
       <code>&lt;stem&gt;-latest.navi-manifest.json</code> sits beside those
-      packs in the same generation folder.
+      packs in the same generation folder. For MWM, start at
+      <a href="/mwm/current.json"><code>/mwm/current.json</code></a>.
     </p>
 
     <h2>How to fetch a region</h2>
