@@ -50,6 +50,7 @@ SHA-256 after decompress before use.
 | `wetland_edges` | Soft/Hard edge records | **yes** |
 | `boardwalk_flags` | Carve-out flags | no (empty OK) |
 | `elevation_overrides` | Point altitude overrides | no (empty OK; drape still works) |
+| `vehicle_limits` | Per-segment height/width/length/weight caps | no (omit = not available; empty count OK; old clients skip) |
 | `attribution` | UTF-8 JSON credits | **yes** for offline display |
 
 ### Reader rules
@@ -156,14 +157,64 @@ audit tools may still decode the draft for forensics.
 
 ---
 
-## 5. `attribution` body
+## 5. `vehicle_limits` body
+
+Optional. Old clients that do not know the section name **skip** it (reader
+rule 2). **Absent section** means limits were not annotated for this leaf
+(client warns "not available"). **Present with `count = 0`** means annotated
+and no tagged segments matched.
+
+```
+count     u32
+records   count × 20 bytes
+```
+
+Each record (little-endian):
+
+| Offset | Type | Field | Unit / meaning |
+|-------:|------|-------|----------------|
+| 0 | u32 | `feature_id` | MWM feature id (per leaf) |
+| 4 | u16 | `segment_index` | Segment along the feature |
+| 6 | u16 | `reserved` | must be `0` |
+| 8 | u16 | `max_height_cm` | cm; `0` = no limit |
+| 10 | u16 | `max_width_cm` | cm; `0` = no limit |
+| 12 | u16 | `max_length_cm` | cm; `0` = no limit |
+| 14 | u16 | `max_weight_10kg` | units of 10 kg; `0` = no limit |
+| 16 | u16 | `max_axleload_10kg` | units of 10 kg; `0` = no limit |
+| 18 | u16 | `max_bogie_10kg` | units of 10 kg; `0` = no limit |
+
+Sort order (ascending): `(feature_id, segment_index)`. Duplicates dropped at
+bake. Lookups are exact on `(feature_id, segment_index)`. Direction is not
+stored: the limit applies both ways.
+
+**Source tags** (plain values only; `:conditional` and other variants out of
+scope): `maxheight`, `maxwidth`, `maxlength`, `maxweight`, `maxaxleload`,
+`maxbogieweight`. Words `default` / `none` / `unsigned` / `below_default`
+mean no limit. Lengths are stored in centimetres; masses in units of 10 kg
+(tonnes × 100). Unparseable values are logged and skipped.
+
+**Binding:** Geofabrik extract → filter highway ways with any of the tags →
+match to `dump_mwm_roads` features by quantised geometry (quantum `1e-5`),
+highway class, and name when both sides have a name. A segment is emitted
+only when **both** endpoints lie on the tagged way. Unmatched tagged ways
+are listed in the leaf report; never guessed.
+
+**Client rule:** block a segment only when the vehicle value is **strictly
+greater** than the stored limit. Missing / zero limit ⇒ allowed. Apply in
+the **car** estimator (`CarEstimator::CalcSegmentWeight` / edge feasibility),
+not in the wetland Soft/Hard path. Prefer marking the edge impassable over a
+huge weight when the CoMaps API supports it.
+
+---
+
+## 6. `attribution` body
 
 Raw UTF-8 JSON (same object as published `attribution.json`). Must parse as
 JSON. Show offline (OSM, CoMaps, Mapterhorn, Navi).
 
 ---
 
-## 6. Worked example — Norway_Hedmark (release 261105)
+## 7. Worked example — Norway_Hedmark (release 261105)
 
 Regenerated from the live sidecar
 `https://navigate-me.duckdns.org/mwm/261105/Norway_Hedmark.navi-sidecar.v1.zst`.
@@ -243,7 +294,7 @@ Section sizes (Hedmark):
 
 ---
 
-## 7. Legacy spike2 flat layout (do not ship)
+## 8. Legacy spike2 flat layout (do not ship)
 
 Older validation files used: `NVSC` + version + mwm_sha256 + mwm_size + count +
 flat records (no generator strings, no section directory). The production

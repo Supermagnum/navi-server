@@ -52,6 +52,8 @@ QUANTUM_DEG = 1e-5
 DUMP_SCHEMA = "dump_mwm_roads/v1"
 WETLAND_POLICY = "soft=bog,string_bog,fen,untyped;hard=swamp,reedbed;omit=marsh"
 BOARDWALK_RULE = "bridge_types_proxy/v1"
+# Geometry + highway class + name; both segment ends on tagged way; plain OSM values only.
+VEHICLE_LIMITS_POLICY = "geom+hw+name/v1;tags=maxheight,maxwidth,maxlength,maxweight,maxaxleload,maxbogieweight"
 MAPTERHORN_DATASET = "glo30+national/terrarium-z"
 # Sample Mapterhorn at the quantised cell centre so hash-equivalent geometries
 # always see the same DEM pixel (avoids tile-edge drift under 1e-5 collisions).
@@ -73,14 +75,15 @@ def policy_epoch(
     mapterhorn_dataset: str = MAPTERHORN_DATASET,
     wetland_policy: str = WETLAND_POLICY,
     boardwalk_rule: str = BOARDWALK_RULE,
+    vehicle_limits_policy: str = VEHICLE_LIMITS_POLICY,
     dump_schema: str = DUMP_SCHEMA,
     sample_at: str = SAMPLE_AT,
 ) -> str:
     q = f"{quantum:.0e}" if quantum != QUANTUM_DEG else "1e-5"
     return (
         f"q={q}|mh={mapterhorn_dataset}|z={int(zoom)}|"
-        f"wet={wetland_policy}|bw={boardwalk_rule}|dump={dump_schema}|"
-        f"sample={sample_at}"
+        f"wet={wetland_policy}|bw={boardwalk_rule}|vl={vehicle_limits_policy}|"
+        f"dump={dump_schema}|sample={sample_at}"
     )
 
 

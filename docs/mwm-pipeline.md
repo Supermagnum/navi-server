@@ -69,6 +69,9 @@ Defaults from `scripts/mwm/lib/common.sh` / `config/mwm/measured-peaks.json`.
 | `NAVI_MWM_PER_LEAF_GIB` | empty | Optional single-value override; empty uses `stage_peaks_gib` |
 | `NAVI_MWM_RAM_HEADROOM_GIB` | `16` | Reserved when deriving concurrency |
 | `NAVI_MWM_ANNOTATE_CONCURRENCY` | `2` | Semaphore cap on concurrent wetland annotate stages |
+| `NAVI_MWM_VEHICLE_LIMITS_PBF` | (unset) | Geofabrik / region `.osm.pbf` for `vehicle_limits` annotate |
+| `NAVI_MWM_VEHICLE_LIMITS_PBF_DIR` | (unset) | Dir of `{Country}*.osm.pbf`; leaf prefix picks the file |
+| `NAVI_MWM_PLANET_PBF` | (unset) | Fallback PBF when the vehicle-limits paths above are unset |
 | `NAVI_MWM_TILE_FETCH_CONCURRENCY` | `16` | Per-leaf concurrent Mapterhorn HTTP tile fetches |
 | `NAVI_MWM_TILE_MEM_CACHE` | `4096` | Decoded RGB tile LRU capacity per worker |
 | `NAVI_MWM_PREFETCH_DISK_BUDGET_GIB` | `20` | Disk budget for prefetched MWMs in `tmp/_downloads` |

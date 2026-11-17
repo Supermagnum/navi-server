@@ -194,6 +194,8 @@ def main() -> int:
     wjson = tmp / f"{leaf}.wetland.jsonl"
     bjson = tmp / f"{leaf}.boardwalk.jsonl"
     ejson = tmp / f"{leaf}.elevation.jsonl"
+    vjson = tmp / f"{leaf}.vehicle_limits.jsonl"
+    vreport = tmp / f"{leaf}.vehicle_limits.report.json"
     out = args.work / "sidecars" / f"{leaf}.navi-sidecar.v1.zst"
     out_tmp = out.with_name(f".{out.name}.tmp.{os.getpid()}")
     estat = args.work / "stats" / f"{leaf}.elevation.json"
@@ -204,7 +206,18 @@ def main() -> int:
 
     def cleanup() -> float:
         tc0 = time.monotonic()
-        for p in (mwm, Path(str(mwm) + ".part"), roads, wetlands, wjson, bjson, ejson, out_tmp):
+        for p in (
+            mwm,
+            Path(str(mwm) + ".part"),
+            roads,
+            wetlands,
+            wjson,
+            bjson,
+            ejson,
+            vjson,
+            vreport,
+            out_tmp,
+        ):
             try:
                 p.unlink(missing_ok=True)
             except OSError:
@@ -267,12 +280,14 @@ def main() -> int:
         peak_rss_kib["dump"] = dump_rss
 
         python = os.environ.get("NAVI_MWM_PYTHON", sys.executable)
+        vl_annotated = False
         if args.skip_annotate:
             wjson.write_text("")
             bjson.write_text("")
             wstat.write_text(json.dumps({"skipped": True}) + "\n")
             stages_s["annotate_wait"] = 0.0
             stages_s["annotate"] = 0.0
+            stages_s["vehicle_limits"] = 0.0
             peak_rss_kib["annotate"] = 0
         else:
             ann_slots = int(
@@ -308,6 +323,84 @@ def main() -> int:
             stages_s["annotate_wait"] = round(wait_s, 3)
             stages_s["annotate"] = round(ann_s, 3)
             peak_rss_kib["annotate"] = ann_rss
+
+            # Vehicle limits from a Geofabrik extract (planet or region). Optional:
+            # without a PBF omit the bake flag so the section is absent and
+            # clients warn "not available" (distinct from an empty annotated section).
+            # Resolution order:
+            #   1) NAVI_MWM_VEHICLE_LIMITS_PBF (explicit file)
+            #   2) NAVI_MWM_VEHICLE_LIMITS_PBF_DIR/<Country>*.osm.pbf by leaf prefix
+            #   3) NAVI_MWM_PLANET_PBF
+            vl_pbf = os.environ.get("NAVI_MWM_VEHICLE_LIMITS_PBF", "").strip()
+            if not vl_pbf:
+                vl_dir = os.environ.get("NAVI_MWM_VEHICLE_LIMITS_PBF_DIR", "").strip()
+                if vl_dir and Path(vl_dir).is_dir():
+                    country = leaf.split("_", 1)[0]
+                    candidates = sorted(Path(vl_dir).glob(f"{country}*.osm.pbf"))
+                    if not candidates:
+                        candidates = sorted(Path(vl_dir).glob(f"{country.lower()}*.osm.pbf"))
+                    if candidates:
+                        vl_pbf = str(candidates[0])
+            if not vl_pbf:
+                vl_pbf = os.environ.get("NAVI_MWM_PLANET_PBF", "").strip()
+            if vl_pbf and Path(vl_pbf).is_file() and roads.is_file():
+                def _poly_bbox(path: Path) -> tuple[float, float, float, float]:
+                    min_lon = min_lat = float("inf")
+                    max_lon = max_lat = float("-inf")
+                    for line in path.read_text().splitlines():
+                        parts = line.split()
+                        if len(parts) < 2:
+                            continue
+                        try:
+                            lon = float(parts[0])
+                            lat = float(parts[1])
+                        except ValueError:
+                            continue
+                        min_lon = min(min_lon, lon)
+                        max_lon = max(max_lon, lon)
+                        min_lat = min(min_lat, lat)
+                        max_lat = max(max_lat, lat)
+                    return min_lon, min_lat, max_lon, max_lat
+
+                border = (
+                    Path(os.environ.get("NAVI_MWM_COMAPS_ROOT", "").strip())
+                    / "data"
+                    / "borders"
+                    / f"{leaf}.poly"
+                )
+                vl_cmd = [
+                    python,
+                    str(SCRIPT_DIR / "annotate-vehicle-limits.py"),
+                    "--pbf",
+                    vl_pbf,
+                    "--roads-jsonl",
+                    str(roads),
+                    "--out",
+                    str(vjson),
+                    "--report",
+                    str(vreport),
+                ]
+                if border.is_file():
+                    w, s, e, n = _poly_bbox(border)
+                    vl_cmd.extend(["--bbox", f"{w},{s},{e},{n}"])
+                vl_out, vl_err, vl_rss, vl_s = _run_stage(vl_cmd)
+                if vl_out.strip():
+                    print(vl_out.strip(), flush=True)
+                if vl_err.strip():
+                    sys.stderr.write(vl_err)
+                    sys.stderr.flush()
+                stages_s["vehicle_limits"] = round(vl_s, 3)
+                peak_rss_kib["vehicle_limits"] = vl_rss
+                vl_annotated = True
+                # Keep per-leaf match report under work/meta for release stats.
+                if vreport.is_file():
+                    meta_rep = (
+                        args.work / "meta" / "vehicle_limits" / f"{leaf}.report.json"
+                    )
+                    meta_rep.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(vreport, meta_rep)
+            else:
+                stages_s["vehicle_limits"] = 0.0
 
         if args.skip_elevation:
             ejson.write_text("")
@@ -461,30 +554,33 @@ def main() -> int:
 
         series = discovery["map_series"]
         ver = str(discovery["version"])
-        bake_out, bake_err, bake_rss, bake_s = _run_stage(
-            [
-                str(args.sidecar_bin),
-                "bake",
-                "--mwm",
-                str(mwm),
-                "--wetland-jsonl",
-                str(wjson),
-                "--boardwalk-jsonl",
-                str(bjson),
-                "--elevation-jsonl",
-                str(ejson),
-                "--attribution",
-                str(args.attribution),
-                "--generator-tag",
-                f"comaps-release/{series}",
-                "--generator-sha",
-                ver,
-                "--ambiguous-threshold",
-                os.environ.get("NAVI_MWM_AMBIGUOUS_THRESHOLD", "0"),
-                "--out",
-                str(out_tmp),
-            ]
-        )
+        bake_cmd = [
+            str(args.sidecar_bin),
+            "bake",
+            "--mwm",
+            str(mwm),
+            "--wetland-jsonl",
+            str(wjson),
+            "--boardwalk-jsonl",
+            str(bjson),
+            "--elevation-jsonl",
+            str(ejson),
+            "--attribution",
+            str(args.attribution),
+            "--generator-tag",
+            f"comaps-release/{series}",
+            "--generator-sha",
+            ver,
+            "--ambiguous-threshold",
+            os.environ.get("NAVI_MWM_AMBIGUOUS_THRESHOLD", "0"),
+            "--out",
+            str(out_tmp),
+        ]
+        if vl_annotated and vjson.is_file():
+            elev_idx = bake_cmd.index("--elevation-jsonl")
+            bake_cmd.insert(elev_idx + 2, "--vehicle-limits-jsonl")
+            bake_cmd.insert(elev_idx + 3, str(vjson))
+        bake_out, bake_err, bake_rss, bake_s = _run_stage(bake_cmd)
         if bake_err.strip():
             sys.stderr.write(bake_err)
             sys.stderr.flush()
