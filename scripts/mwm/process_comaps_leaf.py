@@ -380,7 +380,10 @@ def main() -> int:
                     "--report",
                     str(vreport),
                 ]
+                # Prefer the leaf .poly so tagged ways outside the real border
+                # (bbox is a loose AABB) do not inflate the match-rate denominator.
                 if border.is_file():
+                    vl_cmd.extend(["--poly", str(border)])
                     w, s, e, n = _poly_bbox(border)
                     vl_cmd.extend(["--bbox", f"{w},{s},{e},{n}"])
                 vl_out, vl_err, vl_rss, vl_s = _run_stage(vl_cmd)
