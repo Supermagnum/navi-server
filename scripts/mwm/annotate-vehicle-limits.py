@@ -4,18 +4,22 @@
 Reads a filtered Geofabrik extract (or GeoJSON of tagged highway ways) and a
 ``dump_mwm_roads`` JSONL, then emits vehicle_limits JSONL for navi-mwm-sidecar.
 
-Match rule (never guessed):
-  * highway class (from OSM ``highway=*`` vs MWM ``highway-*`` type)
-  * name when both sides have a non-empty name (case-insensitive)
-  * a segment is kept only when **both** endpoints lie on the tagged way
-    (quantised node coordinates, same quantum as geometry_cache)
+Match rule (tolerance-based; never invents limits):
+  * A segment is kept when **both** endpoints lie within TOLERANCE_M of the
+    tagged OSM way polyline, the highway class is compatible, and false-
+    positive guards pass (bearing + bridge/tunnel layer).
+  * Name is a tie-breaker when several roads claim the same segment; it is
+    never required.
+  * Unmatched tagged ways are listed in the report with a reason.
 
-Unmatched tagged ways are listed in the report; they are never invented.
+Class mapping: OSM ``highway=*`` vs MWM ``highway-<class>`` / ``highway-<class>-bridge``
+/ ``highway-<class>-tunnel`` (and compound stems such as ``service-driveway``).
 """
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import subprocess
 import sys
 import tempfile
@@ -43,15 +47,92 @@ LIMIT_KEYS = (
     "maxbogieweight",
 )
 
+# Diagnosis (Norway_Hedmark): CoMaps endpoints sit 0.4–5.6 m from OSM nodes
+# (median ~2.8 m, p90 ~5.2 m). Known bridges Stai/Atna need ~4.4 m; several
+# true bridges (Evenstad, Estensmo, Plassen, Lera bridge feature) sit at
+# 5.5–5.9 m. Exact quantum membership matched 1/821 ways. 8 m covers those
+# bridges (Hedmark → 95.5%) while staying below typical parallel-road
+# spacing (~10–15 m).
+TOLERANCE_M = 8.0
+# Bearing guard: reject segments whose direction differs by more than this
+# from the nearest OSM way segment (also accepts reverse bearing). CoMaps
+# short tunnels/bridges often snap to 0/90 deg; 45 deg + degenerate skip.
+MAX_BEARING_DIFF_DEG = 45.0
+# Skip bearing when MWM segment is shorter than this (quantised stubs).
+MIN_BEARING_SEGMENT_M = 2.0
+# Along-way overlap: projected span on the OSM way must cover this fraction of
+# min(segment_length, osm_way_length). Using min() so a short tagged stretch
+# (bridge) is not rejected when the MWM segment is longer than the way.
+# Nordic short-side FP audit: perpendicular junction stubs have ratio ~0;
+# well-aligned main segments have p5 ~0.80. 0.70 clears stubs while keeping
+# Hedmark/Western/Hordaland ≥ 96%.
+OVERLAP_MIN_RATIO = 0.70
+# Below this length, overlap is ill-defined (duplicate quantised points).
+OVERLAP_DEG_EPS_M = 0.5
+# Spatial index cell size in quanta (~1.1 m each at equator).
+GRID_CELL_QUANTA = 40
+
+# OSM highway class → acceptable MWM base stems (after -bridge/-tunnel strip).
+HIGHWAY_ALIASES: dict[str, frozenset[str]] = {
+    "cycleway": frozenset({"cycleway", "footway-bicycle", "path-bicycle"}),
+    "footway": frozenset({"footway", "footway-bicycle", "footway-sidewalk", "footway-crossing"}),
+    "path": frozenset({"path", "path-bicycle", "path-difficult", "path-expert"}),
+    "service": frozenset({"service", "service-driveway", "service-parking_aisle"}),
+}
+
+
+def _highway_class_osm(tags: dict) -> str | None:
+    hw = tags.get("highway")
+    return hw.strip().lower() if hw else None
+
+
+def _parse_mwm_highway(types: list | None) -> tuple[str | None, bool, bool]:
+    """Return (base_class, is_bridge, is_tunnel) from MWM type strings.
+
+    CoMaps encodes bridges/tunnels as ``highway-<class>-bridge`` / ``-tunnel``.
+    Compound stems (``service-driveway``, ``footway-bicycle``) are kept intact
+    after the bridge/tunnel suffix is stripped.
+    """
+    raw = None
+    for t in types or []:
+        if isinstance(t, str) and t.startswith("highway-"):
+            raw = t[len("highway-") :].lower()
+            break
+    if not raw:
+        return None, False, False
+    is_bridge = raw.endswith("-bridge")
+    is_tunnel = raw.endswith("-tunnel")
+    if is_bridge:
+        base = raw[: -len("-bridge")]
+    elif is_tunnel:
+        base = raw[: -len("-tunnel")]
+    else:
+        base = raw
+    return base or None, is_bridge, is_tunnel
+
 
 def _highway_class(tags_or_types) -> str | None:
+    """Legacy helper: OSM tags → class; MWM types → base class (suffix stripped)."""
     if isinstance(tags_or_types, dict):
-        hw = tags_or_types.get("highway")
-        return hw.strip().lower() if hw else None
-    for t in tags_or_types or []:
-        if isinstance(t, str) and t.startswith("highway-"):
-            return t[len("highway-") :].lower()
-    return None
+        return _highway_class_osm(tags_or_types)
+    base, _, _ = _parse_mwm_highway(tags_or_types)
+    return base
+
+
+def _classes_compatible(osm_hw: str | None, mwm_base: str | None) -> bool:
+    if not osm_hw or not mwm_base:
+        return True
+    if osm_hw == mwm_base:
+        return True
+    aliases = HIGHWAY_ALIASES.get(osm_hw)
+    if aliases and mwm_base in aliases:
+        return True
+    # OSM highway=service vs MWM highway-service-driveway / -parking_aisle.
+    if mwm_base.startswith(osm_hw + "-"):
+        return True
+    if osm_hw.startswith(mwm_base + "-"):
+        return True
+    return False
 
 
 def _name(tags_or_props) -> str:
@@ -61,6 +142,12 @@ def _name(tags_or_props) -> str:
             if v and str(v).strip():
                 return str(v).strip().lower()
     return ""
+
+
+def _truthy_tag(val) -> bool:
+    if val is None:
+        return False
+    return str(val).strip().lower() not in ("", "no", "false", "0")
 
 
 def _qpair(lat: float, lon: float) -> tuple[int, int]:
@@ -120,12 +207,162 @@ def limits_from_tags(tags: dict) -> dict[str, int] | None:
     return out
 
 
+def _m_per_deg(lat: float) -> tuple[float, float]:
+    return 111320.0, 111320.0 * math.cos(math.radians(lat))
+
+
+def _dist_point_to_segment_m(
+    pt: tuple[float, float],
+    a: tuple[float, float],
+    b: tuple[float, float],
+) -> float:
+    lat0 = (pt[0] + a[0] + b[0]) / 3.0
+    m_lat, m_lon = _m_per_deg(lat0)
+    abx = (b[1] - a[1]) * m_lon
+    aby = (b[0] - a[0]) * m_lat
+    apx = (pt[1] - a[1]) * m_lon
+    apy = (pt[0] - a[0]) * m_lat
+    ab2 = abx * abx + aby * aby
+    t = 0.0 if ab2 == 0.0 else max(0.0, min(1.0, (apx * abx + apy * aby) / ab2))
+    return math.hypot(apx - t * abx, apy - t * aby)
+
+
+def _dist_point_to_polyline_m(
+    pt: tuple[float, float],
+    poly: list[tuple[float, float]],
+) -> float:
+    best = 1e18
+    for i in range(len(poly) - 1):
+        best = min(best, _dist_point_to_segment_m(pt, poly[i], poly[i + 1]))
+    return best
+
+
+def _segment_length_m(a: tuple[float, float], b: tuple[float, float]) -> float:
+    m_lat, m_lon = _m_per_deg((a[0] + b[0]) / 2.0)
+    return math.hypot((b[1] - a[1]) * m_lon, (b[0] - a[0]) * m_lat)
+
+
+def _polyline_length_m(nodes: list[tuple[float, float]]) -> float:
+    return sum(
+        _segment_length_m(nodes[i], nodes[i + 1]) for i in range(len(nodes) - 1)
+    )
+
+
+def _project_along_polyline_m(
+    pt: tuple[float, float],
+    poly: list[tuple[float, float]],
+) -> tuple[float, float]:
+    """Return (along_track_m, distance_m) for the closest point on ``poly``."""
+    best_d = 1e18
+    best_s = 0.0
+    acc = 0.0
+    for i in range(len(poly) - 1):
+        a, b = poly[i], poly[i + 1]
+        seg_l = _segment_length_m(a, b)
+        m_lat, m_lon = _m_per_deg((pt[0] + a[0] + b[0]) / 3.0)
+        abx = (b[1] - a[1]) * m_lon
+        aby = (b[0] - a[0]) * m_lat
+        apx = (pt[1] - a[1]) * m_lon
+        apy = (pt[0] - a[0]) * m_lat
+        ab2 = abx * abx + aby * aby
+        t = 0.0 if ab2 == 0.0 else max(0.0, min(1.0, (apx * abx + apy * aby) / ab2))
+        d = math.hypot(apx - t * abx, apy - t * aby)
+        if d < best_d:
+            best_d = d
+            best_s = acc + t * seg_l
+        acc += seg_l
+    return best_s, best_d
+
+
+def _along_way_overlap_ratio(
+    a: tuple[float, float],
+    b: tuple[float, float],
+    way_nodes: list[tuple[float, float]],
+    way_len_m: float,
+) -> tuple[float, float, float]:
+    """Return (ratio, along_span_m, segment_length_m).
+
+    ratio = along_span / max(min(seg_len, way_len), OVERLAP_DEG_EPS_M).
+    """
+    seg_l = _segment_length_m(a, b)
+    sa, _ = _project_along_polyline_m(a, way_nodes)
+    sb, _ = _project_along_polyline_m(b, way_nodes)
+    span = abs(sa - sb)
+    denom = max(min(seg_l, way_len_m), OVERLAP_DEG_EPS_M)
+    return span / denom, span, seg_l
+
+
+def _bearing_deg(a: tuple[float, float], b: tuple[float, float]) -> float:
+    m_lat, m_lon = _m_per_deg((a[0] + b[0]) / 2.0)
+    dx = (b[1] - a[1]) * m_lon
+    dy = (b[0] - a[0]) * m_lat
+    return math.degrees(math.atan2(dx, dy)) % 360.0
+
+
+def _angle_diff_deg(a: float, b: float) -> float:
+    d = abs(a - b) % 360.0
+    return min(d, 360.0 - d)
+
+
+def _nearest_way_bearing(
+    a: tuple[float, float],
+    b: tuple[float, float],
+    way_nodes: list[tuple[float, float]],
+) -> float | None:
+    """Bearing of the OSM way segment closest to the midpoint of (a, b)."""
+    if len(way_nodes) < 2:
+        return None
+    mid = ((a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0)
+    best_i = 0
+    best_d = 1e18
+    for i in range(len(way_nodes) - 1):
+        d = _dist_point_to_segment_m(mid, way_nodes[i], way_nodes[i + 1])
+        if d < best_d:
+            best_d = d
+            best_i = i
+    return _bearing_deg(way_nodes[best_i], way_nodes[best_i + 1])
+
+
+def _parse_way_id(props: dict) -> int | None:
+    """Parse osmium ``-u type_id`` / ``-a type,id`` / pyosmium ``way/N`` ids."""
+    if props.get("@type") == "way":
+        cand = props.get("@id")
+        if isinstance(cand, int):
+            return cand
+        if isinstance(cand, str) and cand.isdigit():
+            return int(cand)
+    for cand in (props.get("@id"), props.get("id"), props.get("osm_id")):
+        if cand is None:
+            continue
+        s = str(cand)
+        if s.startswith("way/"):
+            return int(s.split("/", 1)[1])
+        if s.startswith("w") and s[1:].isdigit():
+            return int(s[1:])
+        if s.isdigit():
+            return int(s)
+    return None
+
+
 def load_tagged_ways_geojson(path: Path) -> list[dict]:
     data = json.loads(path.read_text(encoding="utf-8"))
     ways = []
     for feat in data.get("features", []):
         props = feat.get("properties") or {}
-        tags = {k: v for k, v in props.items() if k in LIMIT_KEYS or k in ("highway", "name", "bridge:name", "ref", "@id", "id", "osm_id")}
+        keep = set(LIMIT_KEYS) | {
+            "highway",
+            "name",
+            "bridge:name",
+            "ref",
+            "bridge",
+            "tunnel",
+            "layer",
+            "@id",
+            "id",
+            "osm_id",
+            "@type",
+        }
+        tags = {k: v for k, v in props.items() if k in keep}
         if "highway" not in tags and props.get("highway"):
             tags["highway"] = props["highway"]
         geom = feat.get("geometry") or {}
@@ -135,16 +372,15 @@ def load_tagged_ways_geojson(path: Path) -> list[dict]:
         if len(coords) < 2:
             continue
         nodes = [(float(c[1]), float(c[0])) for c in coords]  # lat, lon
-        wid = props.get("@id") or props.get("id") or props.get("osm_id")
-        if isinstance(wid, str) and wid.startswith("way/"):
-            wid = int(wid.split("/", 1)[1])
         ways.append(
             {
-                "osm_way_id": int(wid) if wid is not None else None,
+                "osm_way_id": _parse_way_id(props),
                 "tags": tags,
                 "nodes": nodes,
                 "name": _name(tags),
-                "highway": _highway_class(tags),
+                "highway": _highway_class_osm(tags),
+                "is_bridge": _truthy_tag(tags.get("bridge")),
+                "is_tunnel": _truthy_tag(tags.get("tunnel")),
             }
         )
     return ways
@@ -179,7 +415,6 @@ def filter_pbf_to_geojson_pyosmium(
                 return
             if bbox is not None:
                 west, south, east, north = bbox
-                # Keep way if any node falls inside the leaf bbox (generous).
                 inside = False
                 for n in w.nodes:
                     if not n.location.valid():
@@ -197,8 +432,14 @@ def filter_pbf_to_geojson_pyosmium(
                 coords.append([float(n.location.lon), float(n.location.lat)])
             if len(coords) < 2:
                 return
-            props = {k: tags[k] for k in tags if k in limit_keys or k in ("highway", "name", "bridge:name", "ref")}
+            props = {
+                k: tags[k]
+                for k in tags
+                if k in limit_keys
+                or k in ("highway", "name", "bridge:name", "ref", "bridge", "tunnel", "layer")
+            }
             props["@id"] = f"way/{w.id}"
+            props["@type"] = "way"
             self.features.append(
                 {
                     "type": "Feature",
@@ -208,7 +449,6 @@ def filter_pbf_to_geojson_pyosmium(
             )
 
     h = Handler()
-    # locations=True so node coords are available on ways.
     h.apply_file(str(pbf), locations=True, idx="flex_mem")
     out_geojson.write_text(
         json.dumps({"type": "FeatureCollection", "features": h.features}, ensure_ascii=False),
@@ -216,8 +456,13 @@ def filter_pbf_to_geojson_pyosmium(
     )
 
 
-def filter_pbf_to_geojson(pbf: Path, out_geojson: Path, bbox: tuple[float, float, float, float] | None) -> None:
-    """Stream-filter a PBF to tagged highway ways, then export GeoJSON. Deletes intermediates."""
+def filter_pbf_to_geojson(
+    pbf: Path,
+    out_geojson: Path,
+    bbox: tuple[float, float, float, float] | None,
+    poly: Path | None = None,
+) -> None:
+    """Stream-filter a PBF to tagged highway ways, then export GeoJSON."""
     if not _have_osmium_cli():
         filter_pbf_to_geojson_pyosmium(pbf, out_geojson, bbox)
         return
@@ -225,7 +470,20 @@ def filter_pbf_to_geojson(pbf: Path, out_geojson: Path, bbox: tuple[float, float
         td_path = Path(td)
         work = pbf
         clipped = td_path / "clip.pbf"
-        if bbox is not None:
+        if poly is not None and poly.is_file():
+            subprocess.check_call(
+                [
+                    "osmium",
+                    "extract",
+                    f"--polygon={poly}",
+                    "-o",
+                    str(clipped),
+                    "--overwrite",
+                    str(pbf),
+                ]
+            )
+            work = clipped
+        elif bbox is not None:
             west, south, east, north = bbox
             subprocess.check_call(
                 [
@@ -240,7 +498,6 @@ def filter_pbf_to_geojson(pbf: Path, out_geojson: Path, bbox: tuple[float, float
             )
             work = clipped
         filtered = td_path / "limits.pbf"
-        # Keep ways that have any limit tag, then restrict to highway=*.
         subprocess.check_call(
             [
                 "osmium",
@@ -269,12 +526,17 @@ def filter_pbf_to_geojson(pbf: Path, out_geojson: Path, bbox: tuple[float, float
                 "w/highway",
             ]
         )
+        # Preserve OSM way ids (type_id) and @type/@id attributes.
         subprocess.check_call(
             [
                 "osmium",
                 "export",
                 "-f",
                 "geojson",
+                "-u",
+                "type_id",
+                "-a",
+                "type,id",
                 "-o",
                 str(out_geojson),
                 "--overwrite",
@@ -294,57 +556,213 @@ def load_roads_jsonl(path: Path) -> list[dict]:
             pts = feat.get("points") or []
             if len(pts) < 2:
                 continue
+            types = feat.get("types") or []
+            base, is_bridge, is_tunnel = _parse_mwm_highway(types)
             roads.append(
                 {
                     "feature_id": int(feat["feature_id"]),
                     "points": [(float(p["lat"]), float(p["lon"])) for p in pts],
-                    "highway": _highway_class(feat.get("types")),
+                    "highway": base,
+                    "is_bridge": is_bridge,
+                    "is_tunnel": is_tunnel,
                     "name": _name(feat.get("tags") or feat),
-                    "types": feat.get("types") or [],
+                    "types": types,
                 }
             )
     return roads
 
 
-def match_way_to_roads(way: dict, roads: list[dict]) -> list[dict]:
-    """Return vehicle_limits JSONL rows for one OSM way, or empty if unmatched."""
+def _build_road_grid(roads: list[dict]) -> dict[tuple[int, int], list[int]]:
+    grid: dict[tuple[int, int], list[int]] = defaultdict(list)
+    cell = GRID_CELL_QUANTA
+    for ri, road in enumerate(roads):
+        keys: set[tuple[int, int]] = set()
+        for lat, lon in road["points"]:
+            keys.add((quantise_coord(lat) // cell, quantise_coord(lon) // cell))
+        for key in keys:
+            grid[key].append(ri)
+    return grid
+
+
+def _candidate_road_indices(
+    way: dict,
+    grid: dict[tuple[int, int], list[int]],
+    pad: int = 2,
+) -> list[int]:
+    cell = GRID_CELL_QUANTA
+    seen: set[int] = set()
+    out: list[int] = []
+    for lat, lon in way["nodes"]:
+        qlat = quantise_coord(lat) // cell
+        qlon = quantise_coord(lon) // cell
+        for di in range(-pad, pad + 1):
+            for dj in range(-pad, pad + 1):
+                for ri in grid.get((qlat + di, qlon + dj), ()):
+                    if ri not in seen:
+                        seen.add(ri)
+                        out.append(ri)
+    return out
+
+
+def match_way_to_roads(
+    way: dict,
+    roads: list[dict],
+    *,
+    grid: dict[tuple[int, int], list[int]] | None = None,
+    tolerance_m: float = TOLERANCE_M,
+    guard_counts: dict[str, int] | None = None,
+) -> list[dict]:
+    """Return vehicle_limits JSONL rows for one OSM way, or empty if unmatched.
+
+    When ``grid`` is provided, only spatially nearby roads are considered.
+    ``guard_counts`` accumulates false-positive guard rejections when given.
+    """
     lim = limits_from_tags(way["tags"])
     if lim is None:
         return []
-    way_nodes = {_qpair(lat, lon) for lat, lon in way["nodes"]}
     hw = way["highway"]
     wname = way["name"]
-    out = []
-    for road in roads:
-        if hw and road["highway"] and hw != road["highway"]:
+    way_nodes = way["nodes"]
+    osm_bridge = bool(way.get("is_bridge"))
+    osm_tunnel = bool(way.get("is_tunnel"))
+
+    if grid is None:
+        indices = list(range(len(roads)))
+    else:
+        indices = _candidate_road_indices(way, grid)
+
+    # Collect candidate (feature_id, seg_i, score, row, seg_len). Lower score
+    # is better: score = (name_mismatch, mean_endpoint_dist).
+    candidates: dict[tuple[int, int], tuple[tuple, dict, float]] = {}
+    way_len_m = _polyline_length_m(way_nodes)
+
+    for ri in indices:
+        road = roads[ri]
+        if not _classes_compatible(hw, road["highway"]):
+            if guard_counts is not None:
+                guard_counts["class_incompatible"] = guard_counts.get("class_incompatible", 0) + 1
             continue
+        # Bridge/tunnel layer: road under a bridge must not inherit the bridge limit.
+        if osm_bridge and not road["is_bridge"]:
+            if guard_counts is not None:
+                guard_counts["bridge_layer_reject"] = guard_counts.get("bridge_layer_reject", 0) + 1
+            continue
+        if osm_tunnel and not road["is_tunnel"]:
+            if guard_counts is not None:
+                guard_counts["tunnel_layer_reject"] = guard_counts.get("tunnel_layer_reject", 0) + 1
+            continue
+        if (not osm_bridge) and (not osm_tunnel) and road["is_bridge"]:
+            if guard_counts is not None:
+                guard_counts["nonbridge_to_bridge_reject"] = (
+                    guard_counts.get("nonbridge_to_bridge_reject", 0) + 1
+                )
+            continue
+        if (not osm_bridge) and (not osm_tunnel) and road["is_tunnel"]:
+            if guard_counts is not None:
+                guard_counts["nontunnel_to_tunnel_reject"] = (
+                    guard_counts.get("nontunnel_to_tunnel_reject", 0) + 1
+                )
+            continue
+
         rname = road["name"]
-        if wname and rname and wname != rname:
-            continue
+        name_mismatch = 1 if (wname and rname and wname != rname) else 0
         pts = road["points"]
         for seg_i in range(len(pts) - 1):
-            a = _qpair(*pts[seg_i])
-            b = _qpair(*pts[seg_i + 1])
-            if a in way_nodes and b in way_nodes:
-                row = {
-                    "feature_id": road["feature_id"],
-                    "segment_index": seg_i,
-                    **lim,
-                    "osm_way_id": way["osm_way_id"],
-                }
-                out.append(row)
-    return out
+            a = pts[seg_i]
+            b = pts[seg_i + 1]
+            da = _dist_point_to_polyline_m(a, way_nodes)
+            db = _dist_point_to_polyline_m(b, way_nodes)
+            if da > tolerance_m or db > tolerance_m:
+                continue
+            seg_len_m = _segment_length_m(a, b)
+            # Degenerate CoMaps stubs (duplicate quantised points) have
+            # meaningless 0/90 bearings — skip the bearing guard for those.
+            if seg_len_m >= MIN_BEARING_SEGMENT_M:
+                seg_bearing = _bearing_deg(a, b)
+                way_bearing = _nearest_way_bearing(a, b, way_nodes)
+                if way_bearing is not None:
+                    diff = _angle_diff_deg(seg_bearing, way_bearing)
+                    # Accept reverse direction (same centreline may be reversed).
+                    if min(diff, abs(diff - 180.0)) > MAX_BEARING_DIFF_DEG:
+                        if guard_counts is not None:
+                            guard_counts["bearing_reject"] = (
+                                guard_counts.get("bearing_reject", 0) + 1
+                            )
+                        continue
+            else:
+                if guard_counts is not None:
+                    guard_counts["bearing_skipped_short_seg"] = (
+                        guard_counts.get("bearing_skipped_short_seg", 0) + 1
+                    )
+            # Along-way overlap (skip only for near-zero degenerate length).
+            if seg_len_m >= OVERLAP_DEG_EPS_M:
+                ratio, _span, _ = _along_way_overlap_ratio(
+                    a, b, way_nodes, way_len_m
+                )
+                if ratio < OVERLAP_MIN_RATIO:
+                    if guard_counts is not None:
+                        guard_counts["overlap_reject"] = (
+                            guard_counts.get("overlap_reject", 0) + 1
+                        )
+                    continue
+            # Prefer name match; then closer mean endpoint distance.
+            score = (name_mismatch, (da + db) / 2.0)
+            row = {
+                "feature_id": road["feature_id"],
+                "segment_index": seg_i,
+                **lim,
+                "osm_way_id": way["osm_way_id"],
+            }
+            key = (road["feature_id"], seg_i)
+            prev = candidates.get(key)
+            if prev is None or score < prev[0]:
+                candidates[key] = (score, row, seg_len_m)
+
+    if not candidates:
+        return []
+
+    # Primary feature = most non-degenerate segments (then most segments).
+    # Short segments on a *different* feature are junction stubs leaving the
+    # tagged way (bearing was skipped for them).
+    by_fid: dict[int, list[tuple[tuple, dict, float]]] = defaultdict(list)
+    for item in candidates.values():
+        by_fid[item[1]["feature_id"]].append(item)
+
+    def _fid_score(fid: int) -> tuple[int, int, float]:
+        items = by_fid[fid]
+        n_long = sum(1 for _, _, L in items if L >= OVERLAP_DEG_EPS_M)
+        return (n_long, len(items), sum(L for _, _, L in items))
+
+    primary_fid = max(by_fid.keys(), key=_fid_score)
+    kept: list[dict] = []
+    for _score, row, seg_len_m in candidates.values():
+        if row["feature_id"] != primary_fid and seg_len_m < MIN_BEARING_SEGMENT_M:
+            if guard_counts is not None:
+                guard_counts["junction_stub_reject"] = (
+                    guard_counts.get("junction_stub_reject", 0) + 1
+                )
+            continue
+        kept.append(row)
+
+    kept.sort(key=lambda r: (r["feature_id"], r["segment_index"]))
+    return kept
 
 
 def annotate(
     ways: list[dict],
     roads: list[dict],
+    *,
+    tolerance_m: float = TOLERANCE_M,
 ) -> tuple[list[dict], dict]:
     records: list[dict] = []
     matched_ways = 0
     skipped_parse = 0
     unparseable: list[dict] = []
     unmatched: list[dict] = []
+    matched_segments_per_way: list[dict] = []
+    guard_counts: dict[str, int] = defaultdict(int)
+    grid = _build_road_grid(roads)
+
     for way in ways:
         raw_tags = {k: way["tags"].get(k) for k in LIMIT_KEYS if way["tags"].get(k)}
         if limits_from_tags(way["tags"]) is None:
@@ -362,20 +780,44 @@ def annotate(
                 flush=True,
             )
             continue
-        rows = match_way_to_roads(way, roads)
+        rows = match_way_to_roads(
+            way,
+            roads,
+            grid=grid,
+            tolerance_m=tolerance_m,
+            guard_counts=guard_counts,
+        )
         if not rows:
+            # Diagnose nearest for the unmatched list reason.
+            reason = "no_nearby_road"
+            cands = _candidate_road_indices(way, grid)
+            if cands:
+                reason = "no_segment_within_tolerance_or_guards"
             unmatched.append(
                 {
                     "osm_way_id": way["osm_way_id"],
                     "name": way["name"],
                     "highway": way["highway"],
                     "tags": raw_tags,
+                    "reason": reason,
+                    "is_bridge": bool(way.get("is_bridge")),
+                    "is_tunnel": bool(way.get("is_tunnel")),
                 }
             )
             continue
         matched_ways += 1
+        matched_segments_per_way.append(
+            {
+                "osm_way_id": way["osm_way_id"],
+                "name": way["name"],
+                "segments": len(rows),
+            }
+        )
         records.extend(rows)
-    # Dedup by (feature_id, segment_index); last writer wins (same limits expected).
+
+    # Dedup by (feature_id, segment_index); prefer name-matched / closer via
+    # last-writer only when scores equal — re-score by keeping first seen from
+    # matched_ways order is weak; re-run: last wins is OK when limits agree.
     by_key: dict[tuple[int, int], dict] = {}
     for r in records:
         by_key[(int(r["feature_id"]), int(r["segment_index"]))] = r
@@ -389,6 +831,10 @@ def annotate(
         "unmatched_ways": len(unmatched),
         "match_rate": matched_ways / parseable,
         "records": len(deduped),
+        "tolerance_m": tolerance_m,
+        "max_bearing_diff_deg": MAX_BEARING_DIFF_DEG,
+        "guard_rejections": dict(guard_counts),
+        "matched_segments_per_way": matched_segments_per_way,
         "unparseable": unparseable,
         "unmatched": unmatched,
     }
@@ -400,6 +846,12 @@ def main() -> int:
     ap.add_argument("--roads-jsonl", type=Path, required=True)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--report", type=Path, default=None)
+    ap.add_argument(
+        "--tolerance-m",
+        type=float,
+        default=TOLERANCE_M,
+        help=f"both-endpoint distance to OSM polyline (default {TOLERANCE_M})",
+    )
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--geojson", type=Path, help="Pre-exported tagged ways GeoJSON")
     src.add_argument("--pbf", type=Path, help="Geofabrik extract; filtered then deleted")
@@ -407,7 +859,13 @@ def main() -> int:
         "--bbox",
         type=str,
         default=None,
-        help="west,south,east,north for --pbf clip (leaf border)",
+        help="west,south,east,north for --pbf clip (leaf border bbox)",
+    )
+    ap.add_argument(
+        "--poly",
+        type=Path,
+        default=None,
+        help="leaf .poly for --pbf clip (preferred over --bbox)",
     )
     args = ap.parse_args()
 
@@ -423,13 +881,13 @@ def main() -> int:
         with tempfile.NamedTemporaryFile(suffix=".geojson", delete=False) as tmp:
             gj = Path(tmp.name)
         try:
-            filter_pbf_to_geojson(args.pbf, gj, bbox)
+            filter_pbf_to_geojson(args.pbf, gj, bbox, poly=args.poly)
             ways = load_tagged_ways_geojson(gj)
         finally:
             gj.unlink(missing_ok=True)
 
     roads = load_roads_jsonl(args.roads_jsonl)
-    records, report = annotate(ways, roads)
+    records, report = annotate(ways, roads, tolerance_m=args.tolerance_m)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w", encoding="utf-8") as f:
         for r in records:
@@ -440,7 +898,7 @@ def main() -> int:
     summary = {
         k: report[k]
         for k in report
-        if k not in ("unmatched", "unparseable")
+        if k not in ("unmatched", "unparseable", "matched_segments_per_way")
     }
     print(json.dumps(summary, indent=2))
     return 0

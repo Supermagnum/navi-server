@@ -78,11 +78,16 @@ while IFS= read -r leaf; do
     # bake flag so the section is absent (clients warn "not available").
     ROADS="${WORKDIR}/${leaf}.roads.jsonl"
     if [[ -f "$ROADS" ]]; then
+      VL_CLIP=()
+      if [[ -f "$BORDER" ]]; then
+        VL_CLIP=(--poly "$BORDER")
+      fi
       if python3 "${SCRIPT_DIR}/annotate-vehicle-limits.py" \
         --pbf "$PBF" \
         --roads-jsonl "$ROADS" \
         --out "$VJSON" \
-        --report "${WORKDIR}/${leaf}.vehicle_limits.report.json"; then
+        --report "${WORKDIR}/${leaf}.vehicle_limits.report.json" \
+        "${VL_CLIP[@]}"; then
         VL_ARGS=(--vehicle-limits-jsonl "$VJSON")
       fi
     fi
