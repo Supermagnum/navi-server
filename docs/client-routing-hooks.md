@@ -1,4 +1,4 @@
-# Client routing hooks — wetland, boardwalk, elevation
+# Client routing hooks — wetland, boardwalk, elevation, vehicle limits
 
 What the Navi client router must do with
 `{leaf}.navi-sidecar.v1.zst` data. Pair with
@@ -68,7 +68,52 @@ altitude section.
 
 ---
 
-## 4. Reference implementation (server validation)
+## 4. Vehicle limits
+
+Lookup key: `(feature_id, segment_index)` from the CoMaps road-graph edge
+being costed (both travel directions share one record).
+
+| Field | Vehicle input | Block when |
+|-------|---------------|------------|
+| `max_height_cm` | height (cm) | vehicle **>** limit |
+| `max_width_cm` | width (cm) | vehicle **>** limit |
+| `max_length_cm` | length (cm) | vehicle **>** limit |
+| `max_weight_10kg` | total mass (×10 kg) | vehicle **>** limit |
+| `max_axleload_10kg` | axle load (×10 kg) | vehicle **>** limit |
+| `max_bogie_10kg` | bogie weight (×10 kg) | vehicle **>** limit |
+
+Zero / missing field ⇒ that dimension does not block. Equality is allowed
+(exactly at the posted limit).
+
+### Where to apply
+
+Run the check inside the **car** estimator
+(`CarEstimator::CalcSegmentWeight` / edge feasibility). Do **not** hang it
+off the wetland Soft/Hard hook: wetland Soft/Hard is for foot profiles;
+vehicle limits are for car / electric car / truck / electric truck / mobile
+home. Motorcycle keeps no dimension limits.
+
+Prefer marking the segment impassable when CoMaps exposes that; otherwise use
+the same “forbidden” weight used for wetland Hard and document which was used.
+
+### Profiles / session
+
+Pass the stored `vehicle_limits` prefs into the FFI session before planning
+(`comapsSessionSetVehicle` or equivalent). Profiles that carry dimensions:
+car, electric car, truck, electric truck, mobile home.
+
+### Missing data
+
+If a leaf’s sidecar is absent, has no `vehicle_limits` section, or its MWM
+fingerprint does not match: still route, but tell the user that restrictions
+are not available for that region (name the leaf / region).
+
+When every path is blocked by a limit: surface `ROUTE_NOT_FOUND` with the
+existing nearest-clearance wording when a blocking road name is known.
+
+---
+
+## 5. Reference implementation (server validation)
 
 Minimal CoMaps `routes_builder` edge-cost hook used to validate sidecars:
 
@@ -92,12 +137,13 @@ honour `boardwalk_flags` explicitly). Flat spike2 layout is a fallback only.
 | Routing core | CoMaps C++ core via **NDK/FFI** (not a second graph) |
 | Wetland / boardwalk | Same cost multipliers in the edge-cost path (port or share the hook) |
 | Elevation overrides | Apply when reading MWM altitudes / building the routing graph |
+| Vehicle limits | Car estimator feasibility / impassable; session vehicle dimensions |
 | Navi Rust + Kotlin | Orchestration, download, fingerprint, UI; call into FFI router |
 | Drape | Client DEM; independent of sidecar |
 
 ---
 
-## 5. Validation routes (self-test)
+## 6. Validation routes (self-test)
 
 ### Foot wetland detour (Hedmark / Østlandet)
 

@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use navi_mwm_sidecar::{
-    build_sidecar_bytes, load_boardwalk_jsonl, load_elevation_jsonl, load_wetland_jsonl,
-    read_sidecar, read_spike2_flat_wetland_records, sha256_file, wetland_class_counts,
-    write_sidecar, CLASS_HARD, CLASS_SOFT,
+    build_sidecar_bytes, load_boardwalk_jsonl, load_elevation_jsonl, load_vehicle_limits_jsonl,
+    load_wetland_jsonl, read_sidecar, read_spike2_flat_wetland_records, sha256_file,
+    wetland_class_counts, write_sidecar, CLASS_HARD, CLASS_SOFT,
 };
 use serde_json::json;
 
@@ -27,6 +27,8 @@ enum Cmd {
         boardwalk_jsonl: Option<PathBuf>,
         #[arg(long)]
         elevation_jsonl: Option<PathBuf>,
+        #[arg(long)]
+        vehicle_limits_jsonl: Option<PathBuf>,
         #[arg(long)]
         attribution: PathBuf,
         #[arg(long)]
@@ -72,6 +74,7 @@ fn main() -> Result<()> {
             wetland_jsonl,
             boardwalk_jsonl,
             elevation_jsonl,
+            vehicle_limits_jsonl,
             attribution,
             generator_tag,
             generator_sha,
@@ -88,6 +91,12 @@ fn main() -> Result<()> {
                 Some(p) => load_elevation_jsonl(&p)?,
                 None => Vec::new(),
             };
+            // Flag present ⇒ emit section (even if zero records). Flag absent ⇒
+            // omit section so clients can warn "limits not available".
+            let vehicle_limits = match vehicle_limits_jsonl {
+                Some(p) => Some(load_vehicle_limits_jsonl(&p, ambiguous_threshold)?),
+                None => None,
+            };
             let attr = std::fs::read_to_string(&attribution)
                 .with_context(|| format!("read {}", attribution.display()))?;
             let bytes = build_sidecar_bytes(
@@ -98,6 +107,7 @@ fn main() -> Result<()> {
                 wetland,
                 boardwalk,
                 elevation,
+                vehicle_limits,
                 &attr,
             )?;
             write_sidecar(&out, &bytes)?;
@@ -113,6 +123,7 @@ fn main() -> Result<()> {
                     "boardwalk_records": sc.boardwalk.len(),
                     "elevation_features": sc.elevation.len(),
                     "elevation_points": elev_points,
+                    "vehicle_limits_records": sc.vehicle_limits.len(),
                 })
             );
         }
@@ -153,6 +164,7 @@ fn main() -> Result<()> {
                     "boardwalk_records": sc.boardwalk.len(),
                     "elevation_features": sc.elevation.len(),
                     "elevation_points": elev_points,
+                    "vehicle_limits_records": sc.vehicle_limits.len(),
                     "sections": sc.sections.iter().map(|s| &s.name).collect::<Vec<_>>(),
                     "section_details": section_details,
                     "fingerprint_ok": fingerprint_ok,

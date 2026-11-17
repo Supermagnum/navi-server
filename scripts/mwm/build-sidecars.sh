@@ -57,7 +57,9 @@ while IFS= read -r leaf; do
   OSM2FT="${VERSION_DIR}/${leaf}.mwm.osm2ft"
   WJSON="${WORKDIR}/${leaf}.wetland.jsonl"
   BJSON="${WORKDIR}/${leaf}.boardwalk.jsonl"
+  VJSON="${WORKDIR}/${leaf}.vehicle_limits.jsonl"
   OUT="${VERSION_DIR}/${leaf}.navi-sidecar.v1.zst"
+  VL_ARGS=()
 
   if [[ "$SKIP_ANNOTATE" == "1" ]]; then
     : >"$WJSON"
@@ -72,12 +74,25 @@ while IFS= read -r leaf; do
       --border-poly "$BORDER" \
       --out-wetland "$WJSON" \
       --out-boardwalk "$BJSON"
+    # Vehicle limits need a roads dump when available. Without it, omit the
+    # bake flag so the section is absent (clients warn "not available").
+    ROADS="${WORKDIR}/${leaf}.roads.jsonl"
+    if [[ -f "$ROADS" ]]; then
+      if python3 "${SCRIPT_DIR}/annotate-vehicle-limits.py" \
+        --pbf "$PBF" \
+        --roads-jsonl "$ROADS" \
+        --out "$VJSON" \
+        --report "${WORKDIR}/${leaf}.vehicle_limits.report.json"; then
+        VL_ARGS=(--vehicle-limits-jsonl "$VJSON")
+      fi
+    fi
   fi
 
   "$BIN" bake \
     --mwm "$MWM" \
     --wetland-jsonl "$WJSON" \
     --boardwalk-jsonl "$BJSON" \
+    "${VL_ARGS[@]}" \
     --attribution "$ATTR_JSON" \
     --generator-tag "$TAG" \
     --generator-sha "$SHA" \

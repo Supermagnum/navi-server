@@ -3,10 +3,18 @@
 //! The `.zst` file is one zstd frame (level 10) around a logical blob:
 //! magic, version, generator tag and sha, MWM fingerprint, a section
 //! directory, then concatenated per-section zstd bodies. Section names are
-//! `wetland_edges`, `boardwalk_flags`, `elevation_overrides`, and `attribution`.
+//! `wetland_edges`, `boardwalk_flags`, `elevation_overrides`, `vehicle_limits`
+//! (optional), and `attribution`.
 //!
 //! Spike2 Ostlandet files use a flat layout (no directory). [`read_spike2_flat_wetland_count`]
 //! decodes that layout.
+
+mod vehicle_limits;
+
+pub use vehicle_limits::{
+    load_vehicle_limits_jsonl, lookup_vehicle_limit, parse_vehicle_limits_body,
+    vehicle_limits_body, VehicleLimitRecord, SECTION_VEHICLE_LIMITS, VEHICLE_LIMIT_RECORD_LEN,
+};
 
 use std::fs::File;
 use std::io::{Read, Write};
@@ -15,6 +23,7 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
+use vehicle_limits::parse_vehicle_limits_body as parse_vl_body;
 
 /// Logical-blob magic.
 pub const MAGIC: &[u8; 4] = b"NVSC";
@@ -136,6 +145,8 @@ pub struct Sidecar {
     pub boardwalk: Vec<BoardwalkRecord>,
     /// Mapterhorn elevation overrides.
     pub elevation: Vec<ElevationFeature>,
+    /// Optional per-segment vehicle dimensional / weight limits.
+    pub vehicle_limits: Vec<VehicleLimitRecord>,
     /// Attribution section as UTF-8 JSON text.
     pub attribution_json: String,
 }
@@ -224,6 +235,10 @@ pub fn sha256_file(path: &Path) -> Result<([u8; 32], u64)> {
 ///
 /// Records are sorted. Duplicate records are dropped. `attribution_json` must
 /// be UTF-8 JSON.
+///
+/// `vehicle_limits`: `None` omits the section (clients treat that as "limits
+/// not available for this leaf"). `Some(_)` always emits the section, even
+/// when the record list is empty (annotated, nothing tagged).
 #[allow(clippy::too_many_arguments)]
 pub fn build_sidecar_bytes(
     generator_tag: &str,
@@ -233,6 +248,7 @@ pub fn build_sidecar_bytes(
     mut wetland: Vec<WetlandRecord>,
     mut boardwalk: Vec<BoardwalkRecord>,
     mut elevation: Vec<ElevationFeature>,
+    vehicle_limits: Option<Vec<VehicleLimitRecord>>,
     attribution_json: &str,
 ) -> Result<Vec<u8>> {
     serde_json::from_str::<serde_json::Value>(attribution_json)
@@ -247,13 +263,22 @@ pub fn build_sidecar_bytes(
     }
     elevation.sort_by_key(|f| f.feature_id);
     elevation.dedup_by_key(|f| f.feature_id);
+    let vehicle_limits = vehicle_limits.map(|mut vl| {
+        vl.retain(|r| !r.is_empty());
+        vl.sort();
+        vl.dedup_by_key(|r| (r.feature_id, r.segment_index));
+        vl
+    });
 
-    let sections_raw = [
+    let mut sections_raw: Vec<(&str, Vec<u8>)> = vec![
         (SECTION_WETLAND, wetland_body(&wetland)?),
         (SECTION_BOARDWALK, boardwalk_body(&boardwalk)?),
         (SECTION_ELEVATION, elevation_body(&elevation)?),
-        (SECTION_ATTRIBUTION, attribution_json.as_bytes().to_vec()),
     ];
+    if let Some(ref vl) = vehicle_limits {
+        sections_raw.push((SECTION_VEHICLE_LIMITS, vehicle_limits_body(vl)?));
+    }
+    sections_raw.push((SECTION_ATTRIBUTION, attribution_json.as_bytes().to_vec()));
 
     let mut compressed_parts = Vec::with_capacity(sections_raw.len());
     let mut infos = Vec::with_capacity(sections_raw.len());
@@ -356,6 +381,7 @@ pub fn read_sidecar(path: &Path) -> Result<Sidecar> {
     let mut wetland = Vec::new();
     let mut boardwalk = Vec::new();
     let mut elevation = Vec::new();
+    let mut vehicle_limits = Vec::new();
     let mut attribution_json = String::new();
     for info in &sections {
         let start = usize::try_from(info.offset).context("section offset")?;
@@ -375,6 +401,7 @@ pub fn read_sidecar(path: &Path) -> Result<Sidecar> {
             SECTION_WETLAND => wetland = parse_wetland_body(&raw)?,
             SECTION_BOARDWALK => boardwalk = parse_boardwalk_body(&raw)?,
             SECTION_ELEVATION => elevation = parse_elevation_body(&raw)?,
+            SECTION_VEHICLE_LIMITS => vehicle_limits = parse_vl_body(&raw)?,
             SECTION_ATTRIBUTION => {
                 attribution_json = String::from_utf8(raw).context("attribution is not utf-8")?;
                 serde_json::from_str::<serde_json::Value>(&attribution_json)
@@ -394,6 +421,7 @@ pub fn read_sidecar(path: &Path) -> Result<Sidecar> {
         wetland,
         boardwalk,
         elevation,
+        vehicle_limits,
         attribution_json,
     })
 }
@@ -948,6 +976,7 @@ mod tests {
             wetland,
             boardwalk,
             elevation,
+            None,
             r#"{"label":"Mapterhorn"}"#,
         )
         .unwrap();
@@ -1004,6 +1033,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             high,
+            None,
             "{}",
         )
         .unwrap();
