@@ -60,6 +60,15 @@ TOLERANCE_M = 8.0
 MAX_BEARING_DIFF_DEG = 45.0
 # Skip bearing when MWM segment is shorter than this (quantised stubs).
 MIN_BEARING_SEGMENT_M = 2.0
+# Along-way overlap: projected span on the OSM way must cover this fraction of
+# min(segment_length, osm_way_length). Using min() so a short tagged stretch
+# (bridge) is not rejected when the MWM segment is longer than the way.
+# Nordic short-side FP audit: perpendicular junction stubs have ratio ~0;
+# well-aligned main segments have p5 ~0.80. 0.70 clears stubs while keeping
+# Hedmark/Western/Hordaland ≥ 96%.
+OVERLAP_MIN_RATIO = 0.70
+# Below this length, overlap is ill-defined (duplicate quantised points).
+OVERLAP_DEG_EPS_M = 0.5
 # Spatial index cell size in quanta (~1.1 m each at equator).
 GRID_CELL_QUANTA = 40
 
@@ -226,6 +235,61 @@ def _dist_point_to_polyline_m(
     for i in range(len(poly) - 1):
         best = min(best, _dist_point_to_segment_m(pt, poly[i], poly[i + 1]))
     return best
+
+
+def _segment_length_m(a: tuple[float, float], b: tuple[float, float]) -> float:
+    m_lat, m_lon = _m_per_deg((a[0] + b[0]) / 2.0)
+    return math.hypot((b[1] - a[1]) * m_lon, (b[0] - a[0]) * m_lat)
+
+
+def _polyline_length_m(nodes: list[tuple[float, float]]) -> float:
+    return sum(
+        _segment_length_m(nodes[i], nodes[i + 1]) for i in range(len(nodes) - 1)
+    )
+
+
+def _project_along_polyline_m(
+    pt: tuple[float, float],
+    poly: list[tuple[float, float]],
+) -> tuple[float, float]:
+    """Return (along_track_m, distance_m) for the closest point on ``poly``."""
+    best_d = 1e18
+    best_s = 0.0
+    acc = 0.0
+    for i in range(len(poly) - 1):
+        a, b = poly[i], poly[i + 1]
+        seg_l = _segment_length_m(a, b)
+        m_lat, m_lon = _m_per_deg((pt[0] + a[0] + b[0]) / 3.0)
+        abx = (b[1] - a[1]) * m_lon
+        aby = (b[0] - a[0]) * m_lat
+        apx = (pt[1] - a[1]) * m_lon
+        apy = (pt[0] - a[0]) * m_lat
+        ab2 = abx * abx + aby * aby
+        t = 0.0 if ab2 == 0.0 else max(0.0, min(1.0, (apx * abx + apy * aby) / ab2))
+        d = math.hypot(apx - t * abx, apy - t * aby)
+        if d < best_d:
+            best_d = d
+            best_s = acc + t * seg_l
+        acc += seg_l
+    return best_s, best_d
+
+
+def _along_way_overlap_ratio(
+    a: tuple[float, float],
+    b: tuple[float, float],
+    way_nodes: list[tuple[float, float]],
+    way_len_m: float,
+) -> tuple[float, float, float]:
+    """Return (ratio, along_span_m, segment_length_m).
+
+    ratio = along_span / max(min(seg_len, way_len), OVERLAP_DEG_EPS_M).
+    """
+    seg_l = _segment_length_m(a, b)
+    sa, _ = _project_along_polyline_m(a, way_nodes)
+    sb, _ = _project_along_polyline_m(b, way_nodes)
+    span = abs(sa - sb)
+    denom = max(min(seg_l, way_len_m), OVERLAP_DEG_EPS_M)
+    return span / denom, span, seg_l
 
 
 def _bearing_deg(a: tuple[float, float], b: tuple[float, float]) -> float:
@@ -567,9 +631,10 @@ def match_way_to_roads(
     else:
         indices = _candidate_road_indices(way, grid)
 
-    # Collect candidate (feature_id, seg_i, score, row). Lower score is better.
-    # score = (name_mismatch, mean_endpoint_dist).
-    candidates: dict[tuple[int, int], tuple[tuple, dict]] = {}
+    # Collect candidate (feature_id, seg_i, score, row, seg_len). Lower score
+    # is better: score = (name_mismatch, mean_endpoint_dist).
+    candidates: dict[tuple[int, int], tuple[tuple, dict, float]] = {}
+    way_len_m = _polyline_length_m(way_nodes)
 
     for ri in indices:
         road = roads[ri]
@@ -609,10 +674,9 @@ def match_way_to_roads(
             db = _dist_point_to_polyline_m(b, way_nodes)
             if da > tolerance_m or db > tolerance_m:
                 continue
+            seg_len_m = _segment_length_m(a, b)
             # Degenerate CoMaps stubs (duplicate quantised points) have
             # meaningless 0/90 bearings — skip the bearing guard for those.
-            m_lat, m_lon = _m_per_deg((a[0] + b[0]) / 2.0)
-            seg_len_m = math.hypot((b[1] - a[1]) * m_lon, (b[0] - a[0]) * m_lat)
             if seg_len_m >= MIN_BEARING_SEGMENT_M:
                 seg_bearing = _bearing_deg(a, b)
                 way_bearing = _nearest_way_bearing(a, b, way_nodes)
@@ -630,6 +694,17 @@ def match_way_to_roads(
                     guard_counts["bearing_skipped_short_seg"] = (
                         guard_counts.get("bearing_skipped_short_seg", 0) + 1
                     )
+            # Along-way overlap (skip only for near-zero degenerate length).
+            if seg_len_m >= OVERLAP_DEG_EPS_M:
+                ratio, _span, _ = _along_way_overlap_ratio(
+                    a, b, way_nodes, way_len_m
+                )
+                if ratio < OVERLAP_MIN_RATIO:
+                    if guard_counts is not None:
+                        guard_counts["overlap_reject"] = (
+                            guard_counts.get("overlap_reject", 0) + 1
+                        )
+                    continue
             # Prefer name match; then closer mean endpoint distance.
             score = (name_mismatch, (da + db) / 2.0)
             row = {
@@ -641,9 +716,36 @@ def match_way_to_roads(
             key = (road["feature_id"], seg_i)
             prev = candidates.get(key)
             if prev is None or score < prev[0]:
-                candidates[key] = (score, row)
+                candidates[key] = (score, row, seg_len_m)
 
-    return [row for _, row in sorted(candidates.values(), key=lambda t: (t[1]["feature_id"], t[1]["segment_index"]))]
+    if not candidates:
+        return []
+
+    # Primary feature = most non-degenerate segments (then most segments).
+    # Short segments on a *different* feature are junction stubs leaving the
+    # tagged way (bearing was skipped for them).
+    by_fid: dict[int, list[tuple[tuple, dict, float]]] = defaultdict(list)
+    for item in candidates.values():
+        by_fid[item[1]["feature_id"]].append(item)
+
+    def _fid_score(fid: int) -> tuple[int, int, float]:
+        items = by_fid[fid]
+        n_long = sum(1 for _, _, L in items if L >= OVERLAP_DEG_EPS_M)
+        return (n_long, len(items), sum(L for _, _, L in items))
+
+    primary_fid = max(by_fid.keys(), key=_fid_score)
+    kept: list[dict] = []
+    for _score, row, seg_len_m in candidates.values():
+        if row["feature_id"] != primary_fid and seg_len_m < MIN_BEARING_SEGMENT_M:
+            if guard_counts is not None:
+                guard_counts["junction_stub_reject"] = (
+                    guard_counts.get("junction_stub_reject", 0) + 1
+                )
+            continue
+        kept.append(row)
+
+    kept.sort(key=lambda r: (r["feature_id"], r["segment_index"]))
+    return kept
 
 
 def annotate(

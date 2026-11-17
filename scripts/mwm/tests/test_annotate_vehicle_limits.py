@@ -175,6 +175,79 @@ class AnnotateVehicleLimitsTest(unittest.TestCase):
         self.assertTrue(is_br)
         self.assertFalse(is_tu)
 
+    def test_junction_stub_short_side_feature_rejected(self) -> None:
+        """Perpendicular short stub on a side feature must not inherit limits."""
+        # East-west tagged way.
+        way = {
+            "osm_way_id": 10,
+            "tags": {"highway": "secondary", "name": "Main", "maxheight": "3.5"},
+            "nodes": [(60.0, 11.0), (60.0, 11.001)],
+            "name": "main",
+            "highway": "secondary",
+            "is_bridge": False,
+            "is_tunnel": False,
+        }
+        roads = [
+            # Primary: follows the way.
+            {
+                "feature_id": 1,
+                "points": [(60.0, 11.0), (60.0, 11.001)],
+                "highway": "secondary",
+                "is_bridge": False,
+                "is_tunnel": False,
+                "name": "main",
+                "types": ["highway-secondary"],
+            },
+            # Side junction stub: both ends near the way but near-zero length
+            # (quantised duplicate) — bearing skipped, different feature.
+            {
+                "feature_id": 2,
+                "points": [(60.0, 11.0005), (60.0, 11.0005)],
+                "highway": "secondary",
+                "is_bridge": False,
+                "is_tunnel": False,
+                "name": "",
+                "types": ["highway-secondary"],
+            },
+        ]
+        # Need 2 distinct points for load; use tiny offset still < MIN_BEARING.
+        roads[1]["points"] = [(60.000001, 11.0005), (60.000002, 11.0005)]
+        guards: dict[str, int] = {}
+        rows = mod.match_way_to_roads(way, roads, guard_counts=guards)
+        fids = {r["feature_id"] for r in rows}
+        self.assertIn(1, fids)
+        self.assertNotIn(2, fids)
+        self.assertGreaterEqual(guards.get("junction_stub_reject", 0), 1)
+
+    def test_overlap_rejects_short_perpendicular_when_bearing_skipped(self) -> None:
+        """Short N-S stub: bearing skipped; along-way span ~0 → overlap reject."""
+        way = {
+            "osm_way_id": 11,
+            "tags": {"highway": "secondary", "maxheight": "3.0"},
+            "nodes": [(60.0, 11.0), (60.0, 11.002)],
+            "name": "",
+            "highway": "secondary",
+            "is_bridge": False,
+            "is_tunnel": False,
+        }
+        # ~1.1 m north-south at the way midpoint (within 8 m, below bearing min).
+        roads = [
+            {
+                "feature_id": 9,
+                "points": [(59.999995, 11.001), (60.000005, 11.001)],
+                "highway": "secondary",
+                "is_bridge": False,
+                "is_tunnel": False,
+                "name": "",
+                "types": ["highway-secondary"],
+            }
+        ]
+        guards: dict[str, int] = {}
+        rows = mod.match_way_to_roads(way, roads, guard_counts=guards)
+        self.assertEqual(rows, [])
+        self.assertGreaterEqual(guards.get("overlap_reject", 0), 1)
+        self.assertGreaterEqual(guards.get("bearing_skipped_short_seg", 0), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

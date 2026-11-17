@@ -54,7 +54,7 @@ WETLAND_POLICY = "soft=bog,string_bog,fen,untyped;hard=swamp,reedbed;omit=marsh"
 BOARDWALK_RULE = "bridge_types_proxy/v1"
 # Tolerance match (both segment ends within TOLERANCE_M of OSM way) + class +
 # bridge/tunnel/bearing guards; name is a tie-breaker only. Plain OSM values.
-VEHICLE_LIMITS_POLICY = "tol8m+hw+bridge_tunnel_bearing/v2;tags=maxheight,maxwidth,maxlength,maxweight,maxaxleload,maxbogieweight"
+VEHICLE_LIMITS_POLICY = "tol8m+overlap70+hw+bridge_tunnel_bearing_stub/v3;tags=maxheight,maxwidth,maxlength,maxweight,maxaxleload,maxbogieweight"
 MAPTERHORN_DATASET = "glo30+national/terrarium-z"
 # Sample Mapterhorn at the quantised cell centre so hash-equivalent geometries
 # always see the same DEM pixel (avoids tile-edge drift under 1e-5 collisions).
