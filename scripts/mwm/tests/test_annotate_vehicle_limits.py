@@ -217,10 +217,49 @@ class AnnotateVehicleLimitsTest(unittest.TestCase):
         fids = {r["feature_id"] for r in rows}
         self.assertIn(1, fids)
         self.assertNotIn(2, fids)
+        self.assertGreaterEqual(guards.get("bearing_skipped_short_seg", 0), 1)
         self.assertGreaterEqual(guards.get("junction_stub_reject", 0), 1)
 
+    def test_same_layer_bridge_skips_bearing_when_overlap_ok(self) -> None:
+        """Bridge OSM + bridge MWM, ends in tol + overlap → no bearing reject."""
+        way = {
+            "osm_way_id": 42,
+            "tags": {
+                "highway": "unclassified",
+                "bridge": "yes",
+                "maxweight": "40",
+            },
+            "nodes": [(60.0, 11.0), (60.0, 11.00005)],
+            "name": "",
+            "highway": "unclassified",
+            "is_bridge": True,
+            "is_tunnel": False,
+        }
+        # Angled chord would fail a strict bearing check vs E-W OSM.
+        roads = [
+            {
+                "feature_id": 7,
+                "points": [(60.0, 11.0), (60.000035, 11.000035)],
+                "highway": "unclassified",
+                "is_bridge": True,
+                "is_tunnel": False,
+                "name": "",
+                "types": ["highway-unclassified-bridge"],
+            }
+        ]
+        guards: dict[str, int] = {}
+        rows = mod.match_way_to_roads(way, roads, guard_counts=guards)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["feature_id"], 7)
+        self.assertGreaterEqual(guards.get("bearing_skipped_same_layer", 0), 1)
+        self.assertEqual(guards.get("bearing_reject", 0), 0)
+
     def test_overlap_rejects_short_perpendicular_when_bearing_skipped(self) -> None:
-        """Short N-S stub: bearing skipped; along-way span ~0 → overlap reject."""
+        """Short N-S stub: overlap runs first; along-way span ~0 → reject.
+
+        Segment is below MIN_BEARING_SEGMENT_M, so bearing would be skipped;
+        overlap-first short-circuits before bearing_skipped_short_seg.
+        """
         way = {
             "osm_way_id": 11,
             "tags": {"highway": "secondary", "maxheight": "3.0"},
@@ -246,7 +285,8 @@ class AnnotateVehicleLimitsTest(unittest.TestCase):
         rows = mod.match_way_to_roads(way, roads, guard_counts=guards)
         self.assertEqual(rows, [])
         self.assertGreaterEqual(guards.get("overlap_reject", 0), 1)
-        self.assertGreaterEqual(guards.get("bearing_skipped_short_seg", 0), 1)
+        self.assertEqual(guards.get("bearing_skipped_short_seg", 0), 0)
+        self.assertEqual(guards.get("bearing_reject", 0), 0)
 
     def test_special_value_excluded_from_match_rate(self) -> None:
         """none/default/unsigned/no-limit out of denom; below_default recorded."""

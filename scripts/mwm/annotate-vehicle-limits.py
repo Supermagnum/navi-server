@@ -724,9 +724,41 @@ def match_way_to_roads(
             if da > tolerance_m or db > tolerance_m:
                 continue
             seg_len_m = _segment_length_m(a, b)
-            # Degenerate CoMaps stubs (duplicate quantised points) have
-            # meaningless 0/90 bearings — skip the bearing guard for those.
-            if seg_len_m >= MIN_BEARING_SEGMENT_M:
+            # Along-way overlap first so bridge same-layer can skip bearing.
+            overlap_ok = True
+            if seg_len_m >= OVERLAP_DEG_EPS_M:
+                ratio, _span, _ = _along_way_overlap_ratio(
+                    a, b, way_nodes, way_len_m
+                )
+                min_ratio = OVERLAP_MIN_RATIO
+                if way_len_m <= SHORT_WAY_OVERLAP_M:
+                    min_ratio = OVERLAP_MIN_RATIO_SHORT_WAY
+                if ratio < min_ratio:
+                    overlap_ok = False
+                    if guard_counts is not None:
+                        guard_counts["overlap_reject"] = (
+                            guard_counts.get("overlap_reject", 0) + 1
+                        )
+                    continue
+            # Same-layer bridge (or tunnel): both ends already within tolerance
+            # and overlap passed → skip bearing (short bridge chords wind).
+            skip_bearing = (
+                overlap_ok
+                and da <= tolerance_m
+                and db <= tolerance_m
+                and (
+                    (osm_bridge and road["is_bridge"])
+                    or (osm_tunnel and road["is_tunnel"])
+                )
+            )
+            if skip_bearing:
+                if guard_counts is not None:
+                    guard_counts["bearing_skipped_same_layer"] = (
+                        guard_counts.get("bearing_skipped_same_layer", 0) + 1
+                    )
+            elif seg_len_m >= MIN_BEARING_SEGMENT_M:
+                # Degenerate CoMaps stubs have meaningless bearings — handled
+                # in the else branch below.
                 seg_bearing = _bearing_deg(a, b)
                 if not _bearing_ok(seg_bearing, way_nodes, a, b):
                     if guard_counts is not None:
@@ -739,20 +771,6 @@ def match_way_to_roads(
                     guard_counts["bearing_skipped_short_seg"] = (
                         guard_counts.get("bearing_skipped_short_seg", 0) + 1
                     )
-            # Along-way overlap (skip only for near-zero degenerate length).
-            if seg_len_m >= OVERLAP_DEG_EPS_M:
-                ratio, _span, _ = _along_way_overlap_ratio(
-                    a, b, way_nodes, way_len_m
-                )
-                min_ratio = OVERLAP_MIN_RATIO
-                if way_len_m <= SHORT_WAY_OVERLAP_M:
-                    min_ratio = OVERLAP_MIN_RATIO_SHORT_WAY
-                if ratio < min_ratio:
-                    if guard_counts is not None:
-                        guard_counts["overlap_reject"] = (
-                            guard_counts.get("overlap_reject", 0) + 1
-                        )
-                    continue
             # Prefer name match; then closer mean endpoint distance.
             score = (name_mismatch, (da + db) / 2.0)
             row = {

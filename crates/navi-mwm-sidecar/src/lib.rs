@@ -14,8 +14,8 @@ mod vehicle_limits;
 pub use vehicle_limits::{
     load_vehicle_limits_jsonl, lookup_vehicle_limit, parse_vehicle_limits_body,
     parse_vehicle_limits_section, vehicle_limits_body, vehicle_limits_body_with_coverage,
-    VehicleLimitRecord, VehicleLimitsCoverage, SECTION_VEHICLE_LIMITS, VEHICLE_LIMIT_RECORD_LEN,
-    VEHICLE_LIMITS_BODY_MAGIC,
+    VehicleLimitRecord, VehicleLimitsCoverage, SECTION_VEHICLE_LIMITS, VEHICLE_LIMITS_BODY_MAGIC,
+    VEHICLE_LIMIT_RECORD_LEN,
 };
 
 use std::fs::File;
