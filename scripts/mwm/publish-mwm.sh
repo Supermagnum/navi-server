@@ -106,6 +106,33 @@ for leaf in leaves:
         "no_sidecar": False,
         "elevation_policy_version": policy_version,
     }
+    vl_report = version / "meta" / "vehicle_limits" / f"{leaf}.report.json"
+    if vl_report.is_file():
+        try:
+            rep = json.loads(vl_report.read_text())
+            tagged = int(rep.get("tagged_ways") or 0)
+            matched = int(rep.get("matched_ways") or 0)
+            nn = int(rep.get("non_numeric_no_limit") or 0)
+            unk = int(rep.get("unknown_value") or 0)
+            rate = rep.get("match_rate")
+            if rate is None:
+                skipped = int(rep.get("skipped_unparseable") or 0)
+                numeric = max(0, tagged - skipped)
+                rate = (matched / numeric) if numeric else 0.0
+            map_rel = str(rep.get("map_release") or "").strip()
+            if not map_rel:
+                map_rel = str(discovery.get("version") or version.name)
+            entry["vehicle_limits_coverage"] = {
+                "tagged_ways": tagged,
+                "matched_ways": matched,
+                "match_rate": float(rate),
+                "non_numeric_no_limit": nn,
+                "unknown_value": unk,
+                "osm_data_date": str(rep.get("osm_data_date") or ""),
+                "map_release": map_rel,
+            }
+        except Exception as exc:
+            print(f"WARN vehicle_limits coverage {leaf}: {exc}", flush=True)
     if sidecars_only:
         meta = processed.get(leaf) or {}
         disc_leaf = (discovery.get("leaves") or {}).get(leaf) or {}

@@ -134,6 +134,32 @@ bytes/SHA in the example are pinned to a checked-in fixture (see
 | `no_sidecar` | bool | Optional. `true` for non-routable CoMaps overlays (`World`, `WorldCoasts`) — clients must not expect a Navi sidecar |
 | `sidecar` / `sidecar_url` | null | Set when `no_sidecar` is true |
 | `elevation_policy_version` | number\|null | Sidecar elevation policy (`1` = uniform 2 m; `2` = Copernicus-only &lt;60°N uses 5 m). `null` when `no_sidecar` |
+| `vehicle_limits_coverage` | object\|omit | Per-leaf match coverage (optional; required before live world publish). See below |
+
+`vehicle_limits_coverage` (when present):
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `tagged_ways` | number | OSM ways with a vehicle-limit tag in the leaf |
+| `matched_ways` | number | Ways that produced at least one sidecar record |
+| `match_rate` | number | `matched_ways / numeric_ways` (specials excluded) |
+| `non_numeric_no_limit` | number | `none` / `default` / `unsigned` / `no-limit` |
+| `unknown_value` | number | `below_default` (report only; not in records) |
+| `osm_data_date` | string | OSM extract date (`YYYY-MM-DD`) or empty |
+| `map_release` | string | CoMaps release id (e.g. `261105`) |
+
+The same fields are embedded in the sidecar `vehicle_limits` VL01 header
+([sidecar-format.md](sidecar-format.md) §5). Clients treat restrictions as
+**fully applied** for a leaf when `match_rate ≥` a configurable threshold
+(default **0.90**); below that (or when coverage is absent) they still apply
+matched records but warn that restrictions are only partly available.
+
+**Same-release sidecar refresh:** when the catalog version matches the active
+release but a leaf’s `sidecar_sha256` / `sidecar_bytes` changed, re-download
+only that sidecar — do not re-fetch the MWM.
+
+Live publish gate: coverage recorded for every routable leaf (not “every
+country ≥ 0.90”).
 
 Top-level catalog also carries `elevation_policy_version` (one policy per release) and
 `non_routable_leaves` (`["World","WorldCoasts"]`).

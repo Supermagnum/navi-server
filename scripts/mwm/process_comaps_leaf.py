@@ -379,6 +379,10 @@ def main() -> int:
                     str(vjson),
                     "--report",
                     str(vreport),
+                    "--map-release",
+                    str(discovery.get("version") or ""),
+                    "--osm-data-date",
+                    os.environ.get("NAVI_MWM_OSM_DATA_DATE", ""),
                 ]
                 # Prefer the leaf .poly so tagged ways outside the real border
                 # (bbox is a loose AABB) do not inflate the match-rate denominator.
@@ -583,6 +587,8 @@ def main() -> int:
             elev_idx = bake_cmd.index("--elevation-jsonl")
             bake_cmd.insert(elev_idx + 2, "--vehicle-limits-jsonl")
             bake_cmd.insert(elev_idx + 3, str(vjson))
+            if vreport.is_file():
+                bake_cmd.extend(["--vehicle-limits-report", str(vreport)])
         bake_out, bake_err, bake_rss, bake_s = _run_stage(bake_cmd)
         if bake_err.strip():
             sys.stderr.write(bake_err)

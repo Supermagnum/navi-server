@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import subprocess
 import sys
 import tempfile
@@ -31,6 +32,7 @@ sys.path.insert(0, str(SCRIPT_DIR / "lib"))
 
 from geometry_cache import QUANTUM_DEG, quantise_coord  # noqa: E402
 from vehicle_limit_units import (  # noqa: E402
+    classify_tag_value,
     metres_to_cm,
     parse_length_metres,
     parse_weight_tonnes,
@@ -67,6 +69,11 @@ MIN_BEARING_SEGMENT_M = 2.0
 # well-aligned main segments have p5 ~0.80. 0.70 clears stubs while keeping
 # Hedmark/Western/Hordaland ≥ 96%.
 OVERLAP_MIN_RATIO = 0.70
+# Short tagged OSM ways (typical Nordic bridges): require covering most of the
+# way itself rather than the longer MWM chord. Still high enough that
+# perpendicular junction stubs (ratio ~0) fail.
+OVERLAP_MIN_RATIO_SHORT_WAY = 0.50
+SHORT_WAY_OVERLAP_M = 40.0
 # Below this length, overlap is ill-defined (duplicate quantised points).
 OVERLAP_DEG_EPS_M = 0.5
 # Spatial index cell size in quanta (~1.1 m each at equator).
@@ -161,30 +168,42 @@ def _parse_tag(key: str, raw: str | None, kind: str) -> float | None:
     s = str(raw).strip()
     if not s:
         return None
-    if kind == "length":
-        v = parse_length_metres(s)
-    else:
-        v = parse_weight_tonnes(s)
-    if v is None:
-        # default/none/unsigned and conditionals are silent skips; others log.
-        low = s.lower()
-        if low not in {
-            "default",
-            "none",
-            "unsigned",
-            "below_default",
-            "no",
-            "yes",
-            "unknown",
-            "unlimited",
-        } and "@" not in s and ";" not in s:
+    cls = classify_tag_value(s)
+    if cls != "numeric":
+        if cls == "unparseable":
             print(
                 json.dumps({"skip_unparseable": True, "key": key, "value": s}),
                 file=sys.stderr,
                 flush=True,
             )
         return None
-    return v
+    if kind == "length":
+        return parse_length_metres(s)
+    return parse_weight_tonnes(s)
+
+
+def classify_way_limit_tags(tags: dict) -> str:
+    """Way-level class for match-rate denominator.
+
+    Returns one of: ``numeric``, ``non_numeric_no_limit``, ``unknown_value``,
+    ``unparseable``. Priority when mixed non-numeric tags: unknown_value >
+    unparseable > non_numeric_no_limit. Any numeric limit wins as numeric.
+    """
+    classes = []
+    for key in LIMIT_KEYS:
+        raw = tags.get(key)
+        if raw is None or not str(raw).strip():
+            continue
+        classes.append(classify_tag_value(str(raw)))
+    if not classes:
+        return "unparseable"
+    if "numeric" in classes:
+        return "numeric"
+    if "unknown_value" in classes:
+        return "unknown_value"
+    if "unparseable" in classes:
+        return "unparseable"
+    return "non_numeric_no_limit"
 
 
 def limits_from_tags(tags: dict) -> dict[str, int] | None:
@@ -321,6 +340,36 @@ def _nearest_way_bearing(
             best_d = d
             best_i = i
     return _bearing_deg(way_nodes[best_i], way_nodes[best_i + 1])
+
+
+def _overall_way_bearing(way_nodes: list[tuple[float, float]]) -> float | None:
+    """Chord bearing from first to last node (helps short winding bridges)."""
+    if len(way_nodes) < 2:
+        return None
+    if _segment_length_m(way_nodes[0], way_nodes[-1]) < OVERLAP_DEG_EPS_M:
+        return None
+    return _bearing_deg(way_nodes[0], way_nodes[-1])
+
+
+def _bearing_ok(
+    seg_bearing: float,
+    way_nodes: list[tuple[float, float]],
+    a: tuple[float, float],
+    b: tuple[float, float],
+) -> bool:
+    """Accept if nearest OSM segment OR overall way chord is within tolerance."""
+    candidates: list[float] = []
+    near = _nearest_way_bearing(a, b, way_nodes)
+    if near is not None:
+        candidates.append(near)
+    overall = _overall_way_bearing(way_nodes)
+    if overall is not None and (not candidates or overall != candidates[0]):
+        candidates.append(overall)
+    for way_bearing in candidates:
+        diff = _angle_diff_deg(seg_bearing, way_bearing)
+        if min(diff, abs(diff - 180.0)) <= MAX_BEARING_DIFF_DEG:
+            return True
+    return False
 
 
 def _parse_way_id(props: dict) -> int | None:
@@ -675,36 +724,53 @@ def match_way_to_roads(
             if da > tolerance_m or db > tolerance_m:
                 continue
             seg_len_m = _segment_length_m(a, b)
-            # Degenerate CoMaps stubs (duplicate quantised points) have
-            # meaningless 0/90 bearings — skip the bearing guard for those.
-            if seg_len_m >= MIN_BEARING_SEGMENT_M:
-                seg_bearing = _bearing_deg(a, b)
-                way_bearing = _nearest_way_bearing(a, b, way_nodes)
-                if way_bearing is not None:
-                    diff = _angle_diff_deg(seg_bearing, way_bearing)
-                    # Accept reverse direction (same centreline may be reversed).
-                    if min(diff, abs(diff - 180.0)) > MAX_BEARING_DIFF_DEG:
-                        if guard_counts is not None:
-                            guard_counts["bearing_reject"] = (
-                                guard_counts.get("bearing_reject", 0) + 1
-                            )
-                        continue
-            else:
-                if guard_counts is not None:
-                    guard_counts["bearing_skipped_short_seg"] = (
-                        guard_counts.get("bearing_skipped_short_seg", 0) + 1
-                    )
-            # Along-way overlap (skip only for near-zero degenerate length).
+            # Along-way overlap first so bridge same-layer can skip bearing.
+            overlap_ok = True
             if seg_len_m >= OVERLAP_DEG_EPS_M:
                 ratio, _span, _ = _along_way_overlap_ratio(
                     a, b, way_nodes, way_len_m
                 )
-                if ratio < OVERLAP_MIN_RATIO:
+                min_ratio = OVERLAP_MIN_RATIO
+                if way_len_m <= SHORT_WAY_OVERLAP_M:
+                    min_ratio = OVERLAP_MIN_RATIO_SHORT_WAY
+                if ratio < min_ratio:
+                    overlap_ok = False
                     if guard_counts is not None:
                         guard_counts["overlap_reject"] = (
                             guard_counts.get("overlap_reject", 0) + 1
                         )
                     continue
+            # Same-layer bridge (or tunnel): both ends already within tolerance
+            # and overlap passed → skip bearing (short bridge chords wind).
+            skip_bearing = (
+                overlap_ok
+                and da <= tolerance_m
+                and db <= tolerance_m
+                and (
+                    (osm_bridge and road["is_bridge"])
+                    or (osm_tunnel and road["is_tunnel"])
+                )
+            )
+            if skip_bearing:
+                if guard_counts is not None:
+                    guard_counts["bearing_skipped_same_layer"] = (
+                        guard_counts.get("bearing_skipped_same_layer", 0) + 1
+                    )
+            elif seg_len_m >= MIN_BEARING_SEGMENT_M:
+                # Degenerate CoMaps stubs have meaningless bearings — handled
+                # in the else branch below.
+                seg_bearing = _bearing_deg(a, b)
+                if not _bearing_ok(seg_bearing, way_nodes, a, b):
+                    if guard_counts is not None:
+                        guard_counts["bearing_reject"] = (
+                            guard_counts.get("bearing_reject", 0) + 1
+                        )
+                    continue
+            else:
+                if guard_counts is not None:
+                    guard_counts["bearing_skipped_short_seg"] = (
+                        guard_counts.get("bearing_skipped_short_seg", 0) + 1
+                    )
             # Prefer name match; then closer mean endpoint distance.
             score = (name_mismatch, (da + db) / 2.0)
             row = {
@@ -756,8 +822,11 @@ def annotate(
 ) -> tuple[list[dict], dict]:
     records: list[dict] = []
     matched_ways = 0
-    skipped_parse = 0
+    non_numeric_no_limit = 0
+    unknown_value = 0
+    skipped_unparseable = 0
     unparseable: list[dict] = []
+    unknown_value_ways: list[dict] = []
     unmatched: list[dict] = []
     matched_segments_per_way: list[dict] = []
     guard_counts: dict[str, int] = defaultdict(int)
@@ -765,20 +834,40 @@ def annotate(
 
     for way in ways:
         raw_tags = {k: way["tags"].get(k) for k in LIMIT_KEYS if way["tags"].get(k)}
-        if limits_from_tags(way["tags"]) is None:
-            skipped_parse += 1
+        way_cls = classify_way_limit_tags(way["tags"])
+        if way_cls != "numeric":
             entry = {
                 "osm_way_id": way["osm_way_id"],
                 "name": way["name"],
                 "highway": way["highway"],
                 "tags": raw_tags,
+                "class": way_cls,
+            }
+            if way_cls == "non_numeric_no_limit":
+                non_numeric_no_limit += 1
+            elif way_cls == "unknown_value":
+                unknown_value += 1
+                unknown_value_ways.append(entry)
+            else:
+                skipped_unparseable += 1
+                unparseable.append(entry)
+                print(
+                    json.dumps({"vehicle_limits_unparseable": entry}, ensure_ascii=False),
+                    file=sys.stderr,
+                    flush=True,
+                )
+            continue
+        # Numeric way — limits_from_tags must succeed.
+        if limits_from_tags(way["tags"]) is None:
+            skipped_unparseable += 1
+            entry = {
+                "osm_way_id": way["osm_way_id"],
+                "name": way["name"],
+                "highway": way["highway"],
+                "tags": raw_tags,
+                "class": "unparseable",
             }
             unparseable.append(entry)
-            print(
-                json.dumps({"vehicle_limits_unparseable": entry}, ensure_ascii=False),
-                file=sys.stderr,
-                flush=True,
-            )
             continue
         rows = match_way_to_roads(
             way,
@@ -823,20 +912,30 @@ def annotate(
         by_key[(int(r["feature_id"]), int(r["segment_index"]))] = r
     deduped = list(by_key.values())
     deduped.sort(key=lambda r: (r["feature_id"], r["segment_index"]))
-    parseable = max(1, len(ways) - skipped_parse)
+    excluded = non_numeric_no_limit + unknown_value + skipped_unparseable
+    numeric_ways = max(0, len(ways) - excluded)
+    # Backward-compat: skipped_unparseable = all non-numeric exclusions.
+    skipped_total = excluded
     report = {
         "tagged_ways": len(ways),
-        "skipped_unparseable": skipped_parse,
+        "non_numeric_no_limit": non_numeric_no_limit,
+        "unknown_value": unknown_value,
+        "skipped_unparseable": skipped_total,
+        "skipped_unparseable_other": skipped_unparseable,
+        "numeric_ways": numeric_ways,
         "matched_ways": matched_ways,
         "unmatched_ways": len(unmatched),
-        "match_rate": matched_ways / parseable,
+        "match_rate": (matched_ways / numeric_ways) if numeric_ways else 0.0,
         "records": len(deduped),
         "tolerance_m": tolerance_m,
         "max_bearing_diff_deg": MAX_BEARING_DIFF_DEG,
         "guard_rejections": dict(guard_counts),
         "matched_segments_per_way": matched_segments_per_way,
         "unparseable": unparseable,
+        "unknown_value_ways": unknown_value_ways,
         "unmatched": unmatched,
+        "osm_data_date": "",
+        "map_release": "",
     }
     return deduped, report
 
@@ -851,6 +950,18 @@ def main() -> int:
         type=float,
         default=TOLERANCE_M,
         help=f"both-endpoint distance to OSM polyline (default {TOLERANCE_M})",
+    )
+    ap.add_argument(
+        "--osm-data-date",
+        type=str,
+        default=os.environ.get("NAVI_MWM_OSM_DATA_DATE", ""),
+        help="OSM extract date (YYYY-MM-DD) recorded in coverage",
+    )
+    ap.add_argument(
+        "--map-release",
+        type=str,
+        default=os.environ.get("NAVI_MWM_COMAPS_VERSION", ""),
+        help="CoMaps map release id recorded in coverage (e.g. 261105)",
     )
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("--geojson", type=Path, help="Pre-exported tagged ways GeoJSON")
@@ -888,6 +999,8 @@ def main() -> int:
 
     roads = load_roads_jsonl(args.roads_jsonl)
     records, report = annotate(ways, roads, tolerance_m=args.tolerance_m)
+    report["osm_data_date"] = (args.osm_data_date or "").strip()
+    report["map_release"] = (args.map_release or "").strip()
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w", encoding="utf-8") as f:
         for r in records:
