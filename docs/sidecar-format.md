@@ -164,10 +164,24 @@ rule 2). **Absent section** means limits were not annotated for this leaf
 (client warns "not available"). **Present with `count = 0`** means annotated
 and no tagged segments matched.
 
+### VL01 layout (current)
+
 ```
-count     u32
-records   count × 20 bytes
+magic                  4 bytes   "VL01"
+tagged_ways            u32
+matched_ways           u32
+match_rate_milli       u32       # round(match_rate × 1000), 0…1000
+non_numeric_no_limit   u32
+unknown_value          u32
+osm_data_date          u16-len UTF-8
+map_release            u16-len UTF-8
+count                  u32
+records                count × 20 bytes
 ```
+
+Legacy bodies (count-first, no magic) are still accepted by readers. New bakes
+always write VL01. The same coverage object is also stored on each catalog leaf
+as `vehicle_limits_coverage` (see [client-fetch-mwm.md](client-fetch-mwm.md)).
 
 Each record (little-endian):
 
@@ -189,9 +203,11 @@ stored: the limit applies both ways.
 
 **Source tags** (plain values only; `:conditional` and other variants out of
 scope): `maxheight`, `maxwidth`, `maxlength`, `maxweight`, `maxaxleload`,
-`maxbogieweight`. Words `default` / `none` / `unsigned` / `below_default`
-mean no limit. Lengths are stored in centimetres; masses in units of 10 kg
-(tonnes × 100). Unparseable values are logged and skipped.
+`maxbogieweight`. Words `none` / `default` / `unsigned` / `no-limit` are
+**non_numeric_no_limit** (excluded from the match-rate denominator).
+`below_default` is **unknown_value** (excluded; listed in the leaf report, not
+in records). Lengths are stored in centimetres; masses in units of 10 kg
+(tonnes × 100). Other unparseable values are logged and skipped.
 
 **Binding:** Geofabrik extract → filter highway ways with any of the tags →
 match to `dump_mwm_roads` features by quantised geometry (quantum `1e-5`),

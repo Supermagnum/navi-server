@@ -13,7 +13,9 @@ mod vehicle_limits;
 
 pub use vehicle_limits::{
     load_vehicle_limits_jsonl, lookup_vehicle_limit, parse_vehicle_limits_body,
-    vehicle_limits_body, VehicleLimitRecord, SECTION_VEHICLE_LIMITS, VEHICLE_LIMIT_RECORD_LEN,
+    parse_vehicle_limits_section, vehicle_limits_body, vehicle_limits_body_with_coverage,
+    VehicleLimitRecord, VehicleLimitsCoverage, SECTION_VEHICLE_LIMITS, VEHICLE_LIMIT_RECORD_LEN,
+    VEHICLE_LIMITS_BODY_MAGIC,
 };
 
 use std::fs::File;
@@ -23,7 +25,7 @@ use std::path::Path;
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use sha2::{Digest, Sha256};
-use vehicle_limits::parse_vehicle_limits_body as parse_vl_body;
+use vehicle_limits::parse_vehicle_limits_section as parse_vl_section;
 
 /// Logical-blob magic.
 pub const MAGIC: &[u8; 4] = b"NVSC";
@@ -147,6 +149,8 @@ pub struct Sidecar {
     pub elevation: Vec<ElevationFeature>,
     /// Optional per-segment vehicle dimensional / weight limits.
     pub vehicle_limits: Vec<VehicleLimitRecord>,
+    /// Coverage header from the `vehicle_limits` VL01 body (default if absent/legacy).
+    pub vehicle_limits_coverage: VehicleLimitsCoverage,
     /// Attribution section as UTF-8 JSON text.
     pub attribution_json: String,
 }
@@ -239,8 +243,38 @@ pub fn sha256_file(path: &Path) -> Result<([u8; 32], u64)> {
 /// `vehicle_limits`: `None` omits the section (clients treat that as "limits
 /// not available for this leaf"). `Some(_)` always emits the section, even
 /// when the record list is empty (annotated, nothing tagged).
+///
+/// When the section is emitted, `vehicle_limits_coverage` is written in the
+/// VL01 header (use [`VehicleLimitsCoverage::default`] when unknown).
 #[allow(clippy::too_many_arguments)]
 pub fn build_sidecar_bytes(
+    generator_tag: &str,
+    generator_sha: &str,
+    mwm_sha256: [u8; 32],
+    mwm_size: u64,
+    wetland: Vec<WetlandRecord>,
+    boardwalk: Vec<BoardwalkRecord>,
+    elevation: Vec<ElevationFeature>,
+    vehicle_limits: Option<Vec<VehicleLimitRecord>>,
+    attribution_json: &str,
+) -> Result<Vec<u8>> {
+    build_sidecar_bytes_with_vl_coverage(
+        generator_tag,
+        generator_sha,
+        mwm_sha256,
+        mwm_size,
+        wetland,
+        boardwalk,
+        elevation,
+        vehicle_limits,
+        &VehicleLimitsCoverage::default(),
+        attribution_json,
+    )
+}
+
+/// Like [`build_sidecar_bytes`] but stores `vehicle_limits_coverage` in the VL01 header.
+#[allow(clippy::too_many_arguments)]
+pub fn build_sidecar_bytes_with_vl_coverage(
     generator_tag: &str,
     generator_sha: &str,
     mwm_sha256: [u8; 32],
@@ -249,6 +283,7 @@ pub fn build_sidecar_bytes(
     mut boardwalk: Vec<BoardwalkRecord>,
     mut elevation: Vec<ElevationFeature>,
     vehicle_limits: Option<Vec<VehicleLimitRecord>>,
+    vehicle_limits_coverage: &VehicleLimitsCoverage,
     attribution_json: &str,
 ) -> Result<Vec<u8>> {
     serde_json::from_str::<serde_json::Value>(attribution_json)
@@ -276,7 +311,10 @@ pub fn build_sidecar_bytes(
         (SECTION_ELEVATION, elevation_body(&elevation)?),
     ];
     if let Some(ref vl) = vehicle_limits {
-        sections_raw.push((SECTION_VEHICLE_LIMITS, vehicle_limits_body(vl)?));
+        sections_raw.push((
+            SECTION_VEHICLE_LIMITS,
+            vehicle_limits_body_with_coverage(vl, vehicle_limits_coverage)?,
+        ));
     }
     sections_raw.push((SECTION_ATTRIBUTION, attribution_json.as_bytes().to_vec()));
 
@@ -382,6 +420,7 @@ pub fn read_sidecar(path: &Path) -> Result<Sidecar> {
     let mut boardwalk = Vec::new();
     let mut elevation = Vec::new();
     let mut vehicle_limits = Vec::new();
+    let mut vehicle_limits_coverage = VehicleLimitsCoverage::default();
     let mut attribution_json = String::new();
     for info in &sections {
         let start = usize::try_from(info.offset).context("section offset")?;
@@ -401,7 +440,11 @@ pub fn read_sidecar(path: &Path) -> Result<Sidecar> {
             SECTION_WETLAND => wetland = parse_wetland_body(&raw)?,
             SECTION_BOARDWALK => boardwalk = parse_boardwalk_body(&raw)?,
             SECTION_ELEVATION => elevation = parse_elevation_body(&raw)?,
-            SECTION_VEHICLE_LIMITS => vehicle_limits = parse_vl_body(&raw)?,
+            SECTION_VEHICLE_LIMITS => {
+                let (cov, recs) = parse_vl_section(&raw)?;
+                vehicle_limits_coverage = cov;
+                vehicle_limits = recs;
+            }
             SECTION_ATTRIBUTION => {
                 attribution_json = String::from_utf8(raw).context("attribution is not utf-8")?;
                 serde_json::from_str::<serde_json::Value>(&attribution_json)
@@ -422,6 +465,7 @@ pub fn read_sidecar(path: &Path) -> Result<Sidecar> {
         boardwalk,
         elevation,
         vehicle_limits,
+        vehicle_limits_coverage,
         attribution_json,
     })
 }

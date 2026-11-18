@@ -123,6 +123,15 @@
       "mwm_fingerprint": {
         "size": 102194292,
         "sha256": "2852a363342183bf4df6b1b78f9790685dd7e6a1bc34eaefbf177fc6432799af"
+      },
+      "vehicle_limits_coverage": {
+        "tagged_ways": 720,
+        "matched_ways": 693,
+        "match_rate": 0.9625,
+        "non_numeric_no_limit": 0,
+        "unknown_value": 0,
+        "osm_data_date": "",
+        "map_release": "261105"
       }
     },
     {
