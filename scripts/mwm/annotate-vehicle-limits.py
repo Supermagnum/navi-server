@@ -31,6 +31,7 @@ sys.path.insert(0, str(SCRIPT_DIR / "lib"))
 
 from geometry_cache import QUANTUM_DEG, quantise_coord  # noqa: E402
 from vehicle_limit_units import (  # noqa: E402
+    classify_tag_value,
     metres_to_cm,
     parse_length_metres,
     parse_weight_tonnes,
@@ -161,30 +162,42 @@ def _parse_tag(key: str, raw: str | None, kind: str) -> float | None:
     s = str(raw).strip()
     if not s:
         return None
-    if kind == "length":
-        v = parse_length_metres(s)
-    else:
-        v = parse_weight_tonnes(s)
-    if v is None:
-        # default/none/unsigned and conditionals are silent skips; others log.
-        low = s.lower()
-        if low not in {
-            "default",
-            "none",
-            "unsigned",
-            "below_default",
-            "no",
-            "yes",
-            "unknown",
-            "unlimited",
-        } and "@" not in s and ";" not in s:
+    cls = classify_tag_value(s)
+    if cls != "numeric":
+        if cls == "unparseable":
             print(
                 json.dumps({"skip_unparseable": True, "key": key, "value": s}),
                 file=sys.stderr,
                 flush=True,
             )
         return None
-    return v
+    if kind == "length":
+        return parse_length_metres(s)
+    return parse_weight_tonnes(s)
+
+
+def classify_way_limit_tags(tags: dict) -> str:
+    """Way-level class for match-rate denominator.
+
+    Returns one of: ``numeric``, ``non_numeric_no_limit``, ``unknown_value``,
+    ``unparseable``. Priority when mixed non-numeric tags: unknown_value >
+    unparseable > non_numeric_no_limit. Any numeric limit wins as numeric.
+    """
+    classes = []
+    for key in LIMIT_KEYS:
+        raw = tags.get(key)
+        if raw is None or not str(raw).strip():
+            continue
+        classes.append(classify_tag_value(str(raw)))
+    if not classes:
+        return "unparseable"
+    if "numeric" in classes:
+        return "numeric"
+    if "unknown_value" in classes:
+        return "unknown_value"
+    if "unparseable" in classes:
+        return "unparseable"
+    return "non_numeric_no_limit"
 
 
 def limits_from_tags(tags: dict) -> dict[str, int] | None:
@@ -756,8 +769,11 @@ def annotate(
 ) -> tuple[list[dict], dict]:
     records: list[dict] = []
     matched_ways = 0
-    skipped_parse = 0
+    non_numeric_no_limit = 0
+    unknown_value = 0
+    skipped_unparseable = 0
     unparseable: list[dict] = []
+    unknown_value_ways: list[dict] = []
     unmatched: list[dict] = []
     matched_segments_per_way: list[dict] = []
     guard_counts: dict[str, int] = defaultdict(int)
@@ -765,20 +781,40 @@ def annotate(
 
     for way in ways:
         raw_tags = {k: way["tags"].get(k) for k in LIMIT_KEYS if way["tags"].get(k)}
-        if limits_from_tags(way["tags"]) is None:
-            skipped_parse += 1
+        way_cls = classify_way_limit_tags(way["tags"])
+        if way_cls != "numeric":
             entry = {
                 "osm_way_id": way["osm_way_id"],
                 "name": way["name"],
                 "highway": way["highway"],
                 "tags": raw_tags,
+                "class": way_cls,
+            }
+            if way_cls == "non_numeric_no_limit":
+                non_numeric_no_limit += 1
+            elif way_cls == "unknown_value":
+                unknown_value += 1
+                unknown_value_ways.append(entry)
+            else:
+                skipped_unparseable += 1
+                unparseable.append(entry)
+                print(
+                    json.dumps({"vehicle_limits_unparseable": entry}, ensure_ascii=False),
+                    file=sys.stderr,
+                    flush=True,
+                )
+            continue
+        # Numeric way — limits_from_tags must succeed.
+        if limits_from_tags(way["tags"]) is None:
+            skipped_unparseable += 1
+            entry = {
+                "osm_way_id": way["osm_way_id"],
+                "name": way["name"],
+                "highway": way["highway"],
+                "tags": raw_tags,
+                "class": "unparseable",
             }
             unparseable.append(entry)
-            print(
-                json.dumps({"vehicle_limits_unparseable": entry}, ensure_ascii=False),
-                file=sys.stderr,
-                flush=True,
-            )
             continue
         rows = match_way_to_roads(
             way,
@@ -823,19 +859,27 @@ def annotate(
         by_key[(int(r["feature_id"]), int(r["segment_index"]))] = r
     deduped = list(by_key.values())
     deduped.sort(key=lambda r: (r["feature_id"], r["segment_index"]))
-    parseable = max(1, len(ways) - skipped_parse)
+    excluded = non_numeric_no_limit + unknown_value + skipped_unparseable
+    numeric_ways = max(0, len(ways) - excluded)
+    # Backward-compat: skipped_unparseable = all non-numeric exclusions.
+    skipped_total = excluded
     report = {
         "tagged_ways": len(ways),
-        "skipped_unparseable": skipped_parse,
+        "non_numeric_no_limit": non_numeric_no_limit,
+        "unknown_value": unknown_value,
+        "skipped_unparseable": skipped_total,
+        "skipped_unparseable_other": skipped_unparseable,
+        "numeric_ways": numeric_ways,
         "matched_ways": matched_ways,
         "unmatched_ways": len(unmatched),
-        "match_rate": matched_ways / parseable,
+        "match_rate": (matched_ways / numeric_ways) if numeric_ways else 0.0,
         "records": len(deduped),
         "tolerance_m": tolerance_m,
         "max_bearing_diff_deg": MAX_BEARING_DIFF_DEG,
         "guard_rejections": dict(guard_counts),
         "matched_segments_per_way": matched_segments_per_way,
         "unparseable": unparseable,
+        "unknown_value_ways": unknown_value_ways,
         "unmatched": unmatched,
     }
     return deduped, report

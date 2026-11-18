@@ -1,24 +1,54 @@
 """Parse OSM vehicle-restriction tag values to metres / tonnes.
 
-Plain numeric values only. Conditional suffixes and words such as ``default``,
-``none``, ``unsigned``, ``below_default`` yield ``None`` (no limit emitted).
+Plain numeric values only. Special words are classified for match-rate
+accounting (they never emit a sidecar limit):
+
+* ``none`` / ``default`` / ``unsigned`` / ``no-limit`` (and aliases) →
+  ``non_numeric_no_limit`` — exclude from the match-rate denominator.
+* ``below_default`` → ``unknown_value`` — exclude from the denominator;
+  ways are listed in the leaf report (restriction of unknown size).
 """
 from __future__ import annotations
 
 import re
-from typing import Optional
+from typing import Literal, Optional
 
-# Words that mean "no enforceable numeric limit" for our sidecar.
-_DROP = frozenset(
+TagValueClass = Literal[
+    "numeric",
+    "non_numeric_no_limit",
+    "unknown_value",
+    "unparseable",
+    "empty",
+]
+
+# Explicit "no enforceable numeric limit" — not a miss for coverage.
+_NO_LIMIT = frozenset(
     {
         "default",
         "none",
         "unsigned",
-        "below_default",
         "no",
+        "no-limit",
+        "nolimit",
+        "unlimited",
+    }
+)
+
+# Restriction present but magnitude unknown — report, do not match.
+_UNKNOWN_VALUE = frozenset(
+    {
+        "below_default",
+    }
+)
+
+# Other non-numeric drops (conditionals handled separately via @ / ;).
+_OTHER_DROP = frozenset(
+    {
         "yes",
         "unknown",
-        "unlimited",
+        "fixme",
+        "null",
+        "nan",
     }
 )
 
@@ -45,16 +75,26 @@ def _to_float(raw: str) -> Optional[float]:
         return None
 
 
-def parse_length_metres(raw: str | None) -> Optional[float]:
-    """Parse maxheight / maxwidth / maxlength into metres, or None to skip."""
+def classify_tag_value(raw: str | None) -> TagValueClass:
+    """Classify one raw OSM tag value for match-rate accounting."""
     if raw is None:
-        return None
-    s = raw.strip()
+        return "empty"
+    s = str(raw).strip()
     if not s:
-        return None
+        return "empty"
     low = s.lower()
-    if low in _DROP or "@" in s or ";" in s:
-        return None
+    if low in _NO_LIMIT:
+        return "non_numeric_no_limit"
+    if low in _UNKNOWN_VALUE:
+        return "unknown_value"
+    if low in _OTHER_DROP or "@" in s or ";" in s:
+        return "unparseable"
+    if _try_parse_length(s) is not None or _try_parse_weight(s) is not None:
+        return "numeric"
+    return "unparseable"
+
+
+def _try_parse_length(s: str) -> Optional[float]:
     m = _FT_IN.match(s)
     if m:
         ft = _to_float(m.group("ft"))
@@ -82,16 +122,7 @@ def parse_length_metres(raw: str | None) -> Optional[float]:
     return None
 
 
-def parse_weight_tonnes(raw: str | None) -> Optional[float]:
-    """Parse maxweight / maxaxleload / maxbogieweight into tonnes, or None."""
-    if raw is None:
-        return None
-    s = raw.strip()
-    if not s:
-        return None
-    low = s.lower()
-    if low in _DROP or "@" in s or ";" in s:
-        return None
+def _try_parse_weight(s: str) -> Optional[float]:
     m = _NUM_UNIT.match(s)
     if not m:
         return None
@@ -105,10 +136,25 @@ def parse_weight_tonnes(raw: str | None) -> Optional[float]:
         return num / 1000.0
     if unit in ("lb", "lbs", "pound", "pounds"):
         return num * 0.00045359237
-    # Bare number on weight tags is conventionally tonnes in OSM.
     if unit in ("",):
         return num
     return None
+
+
+def parse_length_metres(raw: str | None) -> Optional[float]:
+    """Parse maxheight / maxwidth / maxlength into metres, or None to skip."""
+    if classify_tag_value(raw) != "numeric":
+        return None
+    assert raw is not None
+    return _try_parse_length(str(raw).strip())
+
+
+def parse_weight_tonnes(raw: str | None) -> Optional[float]:
+    """Parse maxweight / maxaxleload / maxbogieweight into tonnes, or None."""
+    if classify_tag_value(raw) != "numeric":
+        return None
+    assert raw is not None
+    return _try_parse_weight(str(raw).strip())
 
 
 def metres_to_cm(m: float) -> int:
