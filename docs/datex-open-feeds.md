@@ -1,70 +1,117 @@
 # Open DATEX II feeds (no registration)
 
-**Status:** research / operator reference (surveyed 2026-09-09).  
+**Status:** research / operator reference (re-probed 2026-11-19).  
 **Not** a navi-server poller plugin. These are upstream sources that answered
 anonymous HTTP GET during the survey. Licences and URLs can change — re-check
 before production use.
 
 Open feeds remain **not implemented**. The multi-provider framework
-(`plugins/datex_common/`, namespaced `/datex/<provider_id>/`) is ready when an
-operator adds a plugin later — see [datex-adding-sources.md](datex-adding-sources.md).
-Do not enable or ship France TIPI / Flanders / Digitraffic / CITA / NDW pollers
-from this document alone.
+(`config/datex/providers/`, `scripts/datex-provider.sh`, namespaced
+`/datex/<provider_id>/`) is ready when an operator adds a provider later —
+see [datex-providers.md](datex-providers.md) and
+[datex-adding-sources.md](datex-adding-sources.md).
+Do not enable or ship France TIPI / Flanders / Digitraffic / CITA / NDW /
+Bulgaria / MOBI.E pollers from this document alone.
 
-Primary external catalogue used for discovery (many more countries, mixed
+Primary external catalogues used for discovery (many more countries, mixed
 formats, mixed access rules):
 
 - [graphhopper/open-traffic-collection](https://github.com/graphhopper/open-traffic-collection)
   — community list of traffic open-data portals. Links below marked **(GH)**
   come from that README; status was re-checked with anonymous HTTP GET on
-  2026-09-09. **Where GH notes registration (or a probe shows a portal-only
+  2026-11-19. **Where GH notes registration (or a probe shows a portal-only
   page), registration is still required** even if the landing URL returns 200.
+- [traff / roadeagle Data Sources](https://gitlab.com/traffxml/roadeagle/-/wikis/Data-Sources)
+  — additional no-registration claims (Bulgaria, regional DE MDM mirrors).
+- [DATEX@NAPs distributions](https://datex2.naps.inqms.tamtamresearch.com/naps-browser/index/distribution/index.html)
+  — auth metadata often listed.
 
 Most European National Access Points (NAPs) still require registration or an
 API key even when the data is free. Fully open, walk-up DATEX situation feeds
-are uncommon. Another discovery catalogue (auth metadata often listed):
-[DATEX@NAPs distributions](https://datex2.naps.inqms.tamtamresearch.com/naps-browser/index/distribution/index.html).
+are uncommon.
 
 Related navi-server docs:
 
 - [DATEX NPRA redistribution](datex-npra.md) — implemented optional plugin (Basic auth)
-- [Adding a DATEX source](datex-adding-sources.md) — how to wire a new poller
+- [DATEX multi-provider setup](datex-providers.md) — preferred way to add a poller
+- [Adding a DATEX source](datex-adding-sources.md) — legacy plugin stub notes
 - [Client fetch](client-fetch.md#datex-npra-optional) — what clients GET from this host
+
+---
+
+## Probe method (2026-11-19)
+
+Anonymous `curl` GET with `Accept: application/xml, text/xml, */*` and a
+plain survey User-Agent. Digitraffic additionally requires
+`Accept-Encoding: gzip` (HTTP 406 without it). Gzip bodies (NDW `*.xml.gz`)
+were decompressed before structure checks. Pass means HTTP 2xx, non-trivial
+body, and DATEX-like markers (`d2LogicalModel`, `messageContainer`,
+`SituationPublication`, `payloadPublication`, `MeasuredDataPublication`,
+or `EnergyInfrastructure`).
 
 ---
 
 ## Confirmed open DATEX-style feeds (no login / no registration)
 
-Live-probed with anonymous GET on 2026-09-09. These returned DATEX / DATEX-like
-XML without credentials.
+Live-probed with anonymous GET on **2026-11-19**. These returned DATEX /
+DATEX-like XML without credentials.
 
-| Country | Content | Working endpoint | Notes |
-|---|---|---|---|
-| **France** | DIR events on non-concession national network (RRN) | [TIPI Evenementiel-DIR](https://tipi.bison-fute.gouv.fr/bison-fute-ouvert/publicationsDIR/Evenementiel-DIR/) (e.g. `grt/RRN/`) | DATEX II **v2**, SOAP-wrapped **per-event** XML. Opendata-style licence. Also open: `QTV-DIR/`, `TP-DIR/`, `TRAFICOLOR-DIR/`. **Action B / Action C need credentials.** Dataset pages on [transport.data.gouv.fr events](https://transport.data.gouv.fr/datasets/evenements-routiers-sur-le-reseau-routier-national-non-concede) and [traffic state](https://transport.data.gouv.fr/datasets/etat-de-circulation-en-temps-reel-sur-le-reseau-national-routier-non-concede) **(GH)**. |
-| **Belgium (Flanders)** | Highways + some regional incidents / works | `https://www.verkeerscentrum.be/uitwisseling/datex2v3full` (v3) and `…/datex2full` (v2) **(GH)** | Anonymous DATEX XML. CC-BY. GH notes Alert-C location quirks for Belgium. |
-| **Finland** | Digitraffic traffic messages | `https://tie.digitraffic.fi/api/traffic-message/v1/messages.datex2?inactiveHours=0&situationType=TRAFFIC_ANNOUNCEMENT` (also `ROAD_WORK`, `WEIGHT_RESTRICTION`, …) | DATEX II **v2.3**. No auth. Requires `Accept-Encoding: gzip`. Portal **(GH)**: [digitraffic.fi road traffic](https://www.digitraffic.fi/en/road-traffic/). Older Vayla static paths `aineistot.vayla.fi/..._d2.xml` **(GH)** returned HTTP 400 when probed — prefer Digitraffic API. |
-| **Luxembourg** | CITA traffic events | `https://cita.lu/info_trafic/datex/situationrecord36` and `https://www.cita.lu/info_trafic/datex/situationrecord` **(GH)** | DATEX II situation XML; **CC0** via [data.public.lu](https://data.public.lu/en/datasets/cita-evenements-trafic-en-datex-ii-v3-6/). |
-| **Netherlands** | NDW open data (SRTI, works, closures, measurements, …) | Index: [opendata.ndw.nu](https://opendata.ndw.nu/) **(GH)** | Anonymous GET. Working examples (2026-09-09): `veiligheidsgerelateerde_berichten_srti.xml.gz`, `planningsfeed_wegwerkzaamheden_en_evenementen.xml.gz`, `tijdelijke_verkeersmaatregelen_afsluitingen.xml.gz`, `actueel_beeld.xml.gz`, … Short names in older GH notes (`srti.xml.gz`, `incidents.xml.gz`, `wegwerkzaamheden.xml.gz`, `gebeurtenisinfo.xml.gz`) returned **404** — use the current index filenames. |
+| Country | Operator / content | Working endpoint(s) | Data types | Notes | Last-tested |
+|---|---|---|---|---|---|
+| **France** | TIPI / Bison Futé — DIR events on non-concession RRN | Directory: [Evenementiel-DIR/grt/RRN/](https://tipi.bison-fute.gouv.fr/bison-fute-ouvert/publicationsDIR/Evenementiel-DIR/grt/RRN/) (thousands of numbered `*.xml`); sample file returned SOAP-wrapped DATEX II **v2** `SituationPublication`. Also open: [QTV-DIR/qtvDir.xml](https://tipi.bison-fute.gouv.fr/bison-fute-ouvert/publicationsDIR/QTV-DIR/qtvDir.xml) (`MeasuredDataPublication`). | Events (per-file), flow/speed (QTV) | Opendata-style licence. **Action B / Action C need credentials.** Dataset pages on [transport.data.gouv.fr events](https://transport.data.gouv.fr/datasets/evenements-routiers-sur-le-reseau-routier-national-non-concede) and [traffic state](https://transport.data.gouv.fr/datasets/etat-de-circulation-en-temps-reel-sur-le-reseau-national-routier-non-concede) **(GH)**. Directory listing alone is HTML — fetch individual `*.xml`. | 2026-11-19 **PASS** |
+| **Belgium (Flanders)** | Verkeerscentrum — highways + regional incidents / works | `https://www.verkeerscentrum.be/uitwisseling/datex2v3full` (v3) and `…/datex2full` (v2) **(GH)** | Situation / works | Anonymous DATEX XML (~280–480 KiB). CC-BY / Modellicentie. GH notes Alert-C location quirks for Belgium. | 2026-11-19 **PASS** |
+| **Finland** | Digitraffic — traffic messages | `https://tie.digitraffic.fi/api/traffic-message/v1/messages.datex2?inactiveHours=0&situationType=TRAFFIC_ANNOUNCEMENT` (also `ROAD_WORK`, `WEIGHT_RESTRICTION`, …) | Traffic announcements, roadworks, weight restrictions | DATEX II **v2.3**. No auth. **Requires `Accept-Encoding: gzip`.** Portal **(GH)**: [digitraffic.fi road traffic](https://www.digitraffic.fi/en/road-traffic/). Older `…/api/v1/data/*-datex2` paths returned **404**. Vayla static `aineistot.vayla.fi/..._d2.xml` **(GH)** still **HTTP 400** — prefer Digitraffic API. | 2026-11-19 **PASS** |
+| **Luxembourg** | CITA traffic events | `https://cita.lu/info_trafic/datex/situationrecord36` and `https://www.cita.lu/info_trafic/datex/situationrecord` **(GH)** | Situation records | DATEX II situation XML; **CC0** via [data.public.lu](https://data.public.lu/en/datasets/cita-evenements-trafic-en-datex-ii-v3-6/). | 2026-11-19 **PASS** |
+| **Netherlands** | NDW open data | Index: [opendata.ndw.nu](https://opendata.ndw.nu/) **(GH)**. Working examples: `veiligheidsgerelateerde_informatie_srti.xml.gz`, `planningsfeed_wegwerkzaamheden_en_evenementen.xml.gz`, `tijdelijke_verkeersmaatregelen_afsluitingen.xml.gz`, `tijdelijke_verkeersmaatregelen_maximum_snelheden.xml.gz`, `actueel_beeld.xml.gz` | SRTI, works/events planning, closures, speed measures, traffic image | Anonymous GET; bodies are gzip DATEX II (often **v3** `messageContainer`). **Filename change:** older `veiligheidsgerelateerde_berichten_srti.xml.gz` returned **404** on 2026-11-19 — use `…_informatie_srti…`. Short names in older GH notes (`srti.xml.gz`, …) still 404. AVG measurement files migrate toward v3 names by 2027-02-09 (see portal notice). | 2026-11-19 **PASS** |
+| **Bulgaria** | Road Infrastructure Agency (RIA) via LIMA Datasheet | Pattern: `https://datasheet.api.bg/files/YYYYMMDD_<group>_<code>.xml` (date in Europe/Sofia). Confirmed: `…_danger_d01.xml`, `…_danger_d02.xml`, `…_roadworks_r01.xml`, `…_roadworks_r02.xml`, `…_roadworks_r03.xml`, `…_other_o04.xml`, `…_other_o05.xml`, `…_other_o06.xml`. Portal: [datasheet.api.bg](https://datasheet.api.bg/?lang=en) | Danger, roadworks, other situation publications | DATEX II **v2** `SituationPublication`. No registration (DATEX@NAPs: `subscription_needed: no`). URL date rolls around midnight EET; empty/missing kinds return HTML 404. Portal HTML `?download=1` is **not** a raw XML feed. Licence: not declared on NAP metadata. | 2026-11-19 **PASS** (listed codes) |
+| **Portugal** | MOBI.E / NAP — EV charging (AFIR) | `https://pgm.mobie.pt/integration/nap/evChargingInfra` (static inventory) and `https://pgm.mobie.pt/integration/nap/evActualStatus` (dynamic status) | Energy infrastructure table / status (DATEX II **v3.3**) | Anonymous GET; large XML (multi‑MB / tens of MB). NAP Portugal cards describe **livre acesso**. Not road-situation SRTI — useful if clients need charging DATEX. | 2026-11-19 **PASS** |
 
 ### France TIPI open tree (detail)
 
 Base: `https://tipi.bison-fute.gouv.fr/bison-fute-ouvert/publicationsDIR/`
 
-| Path | Role |
-|---|---|
-| `Evenementiel-DIR/grt/RRN/` | Event publications for the Réseau Routier National (many numbered `*.xml`) |
-| `Evenementiel-DIR/cnir/` | Related event publications (CNIR) |
-| `QTV-DIR/` | Flow / speed style traffic data (`qtvDir.xml`, …) |
-| `TP-DIR/` | Travel-time style data |
-| `TRAFICOLOR-DIR/` | Urban / regional traffic-colour feeds |
+| Path | Role | Probe 2026-11-19 |
+|---|---|---|
+| `Evenementiel-DIR/grt/RRN/` | Event publications for the Réseau Routier National (many numbered `*.xml`) | Directory HTML; sample `*.xml` **PASS** (SOAP + DATEX v2) |
+| `Evenementiel-DIR/cnir/` | Related event publications (CNIR) | Not re-listed file-by-file this run |
+| `QTV-DIR/qtvDir.xml` | Flow / speed style traffic data | **PASS** (`MeasuredDataPublication`) |
+| `TP-DIR/` | Travel-time style data | Not re-fetched this run |
+| `TRAFICOLOR-DIR/` | Urban / regional traffic-colour feeds | Not re-fetched this run |
 
 Official framing: [Données sur le RRN](https://www.bison-fute.gouv.fr/donnees-sur-la-circulation-du,langen.html).
+
+### Bulgaria URL construction
+
+```text
+https://datasheet.api.bg/files/YYYYMMDD_<group>_<code>.xml
+```
+
+Use today's date in `Europe/Sofia`. Catalogue links on the portal use
+`?lang=en&g=<group>&c=<code>` (HTML UI only). Prefer the `/files/…xml`
+pattern for machine pull.
+
+---
+
+## Probe failures / do not treat as open pull feeds (2026-11-19)
+
+| Candidate | Result | Disposition |
+|---|---|---|
+| NDW `veiligheidsgerelateerde_berichten_srti.xml.gz` | HTTP **404** | Renamed — use `veiligheidsgerelateerde_informatie_srti.xml.gz` (PASS) |
+| Digitraffic without `Accept-Encoding: gzip` | HTTP **406** | Still open; client must send gzip Accept-Encoding |
+| Digitraffic legacy `…/api/v1/data/traffic-disorders-datex2` (and roadworks twin) | HTTP **404** | Prefer `traffic-message/v1/messages.datex2?situationType=…` |
+| Finland Vayla `aineistot.vayla.fi/roadworks/roadworks_d2.xml` | HTTP **400** | Dead for pull; use Digitraffic |
+| Finland Vayla weight `…/painorajoitukset_d2.xml` | HTTP **400** | Dead for pull; use Digitraffic |
+| Germany NRW MDM mirrors (`open.nrw/broker.mdm-portal.de/…`) | HTTP **503** | Claimed no-reg historically; **unavailable** this probe |
+| Germany Bavaria `data-run.info/BASt-MDM-Interface/…` | Timeout / no response | **FAIL** this probe |
+| Portugal Porto municipal DATEX URL (opendata.porto.digital → dadosabertos.cm-porto.pt) | DNS failure | **FAIL** this probe — not listed as confirmed |
+| Spain DGT EV `infocar.dgt.es/.../electrolineras.xml` | HTTP **502** HTML | **FAIL** this probe |
+| TIPI directory URL alone (no specific `*.xml`) | HTTP 200 HTML listing | Not a feed body; fetch child XML files |
 
 ---
 
 ## From GraphHopper collection — portals that work but need registration
 
-These **(GH)** landing pages responded in the survey, but **DATEX pull access
+These **(GH)** landing pages may respond, but **DATEX pull access
 requires registration / contract / API credentials** (per GH and/or operator
 docs). Do not treat a 200 HTML portal as an open feed.
 
@@ -78,6 +125,7 @@ docs). Do not treat a 200 HTML portal as an open feed.
 | **Slovenia** | [promet.si plugins for developers](https://www.promet.si/en/plugins-for-developers) (old `…/etd.aspx` redirects) **(GH)** | **Registration required** **(GH)** |
 | **Germany (Mobilithek)** | [mobilithek.info](https://mobilithek.info/) **(GH)** | Portal account / licence typical for DATEX distributions |
 | **Germany (unofficial motorway API)** | [autobahn.api.bund.dev](https://autobahn.api.bund.dev/) **(GH)** | Not classic DATEX NAP; check current API terms |
+| **Latvia** | [transportdata.gov.lv](https://transportdata.gov.lv/en) **(GH)** | Free account + per-dataset subscribe **(GH)** — not walk-up anonymous |
 
 ---
 
@@ -85,14 +133,15 @@ docs). Do not treat a 200 HTML portal as an open feed.
 
 Re-probe before relying on these **(GH)** entries:
 
-| Entry | Probe (2026-09-09) |
+| Entry | Probe |
 |---|---|
-| Finland Vayla `https://aineistot.vayla.fi/roadworks/roadworks_d2.xml` | HTTP 400 |
-| Finland Vayla weight `…/painorajoitukset_d2.xml` | HTTP 400 |
+| Finland Vayla `https://aineistot.vayla.fi/roadworks/roadworks_d2.xml` | HTTP 400 (2026-09-09 and 2026-11-19) |
+| Finland Vayla weight `…/painorajoitukset_d2.xml` | HTTP 400 (2026-09-09 and 2026-11-19) |
 | NL short names `srti.xml.gz`, `incidents.xml.gz`, `wegwerkzaamheden.xml.gz`, `gebeurtenisinfo.xml.gz` | HTTP 404 (index still lists longer filenames) |
-| Sweden Trafikverket open-data URL in GH README | HTTP 404 |
-| UK England `trafficengland.com/services-info` | HTTP 404 |
-| UK Scotland `trafficscotland.org/datex/` | HTTP 404 |
+| NL `veiligheidsgerelateerde_berichten_srti.xml.gz` | HTTP 404 (2026-11-19); replaced by `…_informatie_srti…` |
+| Sweden Trafikverket open-data URL in GH README | HTTP 404 (2026-09-09) |
+| UK England `trafficengland.com/services-info` | HTTP 404 (2026-09-09) |
+| UK Scotland `trafficscotland.org/datex/` | HTTP 404 (2026-09-09) |
 
 GH still states for England/Scotland/Sweden DATEX: **registration required** when those services are alive.
 
@@ -102,9 +151,9 @@ GH still states for England/Scotland/Sweden DATEX: **registration required** whe
 
 Useful for context, not DATEX II situation plugins:
 
-| Source | URL | Notes |
-|---|---|---|
-| Catalonia incidents | `http://www.gencat.cat/transit/opendata/incidenciesGML.xml` **(GH)** | Custom GML/WFS-style XML; anonymous 200 |
+| Source | URL | Notes | Last-tested |
+|---|---|---|---|
+| Catalonia incidents | `http://www.gencat.cat/transit/opendata/incidenciesGML.xml` **(GH)** | Custom GML/WFS-style XML; anonymous 200 (~199 KiB) | 2026-11-19 **PASS** (non-DATEX) |
 
 ---
 
@@ -115,7 +164,7 @@ Useful for context, not DATEX II situation plugins:
 | **Norway (NPRA)** | Basic auth after register — see [datex-npra.md](datex-npra.md) |
 | **Switzerland** | API key / Bearer (opentransportdata.swiss) |
 | **France Action B / Action C** | Login on TIPI restricted paths |
-| **Austria ASFINAG DATEX**, **Czechia**, **Estonia**, **Poland NAP**, **Slovenia**, **UK** (when online), **Sweden Trafikverket** | Registration per GH / operator |
+| **Austria ASFINAG DATEX**, **Czechia**, **Estonia**, **Poland NAP**, **Slovenia**, **Latvia**, **UK** (when online), **Sweden Trafikverket** | Registration per GH / operator |
 | **Denmark, often Germany Mobilithek** | Portal account and/or licence even when free of charge |
 
 Standards / background: [datex2.eu](https://datex2.eu/) **(GH)**.
@@ -127,10 +176,10 @@ Standards / background: [datex2.eu](https://datex2.eu/) **(GH)**.
 | Aspect | NPRA (navi-server plugin) | Typical open feeds above |
 |---|---|---|
 | Auth | Basic auth + account | None (open) **or** registration (GH portals) |
-| Packaging | Few large snapshot endpoints | Directory of small files **or** one snapshot URL **or** gzip API |
-| Schema | DATEX II **v3.1** `MessageContainer` | Mix of **v2** / **v2.3** / **v3** |
-| Redistribution | Cached under `/datex/` when enabled | Not implemented in navi-server today |
+| Packaging | Few large snapshot endpoints | Directory of small files **or** one snapshot URL **or** gzip API **or** dated daily files |
+| Schema | DATEX II **v3.1** `MessageContainer` | Mix of **v2** / **v2.3** / **v3** / EV EnergyInfrastructure |
+| Redistribution | Cached under `/datex/npra/` when enabled | Not implemented in navi-server today |
 
-Do not assume an open feed can be dropped into the NPRA poller unchanged — URL shape, auth, schema version, and update cadence differ. Follow [Adding a DATEX source](datex-adding-sources.md) for a new provider plugin.
+Do not assume an open feed can be dropped into the NPRA poller unchanged — URL shape, auth, schema version, and update cadence differ. Follow [datex-providers.md](datex-providers.md) (`auth_type = "none"`) for a new provider.
 
 When in doubt: if GraphHopper or the operator says **registration required**, treat it as credentialed even if a marketing page is publicly reachable.
