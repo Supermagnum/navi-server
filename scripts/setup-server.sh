@@ -139,15 +139,17 @@ Would install Python venv at ${MWM_VENV} from ${MWM_REQUIREMENTS}
 
 Full interactive sudo run would:
   1. Enable Apache site apache-navi-packs on :80 (DocumentRoot serves /mwm/ and /packs/ if present)
-  2. Ensure service user ${SERVICE_USER} + systemd units:
+  2. Ensure service user ${SERVICE_USER} + systemd units (User=${SERVICE_USER}):
      - navi-mwm-check.timer enabled (detect-only; NAVI_MWM_ENABLED=0)
+     - navi-mwm-check/bake.service run as ${SERVICE_USER}
      - navi-mwm-bake.service installed, timer not enabled
      - navi-pack-bake/scrub units installed; timers DISABLED when RKYV_FROZEN=1 (default)
   3. Write ${MWM_ENV_DST} with NAVI_MWM_ENABLED=0 + cache/concurrency defaults
   4. If RKYV_FROZEN=1: write published/.navi-rkyv-frozen
   5. Offer DATEX (interactive TTY only) — unchanged
 
---apply-mwm: install MWM units + /etc/navi/mwm.env + dirs (no Apache).
+--apply-mwm: ensure ${SERVICE_USER}, install MWM units (User=${SERVICE_USER})
+  + /etc/navi/mwm.env + own publish/cache/lock dirs (no Apache).
 --enable-rkyv-bake: enable weekly .rkyv bake + daily scrub (not default).
 
 Current flags that would apply if not --dry-run:
@@ -169,6 +171,59 @@ require_root() {
   [[ "$(id -u)" -eq 0 ]] || fail "${what} requires root (re-run with sudo)"
 }
 
+# Create the dedicated system account used by pack + MWM + DATEX + DDNS units.
+# UNIX name is lowercase (navit-server by default). Display name "Navi-server"
+# maps to this account — Linux user names should stay [a-z0-9_-].
+ensure_service_user() {
+  require_root "ensure service user"
+  command -v useradd >/dev/null 2>&1 || fail "useradd not found"
+  if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
+    useradd --system --user-group \
+      --home-dir "$NAVI_SERVER_ROOT" \
+      --shell /usr/sbin/nologin \
+      --comment "Navi server (packs + MWM bake)" \
+      "$SERVICE_USER"
+    log "created system user ${SERVICE_USER}"
+  else
+    log "system user ${SERVICE_USER} already exists"
+  fi
+}
+
+# Own MWM work / publish / lock / cache paths. Safe to re-run. Skips recursive
+# chown of published/mwm while a bake holds the pipeline lock (caller should
+# stop the failing oneshot first on live upgrades).
+chown_mwm_runtime_paths() {
+  local paths
+  if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
+    warn "service user ${SERVICE_USER} missing — skip MWM chown"
+    return 0
+  fi
+  paths=(
+    "${DATA}/published/mwm"
+    "${DATA}/elevation/mapterhorn-cache"
+    "${DATA}/elevation/geometry-hash-cache"
+    "${DATA}/elevation/hgt-mapterhorn"
+    "${DATA}/mwm"
+    "${DATA}/mwm/comaps"
+    "${DATA}/mwm/omim-build-release"
+    "${DATA}/mwm/maps_build"
+    "${DATA}/state"
+    "${DATA}/state/pack-pipeline.lock"
+    "${DATA}/scratch"
+    "${DATA}/logs"
+    "${DATA}/staging"
+  )
+  if [[ -d "$MWM_VENV" ]]; then
+    paths+=("$MWM_VENV")
+  fi
+  local p
+  for p in "${paths[@]}"; do
+    [[ -e "$p" ]] || continue
+    chown -R "${SERVICE_USER}:${SERVICE_USER}" "$p"
+  done
+  log "owned MWM runtime paths as ${SERVICE_USER}:${SERVICE_USER}"
+}
+
 ensure_mwm_dirs() {
   mkdir -p \
     "${DATA}/published/mwm" \
@@ -178,6 +233,10 @@ ensure_mwm_dirs() {
     "${DATA}/elevation/copernicus" \
     "${DATA}/elevation/viewfinder" \
     "${DATA}/elevation/srtm" \
+    "${DATA}/elevation/hgt-mapterhorn" \
+    "${DATA}/mwm/comaps/data" \
+    "${DATA}/mwm/omim-build-release" \
+    "${DATA}/mwm/maps_build" \
     "${DATA}/scratch/extracts" \
     "${DATA}/scratch/convert" \
     "${DATA}/state" \
@@ -201,6 +260,10 @@ EOF
       log "wrote ${DATA}/published/.navi-rkyv-frozen"
     fi
   fi
+  # When run as root (apply-*), ensure the bake user can write caches/locks.
+  if [[ "$(id -u)" -eq 0 ]]; then
+    chown_mwm_runtime_paths
+  fi
 }
 
 write_mwm_env() {
@@ -210,6 +273,9 @@ write_mwm_env() {
 # Written by setup-server.sh — override as needed.
 NAVI_MWM_ENABLED=0
 NAVI_MWM_MODE=comaps-release
+NAVI_MWM_COMAPS_ROOT=${DATA}/mwm/comaps
+NAVI_MWM_BUILD_DIR=${DATA}/mwm/omim-build-release
+NAVI_MWM_MAPS_BUILD=${DATA}/mwm/maps_build
 NAVI_MWM_PUBLISHED_ROOT=${DATA}/published/mwm
 NAVI_MWM_LOCK=${DATA}/state/pack-pipeline.lock
 NAVI_MWM_MAPTERHORN_CACHE=${DATA}/elevation/mapterhorn-cache
@@ -223,12 +289,21 @@ NAVI_MWM_PREFETCH_DISK_BUDGET_GIB=20
 NAVI_MWM_DOWNLOAD_CONCURRENCY=2
 NAVI_MWM_GRACE_DAYS=7
 NAVI_MWM_KEEP_RELEASES=2
+# World bake (matches live published/mwm catalog). Nordic-only: set to 0 + leafset.
+NAVI_MWM_ALL_LEAVES=1
 EOF
     chmod 644 "$MWM_ENV_DST"
     log "wrote ${MWM_ENV_DST} (NAVI_MWM_ENABLED=0)"
   else
     log "${MWM_ENV_DST} already present — left unchanged"
   fi
+}
+
+# Full bake import set (must match scripts/mwm/requirements.txt).
+verify_mwm_venv_imports() {
+  local py="${1:-${MWM_VENV}/bin/python}"
+  [[ -x "$py" ]] || return 1
+  "$py" -c 'import zstandard, PIL, nacl, shapely' 2>/dev/null
 }
 
 ensure_mwm_venv() {
@@ -240,21 +315,37 @@ ensure_mwm_venv() {
     log "creating Python venv ${MWM_VENV}"
     python3 -m venv "$MWM_VENV"
   fi
+  if ! grep -qE '^[[:space:]]*shapely([>=< ]|$)' "$MWM_REQUIREMENTS" 2>/dev/null; then
+    warn "${MWM_REQUIREMENTS} missing shapely — bake annotate/region tools will fail"
+  fi
   # shellcheck disable=SC1091
-  "${MWM_VENV}/bin/pip" install -q -r "$MWM_REQUIREMENTS" || \
+  if ! "${MWM_VENV}/bin/pip" install -q -r "$MWM_REQUIREMENTS"; then
     warn "pip install into ${MWM_VENV} failed — install deps manually"
-  log "MWM venv ready: ${MWM_VENV}"
+    return 1
+  fi
+  if ! verify_mwm_venv_imports "${MWM_VENV}/bin/python"; then
+    warn "MWM venv imports incomplete (need zstandard, PIL, nacl, shapely) — check ${MWM_REQUIREMENTS}"
+    return 1
+  fi
+  log "MWM venv ready: ${MWM_VENV} (zstandard, PIL, nacl, shapely)"
 }
 
 # Install MWM systemd units + env. Check timer enabled (detect-only); bake timer off.
+# Units run as ${SERVICE_USER} (User=/Group= in navi-mwm-*.service).
 mwm_units_apply() {
   require_root "--apply-mwm/--apply-service"
   command -v systemctl >/dev/null 2>&1 || fail "systemctl not found"
   [[ -f "$MWM_CHECK_UNIT_SRC" ]] || fail "missing ${MWM_CHECK_UNIT_SRC}"
   [[ -f "$MWM_CHECK_TIMER_SRC" ]] || fail "missing ${MWM_CHECK_TIMER_SRC}"
   [[ -f "$MWM_BAKE_UNIT_SRC" ]] || fail "missing ${MWM_BAKE_UNIT_SRC}"
+  ensure_service_user
   ensure_mwm_dirs
   write_mwm_env
+  # Stop a looping oneshot before replacing the unit / chowning publish dirs.
+  # Keep the timer armed: enable --now below re-asserts WantedBy without a gap
+  # that leaves the host unmonitored.
+  systemctl stop navi-mwm-check.service 2>/dev/null || true
+  systemctl reset-failed navi-mwm-check.service 2>/dev/null || true
   install -m 0644 "$MWM_CHECK_UNIT_SRC" "${SYSTEMD_DIR}/navi-mwm-check.service"
   install -m 0644 "$MWM_CHECK_TIMER_SRC" "${SYSTEMD_DIR}/navi-mwm-check.timer"
   install -m 0644 "$MWM_BAKE_UNIT_SRC" "${SYSTEMD_DIR}/navi-mwm-bake.service"
@@ -264,7 +355,7 @@ mwm_units_apply() {
   systemctl daemon-reload
   systemctl enable --now navi-mwm-check.timer
   systemctl disable navi-mwm-bake.timer 2>/dev/null || true
-  log "enabled navi-mwm-check.timer (detect-only while NAVI_MWM_ENABLED=0)"
+  log "MWM units installed as User=${SERVICE_USER} (check timer enabled)"
   log "navi-mwm-bake.timer left disabled (hand-start bake.service or enable when ready)"
 }
 
@@ -272,7 +363,6 @@ mwm_units_apply() {
 # Default: .rkyv bake/scrub installed but disabled; MWM check timer on.
 navit_server_apply() {
   require_root "--apply-service"
-  command -v useradd >/dev/null 2>&1 || fail "useradd not found"
   command -v systemctl >/dev/null 2>&1 || fail "systemctl not found"
   [[ -f "$SERVICE_UNIT_SRC" ]] || fail "missing ${SERVICE_UNIT_SRC}"
   [[ -f "$BAKE_UNIT_SRC" ]] || fail "missing ${BAKE_UNIT_SRC}"
@@ -280,16 +370,7 @@ navit_server_apply() {
   [[ -f "$SCRUB_UNIT_SRC" ]] || fail "missing ${SCRUB_UNIT_SRC}"
   [[ -f "$SCRUB_TIMER_SRC" ]] || fail "missing ${SCRUB_TIMER_SRC}"
 
-  if ! id -u "$SERVICE_USER" >/dev/null 2>&1; then
-    useradd --system --user-group \
-      --home-dir "$NAVI_SERVER_ROOT" \
-      --shell /usr/sbin/nologin \
-      --comment "Navi pack server" \
-      "$SERVICE_USER"
-    log "created system user ${SERVICE_USER}"
-  else
-    log "system user ${SERVICE_USER} already exists"
-  fi
+  ensure_service_user
 
   ensure_mwm_dirs
   write_mwm_env
@@ -843,8 +924,25 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
   else
     echo "MISSING navi-mwm-sidecar (cargo build --release -p navi-mwm-sidecar)"
   fi
+  mwm_build_dir="${NAVI_MWM_BUILD_DIR:-${DATA}/mwm/omim-build-release}"
+  mwm_dump="${mwm_build_dir}/dump_mwm_roads"
+  if [[ -x "$mwm_dump" ]]; then
+    echo "OK dump_mwm_roads (${mwm_dump})"
+  else
+    echo "MISSING dump_mwm_roads (${mwm_dump}; see /tmp/navi-mwm-fix-dump-paths.sh)"
+  fi
+  mwm_comaps_data="${NAVI_MWM_COMAPS_ROOT:-${DATA}/mwm/comaps}/data"
+  if [[ -d "$mwm_comaps_data" ]]; then
+    echo "OK CoMaps resources (${mwm_comaps_data})"
+  else
+    echo "MISSING CoMaps resources (${mwm_comaps_data})"
+  fi
   if [[ -x "${MWM_VENV}/bin/python" ]]; then
-    echo "OK MWM venv ${MWM_VENV}"
+    if verify_mwm_venv_imports "${MWM_VENV}/bin/python"; then
+      echo "OK MWM venv ${MWM_VENV} (zstandard, PIL, nacl, shapely)"
+    else
+      echo "MISSING MWM venv imports (need zstandard, PIL, nacl, shapely; pip -r ${MWM_REQUIREMENTS})"
+    fi
   else
     echo "MISSING MWM venv (re-run setup-server.sh)"
   fi
@@ -852,6 +950,30 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
     echo "OK mwm check timer installed (enabled=$(systemctl is-enabled navi-mwm-check.timer 2>/dev/null || echo no))"
   else
     echo "MISSING navi-mwm-check.timer (sudo $0 --apply-mwm)"
+  fi
+  if [[ -f "${SYSTEMD_DIR}/navi-mwm-check.service" ]]; then
+    if grep -q "^User=${SERVICE_USER}$" "${SYSTEMD_DIR}/navi-mwm-check.service" \
+      && grep -q "^Group=${SERVICE_USER}$" "${SYSTEMD_DIR}/navi-mwm-check.service"; then
+      echo "OK navi-mwm-check.service User=/Group=${SERVICE_USER}"
+    else
+      echo "MISSING navi-mwm-check.service User=/Group=${SERVICE_USER} (sudo $0 --apply-mwm)"
+    fi
+  fi
+  if [[ -f "${SYSTEMD_DIR}/navi-mwm-bake.service" ]]; then
+    if grep -q "^User=${SERVICE_USER}$" "${SYSTEMD_DIR}/navi-mwm-bake.service" \
+      && grep -q "^Group=${SERVICE_USER}$" "${SYSTEMD_DIR}/navi-mwm-bake.service"; then
+      echo "OK navi-mwm-bake.service User=/Group=${SERVICE_USER}"
+    else
+      echo "MISSING navi-mwm-bake.service User=/Group=${SERVICE_USER} (sudo $0 --apply-mwm)"
+    fi
+  fi
+  if [[ -d "${DATA}/published/mwm" ]]; then
+    mwm_owner="$(stat -c '%U' "${DATA}/published/mwm" 2>/dev/null || echo unknown)"
+    if [[ "$mwm_owner" == "$SERVICE_USER" ]]; then
+      echo "OK published/mwm owner=${mwm_owner}"
+    else
+      echo "WARN published/mwm owner=${mwm_owner} (want ${SERVICE_USER}; sudo $0 --apply-mwm)"
+    fi
   fi
   if [[ -f "${SYSTEMD_DIR}/navi-pack-scrub.service" && -f "${SYSTEMD_DIR}/navi-pack-scrub.timer" ]]; then
     echo "OK scrub units installed"
@@ -1114,7 +1236,7 @@ else
 fi
 [[ -x "$CONVERT_BIN" ]] && log "convert binary present: ${CONVERT_BIN}" || warn "convert binary missing"
 [[ -x "$MWM_SIDECAR_BIN" ]] && log "mwm sidecar present: ${MWM_SIDECAR_BIN}" || warn "navi-mwm-sidecar missing"
-if [[ -x "${NAVI_MWM_BUILD_DIR:-/var/lib/navi/mwm/omim-build-release}/routes_builder_tool" ]]; then
+if [[ -x "${NAVI_MWM_BUILD_DIR:-${DATA}/mwm/omim-build-release}/routes_builder_tool" ]]; then
   log "routes_builder_tool present (optional validation)"
 else
   log "routes_builder_tool absent (optional; build via scripts/mwm/build-generator.sh when validating routes)"

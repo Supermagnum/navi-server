@@ -1,3 +1,5 @@
+# Bake / annotate / elevation Python deps for .venv-mwm (navit-server).
+# Keep in sync with CI (.github/workflows/ci.yml) and /tmp navi-mwm-fix-*.sh.
 pillow>=10.0
 zstandard>=0.22
 pynacl>=1.5

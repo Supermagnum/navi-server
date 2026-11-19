@@ -15,9 +15,11 @@ mwm_load_defaults() {
   # Default: CoMaps official planet release + Navi sidecars only.
   # Set NAVI_MWM_MODE=generate to keep the Nordic generator path for testing.
   : "${NAVI_MWM_MODE:=comaps-release}"
-  : "${NAVI_MWM_COMAPS_ROOT:=/var/lib/navi/mwm/comaps}"
-  : "${NAVI_MWM_BUILD_DIR:=/var/lib/navi/mwm/omim-build-release}"
-  : "${NAVI_MWM_MAPS_BUILD:=/var/lib/navi/mwm/maps_build}"
+  # Live layout: under the repo data tree (ZFS on media). Avoid /var/lib/navi —
+  # that path was never created on this host and sits on the small root FS.
+  : "${NAVI_MWM_COMAPS_ROOT:=${root}/data/mwm/comaps}"
+  : "${NAVI_MWM_BUILD_DIR:=${root}/data/mwm/omim-build-release}"
+  : "${NAVI_MWM_MAPS_BUILD:=${root}/data/mwm/maps_build}"
   : "${NAVI_MWM_HGT_CACHE:=${root}/data/elevation/hgt-mapterhorn}"
   # Persistent across CoMaps releases (Mapterhorn tiles are release-independent).
   : "${NAVI_MWM_MAPTERHORN_CACHE:=${root}/data/elevation/mapterhorn-cache}"

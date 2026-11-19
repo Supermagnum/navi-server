@@ -66,9 +66,10 @@ cargo build -p navi-mwm-sidecar --release --manifest-path \"\${ROOT}/Cargo.toml\
 SIDECAR_BIN=\"\${CARGO_TARGET_DIR}/release/navi-mwm-sidecar\"
 \"\$SIDECAR_BIN\" bake --help | grep -q elevation-jsonl || mwm_die \"sidecar binary lacks --elevation-jsonl: \$SIDECAR_BIN\"
 export NAVI_MWM_FORCE_REBUILD=\"\${NAVI_MWM_FORCE_REBUILD:-0}\"
-\"\${SCRIPT_DIR}/build-dump-mwm-roads.sh\" >/dev/null
+# Do not swallow stdout: build-dump logs / mwm_die go to stdout and must reach journal.
+\"\${SCRIPT_DIR}/build-dump-mwm-roads.sh\"
 DUMP_BIN=\"\${NAVI_MWM_BUILD_DIR}/dump_mwm_roads\"
-[[ -x \"\$DUMP_BIN\" ]] || mwm_die \"dump_mwm_roads missing\"
+[[ -x \"\$DUMP_BIN\" ]] || mwm_die \"dump_mwm_roads missing at \$DUMP_BIN (set NAVI_MWM_BUILD_DIR or install via build-dump-mwm-roads.sh)\"
 \"\$DUMP_BIN\" --help 2>&1 | grep -q out-wetlands || mwm_die \"dump_mwm_roads lacks --out-wetlands (rebuild required)\"
 
 DISCOVERY=\$(\"\$PYTHON\" - \"\$SCRIPT_DIR\" <<'PY'

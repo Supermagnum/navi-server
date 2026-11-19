@@ -1,11 +1,15 @@
 [Unit]
 Description=Navi MWM bake (default: comaps-release sidecars; generate mode optional)
-Documentation=file:docs/client-fetch-mwm.md
+Documentation=file:///media/navi/navi-server/docs/mwm-pipeline.md
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
+# Dedicated system user (same as pack/DATEX/DDNS). Created by setup-server.sh
+# --apply-service (NAVI_SERVICE_USER, default navit-server).
+User=navit-server
+Group=navit-server
 # Resume via processed.json after crash; lock released when ExecStart exits.
 Restart=on-failure
 RestartSec=120
@@ -21,6 +25,11 @@ MemoryMax=48G
 Nice=10
 IOSchedulingClass=best-effort
 IOSchedulingPriority=7
+# Path allow-lists matter once ProtectSystem= is enabled via drop-in.
+# Default: User= is the boundary; add ProtectSystem=strict only after paths
+# in /etc/navi/mwm.env (BUILD_DIR, caches, scratch) are covered.
+NoNewPrivileges=true
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target

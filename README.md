@@ -161,8 +161,10 @@ cd /media/navi/navi-server
 cargo build --release -p navi-indexed-convert -p navi-mwm-sidecar
 ```
 
-`--apply-service` creates system user **`navit-server`**, owns `data/`, installs
-pack bake/scrub **and** MWM check/bake units. **Default:** `.rkyv` bake/scrub
+`--apply-service` creates system user **`navit-server`** (lowercase UNIX
+account; display name “Navi-server”), owns `data/` (including MWM publish +
+elevation caches + `pack-pipeline.lock`), installs pack bake/scrub **and** MWM
+check/bake units as `User=navit-server`. **Default:** `.rkyv` bake/scrub
 timers stay **disabled** (`--rkyv-frozen` / `.navi-rkyv-frozen`); MWM check
 timer is enabled with `NAVI_MWM_ENABLED=0` (detect-only). Opt in to weekly
 `.rkyv` with `--enable-rkyv-bake`. On a full interactive `sudo setup-server.sh`
@@ -1033,7 +1035,9 @@ sudo /media/navi/navi-server/scripts/setup-server.sh --apply-service
 # journalctl -u navi-pack-bake.service -n 100
 ```
 
-Bake and scrub units run as **`navit-server`** (not a login account).
+Pack bake/scrub **and** MWM check/bake units run as **`navit-server`** (not a
+login account). See [docs/mwm-pipeline.md](docs/mwm-pipeline.md) (Security
+model).
 
 Failure notification for the prototype is the `[FAILED]` log line in the weekly
 log (or leftover `*.partial`) and the systemd unit result (`systemctl status` /

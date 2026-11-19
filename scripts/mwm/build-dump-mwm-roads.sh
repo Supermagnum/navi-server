@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# Install dump_mwm_roads into the CoMaps tools tree and build it.
+# Install dump_mwm_roads into NAVI_MWM_BUILD_DIR.
+#
+# Preferred production path: copy a known-good prebuilt binary
+# (NAVI_MWM_DUMP_SRC) into BUILD_DIR — no CoMaps cmake tree required.
+# Fallback: patch tools into NAVI_MWM_COMAPS_ROOT and cmake --build.
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/common.sh
@@ -17,9 +21,21 @@ if [[ -x "$BIN" && "${NAVI_MWM_FORCE_REBUILD:-0}" != "1" ]]; then
   exit 0
 fi
 
-[[ -d "${NAVI_MWM_COMAPS_ROOT}" ]] || mwm_die "NAVI_MWM_COMAPS_ROOT missing"
+mkdir -p "${NAVI_MWM_BUILD_DIR}"
+
+# Optional: install a prebuilt binary (live host / operator apply).
+if [[ -n "${NAVI_MWM_DUMP_SRC:-}" ]]; then
+  [[ -x "${NAVI_MWM_DUMP_SRC}" ]] || mwm_die "NAVI_MWM_DUMP_SRC not executable: ${NAVI_MWM_DUMP_SRC}"
+  cp -a "${NAVI_MWM_DUMP_SRC}" "$BIN"
+  chmod a+rx "$BIN"
+  mwm_log "installed dump_mwm_roads from ${NAVI_MWM_DUMP_SRC} -> ${BIN}"
+  echo "$BIN"
+  exit 0
+fi
+
+[[ -d "${NAVI_MWM_COMAPS_ROOT}" ]] || mwm_die "NAVI_MWM_COMAPS_ROOT missing (${NAVI_MWM_COMAPS_ROOT}); install dump via NAVI_MWM_DUMP_SRC=…/dump_mwm_roads or clone CoMaps"
 [[ -d "${NAVI_MWM_BUILD_DIR}" ]] || mwm_die "NAVI_MWM_BUILD_DIR missing (build generator first)"
-[[ -f "$TOOLS_CMAKE" ]] || mwm_die "missing ${TOOLS_CMAKE}"
+[[ -f "$TOOLS_CMAKE" ]] || mwm_die "missing ${TOOLS_CMAKE} (full CoMaps checkout required to build; or set NAVI_MWM_DUMP_SRC)"
 
 mkdir -p "$DST_DIR"
 cp -a "${SRC_DIR}/dump_mwm_roads.cpp" "${SRC_DIR}/CMakeLists.txt" "$DST_DIR/"

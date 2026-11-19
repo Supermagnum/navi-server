@@ -26,6 +26,7 @@ WITH_CONFIG=1
 GEOM_PATH=""
 MH_PATH=""
 LOCK_PATH=""
+SERVICE_USER="${NAVI_SERVICE_USER:-navit-server}"
 
 usage() { sed -n '2,14p' "$0"; exit "${1:-0}"; }
 die() { echo "FATAL: $*" >&2; exit 1; }
@@ -225,3 +226,23 @@ try:
 finally:
     shutil.rmtree(staging, ignore_errors=True)
 PY
+
+# After a successful local apply as root, own MWM paths as the bake user so
+# systemd User=navit-server can publish without a separate chown pass.
+if [[ "$APPLY" -eq 1 && "$(id -u)" -eq 0 && "$DEST" != *:* ]]; then
+  if id -u "$SERVICE_USER" >/dev/null 2>&1; then
+    dest_root="$DEST"
+    [[ -d "$dest_root" ]] || dest_root="$(cd "$DEST" && pwd)"
+    for p in \
+      "${dest_root}/data/published/mwm" \
+      "${dest_root}/data/elevation/mapterhorn-cache" \
+      "${dest_root}/data/elevation/geometry-hash-cache"
+    do
+      [[ -e "$p" ]] || continue
+      chown -R "${SERVICE_USER}:${SERVICE_USER}" "$p"
+      log "chown ${SERVICE_USER}:${SERVICE_USER} ${p}"
+    done
+  else
+    log "WARN: service user ${SERVICE_USER} missing — run setup-server.sh --apply-service on dest"
+  fi
+fi

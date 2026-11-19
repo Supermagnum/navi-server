@@ -57,6 +57,9 @@ Defaults from `scripts/mwm/lib/common.sh` / `config/mwm/measured-peaks.json`.
 |----------|---------|---------|
 | `NAVI_MWM_ENABLED` | `0` | Must be `1` for timer bake (or pass `--force` scratch) |
 | `NAVI_MWM_MODE` | `comaps-release` | See above |
+| `NAVI_MWM_COMAPS_ROOT` | `{repo}/data/mwm/comaps` | CoMaps checkout or resources tree (`data/` for dump) |
+| `NAVI_MWM_BUILD_DIR` | `{repo}/data/mwm/omim-build-release` | Holds `dump_mwm_roads` (and optional generator tools) |
+| `NAVI_MWM_MAPS_BUILD` | `{repo}/data/mwm/maps_build` | Download / work tree for comaps-release |
 | `NAVI_MWM_PUBLISHED_ROOT` | `{repo}/data/published/mwm` | Sidecar publish root |
 | `NAVI_MWM_LOCK` | `{repo}/data/state/pack-pipeline.lock` | Shared flock |
 | `NAVI_MWM_LEAFSET` | `config/mwm/leafsets/nordic.txt` | Leaf list (ignored if `ALL_LEAVES=1`) |
@@ -147,15 +150,34 @@ from the CoMaps CDN); Navi only publishes NVSC sidecars + catalog.
 
 ## Timers (systemd/)
 
-| Unit | Role |
-|------|------|
-| `navi-mwm-check.timer` | Daily 04:15 — discover new CoMaps release; bake if enabled |
-| `navi-mwm-check.service` | Check + conditional bake |
-| `navi-mwm-bake.timer` | Legacy biweekly — **generate test-only** |
-| `navi-mwm-bake.service` | `NAVI_MWM_ENABLED=0` in unit; `EnvironmentFile=-/etc/navi/mwm.env` |
+| Unit | Role | User/Group |
+|------|------|------------|
+| `navi-mwm-check.timer` | Daily 04:15 — discover new CoMaps release; bake if enabled | (timer) |
+| `navi-mwm-check.service` | Check + conditional bake | `navit-server` |
+| `navi-mwm-bake.timer` | Legacy biweekly — **generate test-only** | (timer) |
+| `navi-mwm-bake.service` | `NAVI_MWM_ENABLED=0` in unit; `EnvironmentFile=-/etc/navi/mwm.env` | `navit-server` |
 
 Install only after apply review. Check timer may run with bake still gated by
 `ENABLED=0`.
+
+### Security model (service user)
+
+MWM bake/check units run as the same dedicated system account as pack bake,
+DATEX, and DDNS: **`navit-server`** (`NAVI_SERVICE_USER`, created by
+`setup-server.sh --apply-service` / `--apply-mwm`).
+
+| Topic | Guidance |
+|-------|----------|
+| UNIX account | Lowercase `navit-server` (not `Navi-server`). Linux usernames should stay `[a-z0-9_-]`; treat "Navi-server" as the display name only. |
+| Owned dirs | `data/published/mwm`, `data/elevation/{mapterhorn-cache,geometry-hash-cache,hgt-mapterhorn}`, `data/state` (incl. `pack-pipeline.lock`), `data/scratch`, `data/logs`, `data/staging`, optional `.venv-mwm` |
+| Publish parent | `data/published/` may stay shared with Apache/`www-data` for reads; the **mwm/** subtree must be writable by `navit-server` |
+| Operator scratch | Paths under `/media/navi/haaken-scratch/…` stay operator-owned; do not recursively chown the whole scratch tree for systemd |
+| Secrets | Unchanged: DATEX/Repeater secrets remain `root:navit-server` mode `0600` / dir `0750` where already documented |
+| Override | `NAVI_SERVICE_USER=…` before `--apply-*` if the account name must differ (keep unit `User=` in sync) |
+
+`navi-mwm-check.service` does **not** use `Restart=on-failure` (a failing
+enabled bake would otherwise restart every two minutes). Use
+`navi-mwm-bake.service` when you want crash-resume retries.
 
 ---
 
@@ -230,8 +252,11 @@ Full-server migrate (packs/datex/secrets, **excludes** `mwm/`): `scripts/migrate
 
 ## Enable on live (after review)
 
-1. Review and run `/tmp/navi-mwm-apply.sh` (or operator equivalent): paths,
-   timers, `mwm.env`.
+1. Review and run `/tmp/navi-mwm-fix-dump-paths.sh` (installs
+   `dump_mwm_roads` + CoMaps `data/` under `{repo}/data/mwm/`, merges
+   `BUILD_DIR`/`COMAPS_ROOT`/`ALL_LEAVES` into `/etc/navi/mwm.env`). Older
+   `/tmp/navi-mwm-apply.sh` still assumes `/var/lib/navi/mwm` — do not use it
+   on media.
 2. Keep `NAVI_MWM_ENABLED=0` until a scratch world/Nordic publish looks good.
 3. Set `NAVI_MWM_ENABLED=1` in `/etc/navi/mwm.env`.
 4. Enable `navi-mwm-check.timer` only.

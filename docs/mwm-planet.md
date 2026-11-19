@@ -31,9 +31,9 @@ export NAVI_MWM_LEAFSET=$PWD/config/mwm/leafsets/planet.txt
 export NAVI_MWM_PLANET_PBF=/path/to/planet-latest.osm.pbf
 # HGT path is generate-mode only; comaps-release uses Terrarium tile cache.
 export NAVI_MWM_MAPTERHORN_PMTILES=/path/to/mapterhorn-planet.pmtiles
-export NAVI_MWM_COMAPS_ROOT=/var/lib/navi/mwm/comaps
-export NAVI_MWM_BUILD_DIR=/var/lib/navi/mwm/omim-build-release
-export NAVI_MWM_MAPS_BUILD=/var/lib/navi/mwm/maps_build
+export NAVI_MWM_COMAPS_ROOT=/opt/navi/navi-server/data/mwm/comaps
+export NAVI_MWM_BUILD_DIR=/opt/navi/navi-server/data/mwm/omim-build-release
+export NAVI_MWM_MAPS_BUILD=/opt/navi/navi-server/data/mwm/maps_build
 ./scripts/mwm/build-generator.sh
 ./scripts/mwm/run-generator.sh
 ```

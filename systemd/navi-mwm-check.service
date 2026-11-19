@@ -1,15 +1,17 @@
 [Unit]
 Description=Navi MWM CoMaps release check (daily); bake only when enabled
-Documentation=file:docs/client-fetch-mwm.md
+Documentation=file:///media/navi/navi-server/docs/mwm-pipeline.md
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
-# Restart on failure so a mid-leaf crash resumes via processed.json; flock
-# on pack-pipeline.lock is held only for the duration of a bake ExecStart.
-Restart=on-failure
-RestartSec=120
+# Dedicated system user (same as pack/DATEX/DDNS). Created by setup-server.sh
+# --apply-service (NAVI_SERVICE_USER, default navit-server).
+User=navit-server
+Group=navit-server
+# Do not Restart=on-failure here: a failing bake with NAVI_MWM_ENABLED=1 would
+# otherwise restart every RestartSec and storm the host. Daily timer re-arms.
 Environment=NAVI_MWM_ENABLED=0
 Environment=NAVI_MWM_MODE=comaps-release
 EnvironmentFile=-/etc/navi/mwm.env
@@ -18,6 +20,11 @@ WorkingDirectory=/opt/navi/navi-server
 # unless enabled=1 and check reports a new CoMaps release (exit 10).
 ExecStart=/opt/navi/navi-server/scripts/mwm/check-or-bake.sh
 Nice=10
+# Path allow-lists matter once ProtectSystem= is enabled via drop-in.
+# Default: User= is the boundary; add ProtectSystem=strict only after paths
+# in /etc/navi/mwm.env (BUILD_DIR, caches, scratch) are covered.
+NoNewPrivileges=true
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target
