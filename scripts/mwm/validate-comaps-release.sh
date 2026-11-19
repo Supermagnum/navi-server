@@ -84,24 +84,32 @@ PY
 # run gated six-route + foot detour (+ informational routes), then delete staged MWMs.
 # Opt out only with NAVI_MWM_SKIP_ROUTE_CHECK=1 (CI without network / routes_builder).
 # Default leafset: config/mwm/leafsets/route-check-extended.txt
+# Production: install routes_builder_tool into NAVI_MWM_BUILD_DIR (see
+# install-routes-builder-tool.sh / NAVI_MWM_ROUTES_BUILDER_SRC), same pattern as dump_mwm_roads.
 if [[ "${NAVI_MWM_SKIP_ROUTE_CHECK:-0}" == "1" ]]; then
   mwm_log "skip route check (NAVI_MWM_SKIP_ROUTE_CHECK=1)"
-elif [[ -x "${NAVI_MWM_BUILD_DIR}/routes_builder_tool" ]]; then
-  ROOT="$(mwm_repo_root)"
-  LEAFSET="${NAVI_MWM_ROUTE_CHECK_LEAVES:-${ROOT}/config/mwm/leafsets/route-check-extended.txt}"
-  if [[ -n "$WORK_DIR" ]]; then
-    STAGE="${WORK_DIR}/route-mwms"
-  else
-    STAGE="${VERSION_DIR}/../route-mwms-$$"
-  fi
-  mkdir -p "$STAGE"
-  mwm_log "route check leafset=${LEAFSET} stage=${STAGE}"
-  "${SCRIPT_DIR}/run-route-validation.sh" \
-    --stage-dir "$STAGE" \
-    --sidecar-dir "$VERSION_DIR" \
-    --leafset "$LEAFSET"
 else
-  mwm_die "route check required but routes_builder_tool missing at ${NAVI_MWM_BUILD_DIR}/routes_builder_tool (set NAVI_MWM_SKIP_ROUTE_CHECK=1 only for offline CI)"
+  if [[ ! -x "${NAVI_MWM_BUILD_DIR}/routes_builder_tool" ]]; then
+    # Best-effort: copy from NAVI_MWM_ROUTES_BUILDER_SRC when the runner can read it.
+    "${SCRIPT_DIR}/install-routes-builder-tool.sh" >/dev/null || true
+  fi
+  if [[ -x "${NAVI_MWM_BUILD_DIR}/routes_builder_tool" ]]; then
+    ROOT="$(mwm_repo_root)"
+    LEAFSET="${NAVI_MWM_ROUTE_CHECK_LEAVES:-${ROOT}/config/mwm/leafsets/route-check-extended.txt}"
+    if [[ -n "$WORK_DIR" ]]; then
+      STAGE="${WORK_DIR}/route-mwms"
+    else
+      STAGE="${VERSION_DIR}/../route-mwms-$$"
+    fi
+    mkdir -p "$STAGE"
+    mwm_log "route check leafset=${LEAFSET} stage=${STAGE}"
+    "${SCRIPT_DIR}/run-route-validation.sh" \
+      --stage-dir "$STAGE" \
+      --sidecar-dir "$VERSION_DIR" \
+      --leafset "$LEAFSET"
+  else
+    mwm_die "route check required but routes_builder_tool missing at ${NAVI_MWM_BUILD_DIR}/routes_builder_tool (install via scripts/mwm/install-routes-builder-tool.sh or sudo bash /tmp/navi-mwm-install-routes-builder.sh; set NAVI_MWM_SKIP_ROUTE_CHECK=1 only for offline CI)"
+  fi
 fi
 
 mwm_log "validate-comaps-release passed"

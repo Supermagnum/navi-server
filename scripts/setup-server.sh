@@ -133,7 +133,7 @@ Would ensure directories:
 
 Would build (when cargo present):
   navi-indexed-convert, navi-mwm-sidecar
-  optional: scripts/mwm/build-generator.sh (routes_builder_tool) — not required for serve
+  routes_builder: scripts/mwm/install-routes-builder-tool.sh (or build-generator.sh) — required for production validate/route-check
 
 Would install Python venv at ${MWM_VENV} from ${MWM_REQUIREMENTS}
 
@@ -931,6 +931,12 @@ if [[ "$CHECK_ONLY" -eq 1 ]]; then
   else
     echo "MISSING dump_mwm_roads (${mwm_dump}; see /tmp/navi-mwm-fix-dump-paths.sh)"
   fi
+  mwm_rb="${mwm_build_dir}/routes_builder_tool"
+  if [[ -x "$mwm_rb" ]]; then
+    echo "OK routes_builder_tool (${mwm_rb})"
+  else
+    echo "MISSING routes_builder_tool (${mwm_rb}; required for production validate/route-check — scripts/mwm/install-routes-builder-tool.sh or /tmp/navi-mwm-install-routes-builder.sh)"
+  fi
   mwm_comaps_data="${NAVI_MWM_COMAPS_ROOT:-${DATA}/mwm/comaps}/data"
   if [[ -d "$mwm_comaps_data" ]]; then
     echo "OK CoMaps resources (${mwm_comaps_data})"
@@ -1237,9 +1243,9 @@ fi
 [[ -x "$CONVERT_BIN" ]] && log "convert binary present: ${CONVERT_BIN}" || warn "convert binary missing"
 [[ -x "$MWM_SIDECAR_BIN" ]] && log "mwm sidecar present: ${MWM_SIDECAR_BIN}" || warn "navi-mwm-sidecar missing"
 if [[ -x "${NAVI_MWM_BUILD_DIR:-${DATA}/mwm/omim-build-release}/routes_builder_tool" ]]; then
-  log "routes_builder_tool present (optional validation)"
+  log "routes_builder_tool present (production validate/route-check)"
 else
-  log "routes_builder_tool absent (optional; build via scripts/mwm/build-generator.sh when validating routes)"
+  log "routes_builder_tool absent (REQUIRED for production check path; install via scripts/mwm/install-routes-builder-tool.sh or build-generator.sh)"
 fi
 
 cat <<EOF

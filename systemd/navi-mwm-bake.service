@@ -10,6 +10,9 @@ Type=oneshot
 # --apply-service (NAVI_SERVICE_USER, default navit-server).
 User=navit-server
 Group=navit-server
+# Raise fd ceiling only (does not reserve/allocate RAM or CPU). Default soft
+# limits (~1024) can EMFILE during parallel leaf/cache I/O; 65536 is typical.
+LimitNOFILE=65536
 # Resume via processed.json after crash; lock released when ExecStart exits.
 Restart=on-failure
 RestartSec=120

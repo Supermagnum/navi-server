@@ -58,7 +58,8 @@ Defaults from `scripts/mwm/lib/common.sh` / `config/mwm/measured-peaks.json`.
 | `NAVI_MWM_ENABLED` | `0` | Must be `1` for timer bake (or pass `--force` scratch) |
 | `NAVI_MWM_MODE` | `comaps-release` | See above |
 | `NAVI_MWM_COMAPS_ROOT` | `{repo}/data/mwm/comaps` | CoMaps checkout or resources tree (`data/` for dump) |
-| `NAVI_MWM_BUILD_DIR` | `{repo}/data/mwm/omim-build-release` | Holds `dump_mwm_roads` (and optional generator tools) |
+| `NAVI_MWM_BUILD_DIR` | `{repo}/data/mwm/omim-build-release` | Holds `dump_mwm_roads` + `routes_builder_tool` (route-check required on production) |
+| `NAVI_MWM_ROUTES_BUILDER_SRC` | (unset; operator default under scratch) | Prebuilt `routes_builder_tool` copied into `BUILD_DIR` |
 | `NAVI_MWM_MAPS_BUILD` | `{repo}/data/mwm/maps_build` | Download / work tree for comaps-release |
 | `NAVI_MWM_PUBLISHED_ROOT` | `{repo}/data/published/mwm` | Sidecar publish root |
 | `NAVI_MWM_LOCK` | `{repo}/data/state/pack-pipeline.lock` | Shared flock |
@@ -174,6 +175,7 @@ DATEX, and DDNS: **`navit-server`** (`NAVI_SERVICE_USER`, created by
 | Operator scratch | Paths under `/media/navi/haaken-scratch/…` stay operator-owned; do not recursively chown the whole scratch tree for systemd |
 | Secrets | Unchanged: DATEX/Repeater secrets remain `root:navit-server` mode `0600` / dir `0750` where already documented |
 | Override | `NAVI_SERVICE_USER=…` before `--apply-*` if the account name must differ (keep unit `User=` in sync) |
+| `LimitNOFILE=65536` | Fd **ceiling** only — does not allocate RAM/CPU. Avoids EMFILE on parallel leaf/cache I/O (default soft limit is often ~1024). RAM remains gated by `MemoryMax=` on bake. |
 
 `navi-mwm-check.service` does **not** use `Restart=on-failure` (a failing
 enabled bake would otherwise restart every two minutes). Use
@@ -215,8 +217,24 @@ sudo ./scripts/setup-server.sh --apply-service
 ./scripts/setup-server.sh --check
 ```
 
-`routes_builder_tool` is optional (route validation only); build with
-`scripts/mwm/build-generator.sh` when needed.
+`routes_builder_tool` is **required** for the production check/bake path
+(validate → route-check before publish). Install a copy into `NAVI_MWM_BUILD_DIR`
+(same ownership model as `dump_mwm_roads`):
+
+```bash
+NAVI_MWM_ROUTES_BUILDER_SRC=/path/to/routes_builder_tool \
+  ./scripts/mwm/install-routes-builder-tool.sh
+# or build: ./scripts/mwm/build-generator.sh
+# live host: sudo bash /tmp/navi-mwm-install-routes-builder.sh
+```
+
+`NAVI_MWM_SKIP_ROUTE_CHECK=1` is offline CI only — do not use on live.
+
+If leaf bake finished (sidecars + `publish-staging` present) but validate died
+on a missing `routes_builder_tool`, install the binary then resume with
+`scripts/mwm/finish-comaps-release-postbake.sh --work-dir …` (no leaf re-bake).
+Use `--skip-publish` to stop after staging/validate; omit it for the normal
+check path (updates `published/mwm/current.json`).
 
 ## Migrate MWM data only (`scripts/migrate-mwm.sh`)
 
@@ -254,9 +272,14 @@ Full-server migrate (packs/datex/secrets, **excludes** `mwm/`): `scripts/migrate
 
 1. Review and run `/tmp/navi-mwm-fix-dump-paths.sh` (installs
    `dump_mwm_roads` + CoMaps `data/` under `{repo}/data/mwm/`, merges
-   `BUILD_DIR`/`COMAPS_ROOT`/`ALL_LEAVES` into `/etc/navi/mwm.env`). Older
-   `/tmp/navi-mwm-apply.sh` still assumes `/var/lib/navi/mwm` — do not use it
-   on media.
+   `BUILD_DIR`/`COMAPS_ROOT`/`ALL_LEAVES` into `/etc/navi/mwm.env`), then
+   `/tmp/navi-mwm-install-routes-builder.sh` (copies `routes_builder_tool` into
+   `BUILD_DIR` for route-check). Older `/tmp/navi-mwm-apply.sh` still assumes
+   `/var/lib/navi/mwm` — do not use it on media.
+   Do **not** re-run `/tmp/navi-mwm-limitnofile-apply.sh` while a bake/check is
+   active (it stops the unit). Prefer unit edits with
+   `systemctl stop --no-block` / start with `--no-block` only when the unit is
+   idle, or use a drop-in + `daemon-reload` without stopping a running bake.
 2. Keep `NAVI_MWM_ENABLED=0` until a scratch world/Nordic publish looks good.
 3. Set `NAVI_MWM_ENABLED=1` in `/etc/navi/mwm.env`.
 4. Enable `navi-mwm-check.timer` only.

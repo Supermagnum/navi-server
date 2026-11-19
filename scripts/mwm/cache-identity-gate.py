@@ -3,6 +3,10 @@
 
 On by default when NAVI_MWM_CACHE_IDENTITY_GATE is unset/1. Set to 0/false/off to skip.
 Compares wetland_edges, boardwalk_flags, elevation_overrides (not attribution).
+
+Resume: if both cold and warm sidecars already exist for a leaf under
+meta/cache-identity-gate/ and data sections match, that leaf is skipped.
+Set NAVI_MWM_CACHE_IDENTITY_GATE_FORCE=1 to wipe the gate dir and re-run all.
 """
 from __future__ import annotations
 
@@ -153,15 +157,58 @@ def main() -> int:
         raise SystemExit(f"cache identity gate: too few leaves available: {leaves}")
 
     gate_root = args.work / "meta" / "cache-identity-gate"
-    if gate_root.exists():
+    # Default: resume. Keep cold/warm sidecars + gcache so completed leaves are
+    # skipped. Set NAVI_MWM_CACHE_IDENTITY_GATE_FORCE=1 to wipe and re-run all.
+    force_gate = os.environ.get("NAVI_MWM_CACHE_IDENTITY_GATE_FORCE", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+    if force_gate and gate_root.exists():
         shutil.rmtree(gate_root)
-    gate_root.mkdir(parents=True)
+    gate_root.mkdir(parents=True, exist_ok=True)
     gcache = gate_root / "gcache"
     cold_work = gate_root / "cold"
     warm_work = gate_root / "warm"
+    gcache.mkdir(parents=True, exist_ok=True)
+    cold_work.mkdir(parents=True, exist_ok=True)
+    warm_work.mkdir(parents=True, exist_ok=True)
 
     results = []
+    resumed = 0
     for leaf in leaves:
+        cold_sc = cold_work / "sidecars" / f"{leaf}.navi-sidecar.v1.zst"
+        warm_sc = warm_work / "sidecars" / f"{leaf}.navi-sidecar.v1.zst"
+        if cold_sc.is_file() and warm_sc.is_file():
+            dc = section_data_digests(cold_sc)
+            dw = section_data_digests(warm_sc)
+            ok = dc == dw
+            results.append(
+                {
+                    "leaf": leaf,
+                    "ok": ok,
+                    "cold": dc,
+                    "warm": dw,
+                    "resumed": True,
+                }
+            )
+            print(
+                json.dumps(
+                    {"cache_identity_leaf": leaf, "ok": ok, "resumed": True}
+                ),
+                flush=True,
+            )
+            if not ok:
+                (gate_root / "failure.json").write_text(
+                    json.dumps(results, indent=2) + "\n"
+                )
+                raise SystemExit(
+                    f"cache identity gate FAILED on {leaf}: data sections differ"
+                )
+            resumed += 1
+            continue
+
         cold_sc = _run_leaf(
             leaf=leaf,
             work=cold_work,
@@ -204,7 +251,15 @@ def main() -> int:
             )
 
     (gate_root / "ok.json").write_text(json.dumps(results, indent=2) + "\n")
-    print(json.dumps({"cache_identity_gate": "ok", "leaves": len(results)}))
+    print(
+        json.dumps(
+            {
+                "cache_identity_gate": "ok",
+                "leaves": len(results),
+                "resumed": resumed,
+            }
+        )
+    )
     return 0
 
 
