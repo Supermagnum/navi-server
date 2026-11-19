@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>navi-server — routing packs and MWM</title>
+  <title>navi-server — CoMaps MWM sidecars</title>
   <style>
     :root {
       --ink: #1a1f1c;
@@ -90,123 +90,102 @@
   <main>
     <h1 class="brand">navi-server</h1>
     <p class="lede">
-      Pre-built routing packs (<code>.rkyv</code>) and CoMaps leaf MWM
-      sidecars for the Navi navigation app — graph, POI, wetland/hazard, and
-      elevation-aware costing — derived from OpenStreetMap extracts. This host
-      is not a general map-tile or basemap server.
+      CoMaps leaf MWM Navi sidecars for the Navi navigation app — wetland and
+      boardwalk costing, elevation overrides, and vehicle height/width/length/weight
+      limits — derived from OpenStreetMap extracts. This host is not a general
+      map-tile or basemap server.
     </p>
 
     <h2>What you get</h2>
     <p>
-      Each published region is a set of binary packs plus JSON manifests that
-      Navi can download and use for offline routing. Content includes routing
-      geometry (profiles such as car / truck / foot / bicycle), named POIs and
-      barrier data, and wetland/hazard rings used in costing — not a
-      Protomaps-style labeled-region or park-boundary basemap layer.
+      The public DocumentRoot serves <strong>MWM</strong>: zstd-compressed Navi
+      sidecars and the catalog under <code>/mwm/</code>. Each leaf sidecar
+      supplements the matching CoMaps <code>.mwm</code> with wetland Soft/Hard
+      costs, elevation overrides, and optional <code>vehicle_limits</code>
+      (VL01) for truck and height-restricted routing. Base map files come from
+      CoMaps mirrors; this host publishes the matching Navi sidecars, catalog,
+      region migration tables, and attribution.
     </p>
-    <p>
-      The same DocumentRoot also serves <strong>MWM</strong>: CoMaps leaf
-      Navi sidecars and the MWM catalog under <code>/mwm/</code> (alongside
-      the older <code>.rkyv</code> packs under <code>/packs/</code>).
-      <code>*.rkyv</code> packs are being retired: they remain served for now
-      as a migration path, but the long-term path is MWM plus Navi sidecars;
-      deliberate removal comes later once clients are ready. Base
-      <code>.mwm</code> map files come from CoMaps mirrors; this host publishes
-      the matching Navi sidecars, catalog, and attribution.
+    <p class="note">
+      Legacy <code>.rkyv</code> routing packs under <code>/packs/</code> have
+      been <strong>retired</strong>. They are no longer the supported download
+      path and are not refreshed by the weekly bake. New clients should use
+      CoMaps MWMs plus Navi sidecars via <code>/mwm/</code>. Migration notes:
+      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/client-migration-from-rkyv.md"><code>docs/client-migration-from-rkyv.md</code></a>.
     </p>
     <p class="note">
       Format details live in the repo:
-      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/pack-formats.md"><code>docs/pack-formats.md</code></a>
-      (graph / POI-barrier / wetland archives and magic bytes) and
       <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/client-fetch-mwm.md"><code>docs/client-fetch-mwm.md</code></a>
-      (MWM catalog and sidecars).
+      (MWM catalog and fetch contract) and
+      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/sidecar-format.md"><code>docs/sidecar-format.md</code></a>
+      (NVSC sections including <code>vehicle_limits</code>).
     </p>
 
     <h2>URL layout</h2>
     <p>
-      Packs are nested under Geofabrik download paths — the same
-      continent/country/region hierarchy the Navi app uses in its download
-      menu (for example <code>europe/norway/vestlandet</code> or
-      <code>north-america/us/west-virginia</code>).
+      Start at <a href="/mwm/current.json"><code>/mwm/current.json</code></a>
+      for the live CoMaps data-version pointer, then open that version’s
+      <code>catalog.json</code> and download each leaf sidecar listed there
+      (sha256 digests included).
     </p>
-    <pre>GET /current.json
-GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/manifest.json
-GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-manifest.json
-GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-graph-*.rkyv
-GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-poi-barrier.rkyv
-GET /packs/&lt;geofabrik-path&gt;/&lt;generation&gt;/&lt;stem&gt;.navi-wetland*.rkyv
-
-GET /mwm/current.json
+    <pre>GET /mwm/current.json
 GET /mwm/&lt;version&gt;/catalog.json
 GET /mwm/&lt;version&gt;/&lt;Leaf&gt;.navi-sidecar.v1.zst
-GET /mwm/&lt;version&gt;/attribution.json</pre>
+GET /mwm/&lt;version&gt;/attribution.json
+GET /mwm/&lt;version&gt;/region-migration.json
+GET /mwm/&lt;version&gt;/country_groups.json</pre>
     <p>
-      Start at <a href="/current.json"><code>/current.json</code></a> for the
-      live <code>.rkyv</code> catalog (generation id and per-region
-      <code>manifest_url</code>). Then fetch that region’s
-      <code>manifest.json</code> and the files it lists (sha256 digests
-      included). The convert-style
-      <code>&lt;stem&gt;-latest.navi-manifest.json</code> sits beside those
-      packs in the same generation folder. For MWM, start at
-      <a href="/mwm/current.json"><code>/mwm/current.json</code></a>.
+      Retired <code>.rkyv</code> URLs (<code>/current.json</code>,
+      <code>/packs/…</code>) may still resolve on disk for historical clients;
+      do not build new integrations against them.
     </p>
 
     <h2>How to fetch a region</h2>
     <ol>
-      <li>GET <code>/current.json</code> and pick a region entry.</li>
-      <li>GET its <code>manifest_url</code> (under <code>/packs/…/</code>).</li>
-      <li>Download each file named in the manifest; verify sha256.</li>
+      <li>GET <a href="/mwm/current.json"><code>/mwm/current.json</code></a> and note the active <code>version</code>.</li>
+      <li>GET <code>/mwm/&lt;version&gt;/catalog.json</code> and pick leaf entries (skip any with <code>no_sidecar: true</code>).</li>
+      <li>Download each <code>sidecar_url</code>; verify <code>sidecar_sha256</code>.</li>
+      <li>Fetch the matching CoMaps <code>.mwm</code> from a CoMaps CDN using catalog size/sha1 fields; apply the sidecar only when the MWM fingerprint matches.</li>
     </ol>
     <p>
       Clients use ordinary HTTP GET/HEAD only — no auth handshake and no
       upload API on this vhost. Full contract:
-      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/client-fetch.md"><code>docs/client-fetch.md</code></a>
+      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/client-fetch-mwm.md"><code>docs/client-fetch-mwm.md</code></a>
       in the navi-server repository.
     </p>
 
-
-    <h2>Using the binary packs</h2>
+    <h2>Using the sidecars</h2>
     <p>
-      These are Navi offline routing packs (rkyv archives + JSON manifests), not
-      map tiles. Other tools can fetch them over plain HTTP and load them with
-      the same APIs Navi uses.
+      These are Navi offline costing sidecars (NVSC v1, zstd), not map tiles.
+      Other tools can fetch them over plain HTTP and load them with the same
+      APIs Navi uses. Inspect with <code>navi-mwm-sidecar inspect</code>.
     </p>
     <ol>
       <li>
-        Discover regions via <a href="/current.json"><code>/current.json</code></a>,
-        then download files listed in each region’s
-        <code>manifest.json</code> (verify sha256). Contract:
-        <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/client-fetch.md">client-fetch.md</a>.
+        Discover the active release via
+        <a href="/mwm/current.json"><code>/mwm/current.json</code></a>, then
+        download files listed in <code>catalog.json</code> (verify sha256).
       </li>
       <li>
-        Interpret magic bytes / versions and deserialize graph, POI-barrier,
-        and wetland packs:
-        <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/pack-formats.md">pack-formats.md</a>
-        — especially
-        <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/pack-formats.md#how-to-read-them">How to read them</a>
-        (<code>load_graph_pack</code>, <code>load_poi_barrier_pack</code>,
-        <code>load_wetland_pack</code> in
-        <code>pack_convert_core::routing::indexed</code>).
+        Interpret section magic / versions (wetland, elevation,
+        <code>vehicle_limits</code>):
+        <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/sidecar-format.md">sidecar-format.md</a>.
       </li>
     </ol>
-    <p class="note">
-      There is no Python decoder for pack bodies; supported load path is Rust
-      (rkyv 0.8) as documented above.
-    </p>
 
     <h2>Update cadence</h2>
     <p>
-      Binary routing packs are refreshed every Monday at 00:00 UTC by the
-      weekly bake timer. Treat freshness as “last successful Monday bake,”
-      not real-time OSM. Wider planet leaf builds are occasional full-tree
-      runs, separate from that weekly cadence.
+      MWM sidecars track CoMaps map-data releases (for example
+      <code>261105</code>). Treat freshness as “last successful publish for that
+      CoMaps version,” not real-time OSM. The former Monday 00:00 UTC
+      <code>.rkyv</code> weekly bake is retired and no longer refreshes packs.
     </p>
 
     <h2>Optional DATEX (Norway)</h2>
     <p>
       This host may also cache NPRA DATEX II snapshots under
       <code>/datex/</code> for Navi clients. That feature is <strong>off by
-      default</strong>, separate from routing packs, and holds credentials only
+      default</strong>, separate from MWM sidecars, and holds credentials only
       on the server. See
       <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/datex-npra.md"><code>docs/datex-npra.md</code></a>
       in the repository.
@@ -228,7 +207,7 @@ GET /mwm/&lt;version&gt;/attribution.json</pre>
         Map data © OpenStreetMap contributors, available under the
         <a href="https://opendatacommons.org/licenses/odbl/">Open Database License (ODbL)</a>.
         Extracts typically come via Geofabrik or OSM.fr. This server redistributes
-        <em>derived</em> Navi routing packs, not a raw dump of the OSM database.
+        <em>derived</em> Navi sidecars and catalogs, not a raw dump of the OSM database.
       </p>
       <p>
         Operator docs and source:
