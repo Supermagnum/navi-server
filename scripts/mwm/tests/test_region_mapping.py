@@ -42,12 +42,11 @@ def _write_poly(path: Path, name: str, coords: list[tuple[float, float]]) -> Non
 
 class TestRegionMappingCore(unittest.TestCase):
     def test_overlap_threshold_and_micro(self):
-        # Region 0..10 x 0..10. Leaf A covers 60%. Leaf B covers 0.2% (micro).
+        # Region 0..10 x 0..10. Leaf A covers 60%. B/C are thin strips mostly inside.
         region = box(0, 0, 10, 10)
         leaf_a = box(0, 0, 6, 10)
-        leaf_b = box(9.9, 0, 10.1, 10)  # thin strip ~2% actually — shrink
-        leaf_b = box(9.98, 0, 10.02, 10)  # ~0.4% of region
-        leaf_c = box(9.995, 0, 10.005, 10)  # ~0.1%
+        leaf_b = box(9.97, 0, 10.0, 10)  # ~0.3% of region, fully inside
+        leaf_c = box(9.99, 0, 10.0, 10)  # ~0.1% of region, fully inside
 
         class Idx:
             names = ["LeafA", "LeafB", "LeafC"]
@@ -73,6 +72,38 @@ class TestRegionMappingCore(unittest.TestCase):
         self.assertEqual(leaves["LeafC"]["include_reason"], "micro_land_overlap")
         self.assertGreater(result["union_coverage_pct"], 50.0)
         self.assertLess(result["uncovered_pct"], 50.0)
+
+    def test_rejects_mostly_outside_low_coverage(self):
+        """Neighbouring-country coastal noise: huge leaf, thin region touch."""
+        region = box(0, 0, 10, 10)
+        # Foreign leaf: tiny overlap (~1%) but almost all of the leaf is outside.
+        foreign = box(9.5, -40, 50, 50)
+        # Same-country leaf mostly outside but covering ≥25% of the region → keep.
+        big_spill = box(0, 0, 40, 8)  # covers 80% of region, overspill ≥50%
+
+        class Idx:
+            names = ["ForeignNoise", "SubstantialSpill"]
+            geoms = [foreign, big_spill]
+            areas = [foreign.area, big_spill.area]
+
+            class T:
+                def query(self, g):
+                    return [0, 1]
+
+            tree = T()
+
+        cfg = OverlapConfig(
+            include_threshold_pct=0.5,
+            micro_threshold_pct=0.05,
+            mostly_outside_min_coverage_pct=25.0,
+            mostly_outside_overspill_pct=50.0,
+        )
+        result = overlap_region_to_leaves(region, Idx(), cfg)
+        leaves = {x["leaf"]: x for x in result["comaps_leaves"]}
+        self.assertNotIn("ForeignNoise", leaves)
+        self.assertIn("SubstantialSpill", leaves)
+        self.assertTrue(leaves["SubstantialSpill"]["leaf_mostly_outside_region"])
+        self.assertGreaterEqual(leaves["SubstantialSpill"]["coverage_of_region_pct"], 25.0)
 
     def test_shared_and_review(self):
         regions = {

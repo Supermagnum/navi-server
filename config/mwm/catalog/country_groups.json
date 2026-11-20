@@ -3313,7 +3313,7 @@
       ],
       "leaf_count": 56,
       "total_mwm_bytes": 6609355797,
-      "total_sidecar_bytes": 43983165
+      "total_sidecar_bytes": 1295124
     },
     {
       "id": "Cape Verde",
@@ -4056,8 +4056,8 @@
             "Region Nordjylland"
           ],
           "mwm_bytes": 62238865,
-          "sidecar_bytes": 67636,
-          "total_bytes": 62306501
+          "sidecar_bytes": 69896,
+          "total_bytes": 62308761
         },
         {
           "id": "Denmark_Central Denmark Region",
@@ -4069,8 +4069,8 @@
             "Region Midtjylland"
           ],
           "mwm_bytes": 115926212,
-          "sidecar_bytes": 113452,
-          "total_bytes": 116039664
+          "sidecar_bytes": 117276,
+          "total_bytes": 116043488
         },
         {
           "id": "Denmark_Capital Region of Denmark",
@@ -4083,8 +4083,8 @@
             "Territorial waters of Bornholm"
           ],
           "mwm_bytes": 78013397,
-          "sidecar_bytes": 74444,
-          "total_bytes": 78087841
+          "sidecar_bytes": 81662,
+          "total_bytes": 78095059
         },
         {
           "id": "Denmark_Region Zealand",
@@ -4096,8 +4096,8 @@
             "Region Sj\u00e6lland"
           ],
           "mwm_bytes": 79545436,
-          "sidecar_bytes": 53880,
-          "total_bytes": 79599316
+          "sidecar_bytes": 58314,
+          "total_bytes": 79603750
         },
         {
           "id": "Denmark_Region of Southern Denmark",
@@ -4109,14 +4109,14 @@
             "Region Syddanmark"
           ],
           "mwm_bytes": 112330629,
-          "sidecar_bytes": 113388,
-          "total_bytes": 112444017
+          "sidecar_bytes": 119246,
+          "total_bytes": 112449875
         }
       ],
       "subgroups": [],
       "leaf_count": 5,
       "total_mwm_bytes": 448054539,
-      "total_sidecar_bytes": 422800
+      "total_sidecar_bytes": 446394
     },
     {
       "id": "Djibouti",
@@ -4699,8 +4699,8 @@
             "Suomi"
           ],
           "mwm_bytes": 53862187,
-          "sidecar_bytes": 79110,
-          "total_bytes": 53941297
+          "sidecar_bytes": 80891,
+          "total_bytes": 53943078
         },
         {
           "id": "Finland_Western Finland_Tampere",
@@ -4712,8 +4712,8 @@
             "Suomi"
           ],
           "mwm_bytes": 114909237,
-          "sidecar_bytes": 120811,
-          "total_bytes": 115030048
+          "sidecar_bytes": 126837,
+          "total_bytes": 115036074
         },
         {
           "id": "Finland_Northern Finland",
@@ -4725,8 +4725,8 @@
             "Suomi"
           ],
           "mwm_bytes": 150066151,
-          "sidecar_bytes": 185870,
-          "total_bytes": 150252021
+          "sidecar_bytes": 190669,
+          "total_bytes": 150256820
         },
         {
           "id": "Finland_Eastern Finland_North",
@@ -4738,8 +4738,8 @@
             "Suomi"
           ],
           "mwm_bytes": 138035587,
-          "sidecar_bytes": 323212,
-          "total_bytes": 138358799
+          "sidecar_bytes": 324054,
+          "total_bytes": 138359641
         },
         {
           "id": "Finland_Eastern Finland_South",
@@ -4751,8 +4751,8 @@
             "Suomi"
           ],
           "mwm_bytes": 80548675,
-          "sidecar_bytes": 104126,
-          "total_bytes": 80652801
+          "sidecar_bytes": 106062,
+          "total_bytes": 80654737
         },
         {
           "id": "Finland_Southern Finland_West",
@@ -4765,8 +4765,8 @@
             "\u00c5land"
           ],
           "mwm_bytes": 116850045,
-          "sidecar_bytes": 119203,
-          "total_bytes": 116969248
+          "sidecar_bytes": 127327,
+          "total_bytes": 116977372
         },
         {
           "id": "Finland_Southern Finland_Helsinki",
@@ -4778,8 +4778,8 @@
             "Suomi"
           ],
           "mwm_bytes": 138719199,
-          "sidecar_bytes": 215698,
-          "total_bytes": 138934897
+          "sidecar_bytes": 230336,
+          "total_bytes": 138949535
         },
         {
           "id": "Finland_Southern Finland_Lappeenranta",
@@ -4791,14 +4791,14 @@
             "Suomi"
           ],
           "mwm_bytes": 60263260,
-          "sidecar_bytes": 106072,
-          "total_bytes": 60369332
+          "sidecar_bytes": 107477,
+          "total_bytes": 60370737
         }
       ],
       "subgroups": [],
       "leaf_count": 8,
       "total_mwm_bytes": 853254341,
-      "total_sidecar_bytes": 1254102
+      "total_sidecar_bytes": 1293653
     },
     {
       "id": "France",
@@ -6221,7 +6221,7 @@
       ],
       "leaf_count": 94,
       "total_mwm_bytes": 5522101637,
-      "total_sidecar_bytes": 26579184
+      "total_sidecar_bytes": 3426719
     },
     {
       "id": "Gabon",
@@ -7088,7 +7088,7 @@
       ],
       "leaf_count": 48,
       "total_mwm_bytes": 4662393488,
-      "total_sidecar_bytes": 23750975
+      "total_sidecar_bytes": 2569846
     },
     {
       "id": "Ghana",
@@ -9288,7 +9288,7 @@
       ],
       "leaf_count": 56,
       "total_mwm_bytes": 2612001660,
-      "total_sidecar_bytes": 41108466
+      "total_sidecar_bytes": 28575469
     },
     {
       "id": "Jamaica",
@@ -10092,7 +10092,7 @@
       ],
       "leaf_count": 50,
       "total_mwm_bytes": 2571976542,
-      "total_sidecar_bytes": 98050982
+      "total_sidecar_bytes": 0
     },
     {
       "id": "Jersey",
@@ -11807,8 +11807,8 @@
             "Troms"
           ],
           "mwm_bytes": 252359197,
-          "sidecar_bytes": 280884,
-          "total_bytes": 252640081
+          "sidecar_bytes": 291034,
+          "total_bytes": 252650231
         },
         {
           "id": "Norway_Hordaland",
@@ -11820,8 +11820,8 @@
             "Norge"
           ],
           "mwm_bytes": 90316457,
-          "sidecar_bytes": 825854,
-          "total_bytes": 91142311,
+          "sidecar_bytes": 864008,
+          "total_bytes": 91180465,
           "comaps_display_name": "Hordaland",
           "display_name_overridden": true,
           "display_name_note": "Norwegian county reform 2020: Hordaland merged into Vestland (with Sogn og Fjordane). CoMaps leaf id unchanged."
@@ -11837,8 +11837,8 @@
             "Troms"
           ],
           "mwm_bytes": 198039470,
-          "sidecar_bytes": 380324,
-          "total_bytes": 198419794
+          "sidecar_bytes": 386534,
+          "total_bytes": 198426004
         },
         {
           "id": "Norway_Svalbard",
@@ -11850,8 +11850,8 @@
             "Svalbard"
           ],
           "mwm_bytes": 19482406,
-          "sidecar_bytes": 19609,
-          "total_bytes": 19502015
+          "sidecar_bytes": 19713,
+          "total_bytes": 19502119
         },
         {
           "id": "Norway_Oppland",
@@ -11863,8 +11863,8 @@
             "Oppland"
           ],
           "mwm_bytes": 100044396,
-          "sidecar_bytes": 440385,
-          "total_bytes": 100484781,
+          "sidecar_bytes": 443773,
+          "total_bytes": 100488169,
           "comaps_display_name": "Oppland",
           "display_name_overridden": true,
           "display_name_note": "Norwegian county reform 2020: Hedmark + Oppland merged into Innlandet. CoMaps still ships separate Hedmark/Oppland MWMs."
@@ -11879,8 +11879,8 @@
             "Rogaland"
           ],
           "mwm_bytes": 72592370,
-          "sidecar_bytes": 315281,
-          "total_bytes": 72907651
+          "sidecar_bytes": 348853,
+          "total_bytes": 72941223
         },
         {
           "id": "Norway_Hedmark",
@@ -11892,8 +11892,8 @@
             "Norge"
           ],
           "mwm_bytes": 102194292,
-          "sidecar_bytes": 267737,
-          "total_bytes": 102462029,
+          "sidecar_bytes": 269314,
+          "total_bytes": 102463606,
           "comaps_display_name": "Hedmark",
           "display_name_overridden": true,
           "display_name_note": "Norwegian county reform 2020: Hedmark + Oppland merged into Innlandet. CoMaps still ships separate Hedmark/Oppland MWMs."
@@ -11908,8 +11908,8 @@
             "Norge"
           ],
           "mwm_bytes": 1246229,
-          "sidecar_bytes": 15618,
-          "total_bytes": 1261847
+          "sidecar_bytes": 15722,
+          "total_bytes": 1261951
         },
         {
           "id": "Norway_North Trondelag",
@@ -11922,8 +11922,8 @@
             "S\u00f8r-Tr\u00f8ndelag"
           ],
           "mwm_bytes": 130021838,
-          "sidecar_bytes": 320390,
-          "total_bytes": 130342228,
+          "sidecar_bytes": 324313,
+          "total_bytes": 130346151,
           "comaps_display_name": "North Trondelag",
           "display_name_overridden": true,
           "display_name_note": "Nord- and S\u00f8r-Tr\u00f8ndelag merged into Tr\u00f8ndelag (2018). CoMaps still ships separate leaves."
@@ -11938,8 +11938,8 @@
             "S\u00f8r-Tr\u00f8ndelag"
           ],
           "mwm_bytes": 83206131,
-          "sidecar_bytes": 377939,
-          "total_bytes": 83584070,
+          "sidecar_bytes": 382773,
+          "total_bytes": 83588904,
           "comaps_display_name": "South Trondelag",
           "display_name_overridden": true,
           "display_name_note": "Nord- and S\u00f8r-Tr\u00f8ndelag merged into Tr\u00f8ndelag (2018). CoMaps still ships separate leaves."
@@ -11958,8 +11958,8 @@
             "Vestfold"
           ],
           "mwm_bytes": 249091104,
-          "sidecar_bytes": 1090168,
-          "total_bytes": 250181272
+          "sidecar_bytes": 1105630,
+          "total_bytes": 250196734
         },
         {
           "id": "Norway_Western",
@@ -11972,8 +11972,8 @@
             "Sogn og Fjordane"
           ],
           "mwm_bytes": 137766163,
-          "sidecar_bytes": 809569,
-          "total_bytes": 138575732
+          "sidecar_bytes": 849925,
+          "total_bytes": 138616088
         },
         {
           "id": "Norway_Central",
@@ -11987,8 +11987,8 @@
             "Oslo"
           ],
           "mwm_bytes": 167428239,
-          "sidecar_bytes": 723847,
-          "total_bytes": 168152086
+          "sidecar_bytes": 733799,
+          "total_bytes": 168162038
         },
         {
           "id": "Norway_Bouvet Island",
@@ -12007,7 +12007,7 @@
       "subgroups": [],
       "leaf_count": 14,
       "total_mwm_bytes": 1603996528,
-      "total_sidecar_bytes": 5882067
+      "total_sidecar_bytes": 6049853
     },
     {
       "id": "Oman",
@@ -16069,8 +16069,8 @@
             "V\u00e4stmanlands l\u00e4n"
           ],
           "mwm_bytes": 70593436,
-          "sidecar_bytes": 233093,
-          "total_bytes": 70826529
+          "sidecar_bytes": 387691,
+          "total_bytes": 70981127
         },
         {
           "id": "Sweden_Stockholm",
@@ -16082,8 +16082,8 @@
             "Sverige"
           ],
           "mwm_bytes": 74188228,
-          "sidecar_bytes": 563569,
-          "total_bytes": 74751797
+          "sidecar_bytes": 583993,
+          "total_bytes": 74772221
         },
         {
           "id": "Sweden_Ostra Gotaland",
@@ -16101,8 +16101,8 @@
             "Territorial waters of Gotland"
           ],
           "mwm_bytes": 120351856,
-          "sidecar_bytes": 640174,
-          "total_bytes": 120992030
+          "sidecar_bytes": 790967,
+          "total_bytes": 121142823
         },
         {
           "id": "Sweden_Norra Sverige",
@@ -16115,8 +16115,8 @@
             "V\u00e4sterbottens l\u00e4n"
           ],
           "mwm_bytes": 295177663,
-          "sidecar_bytes": 489335,
-          "total_bytes": 295666998
+          "sidecar_bytes": 687120,
+          "total_bytes": 295864783
         },
         {
           "id": "Sweden_Mellannorrland",
@@ -16129,8 +16129,8 @@
             "V\u00e4sternorrlands l\u00e4n"
           ],
           "mwm_bytes": 140230397,
-          "sidecar_bytes": 451984,
-          "total_bytes": 140682381
+          "sidecar_bytes": 570406,
+          "total_bytes": 140800803
         },
         {
           "id": "Sweden_Bergslagen",
@@ -16145,8 +16145,8 @@
             "V\u00e4rmlands l\u00e4n"
           ],
           "mwm_bytes": 168950231,
-          "sidecar_bytes": 658808,
-          "total_bytes": 169609039
+          "sidecar_bytes": 832923,
+          "total_bytes": 169783154
         },
         {
           "id": "Sweden_Vastra Gotaland",
@@ -16160,8 +16160,8 @@
             "V\u00e4stra G\u00f6talands l\u00e4n"
           ],
           "mwm_bytes": 150817058,
-          "sidecar_bytes": 1154188,
-          "total_bytes": 151971246
+          "sidecar_bytes": 1161246,
+          "total_bytes": 151978304
         },
         {
           "id": "Sweden_Sodra Gotaland",
@@ -16176,14 +16176,14 @@
             "Territorial waters of Bornholm"
           ],
           "mwm_bytes": 65333588,
-          "sidecar_bytes": 225088,
-          "total_bytes": 65558676
+          "sidecar_bytes": 228303,
+          "total_bytes": 65561891
         }
       ],
       "subgroups": [],
       "leaf_count": 8,
       "total_mwm_bytes": 1085642457,
-      "total_sidecar_bytes": 4416239
+      "total_sidecar_bytes": 5242649
     },
     {
       "id": "Switzerland",
@@ -20880,7 +20880,7 @@
       ],
       "leaf_count": 154,
       "total_mwm_bytes": 15812650106,
-      "total_sidecar_bytes": 478555445
+      "total_sidecar_bytes": 40774269
     },
     {
       "id": "Uruguay",

@@ -1,0 +1,3272 @@
+{
+  "dropped_leaf_count": 2266,
+  "regions_touched": 500,
+  "dropped": {
+    "africa_algeria": [
+      "Algeria_Coast",
+      "Mali",
+      "Morocco_Southern",
+      "Tunisia",
+      "Libya",
+      "Niger",
+      "Mauritania",
+      "Morocco_Western Sahara"
+    ],
+    "africa_angola": [
+      "Congo-Kinshasa_West",
+      "Namibia",
+      "Zambia"
+    ],
+    "africa_benin": [
+      "Nigeria_South",
+      "Togo",
+      "Burkina Faso",
+      "Niger",
+      "Nigeria_North"
+    ],
+    "africa_botswana": [
+      "Namibia",
+      "Zimbabwe",
+      "South Africa_North West",
+      "South Africa_Northern Cape",
+      "South Africa_Limpopo"
+    ],
+    "africa_burkina_faso": [
+      "Mali",
+      "Cote dIvoire",
+      "Ghana",
+      "Niger",
+      "Benin"
+    ],
+    "africa_burundi": [
+      "Congo-Kinshasa_Kivu",
+      "Tanzania_Western",
+      "Rwanda",
+      "Tanzania_Lake"
+    ],
+    "africa_cameroon": [
+      "Nigeria_South",
+      "Equatorial Guinea",
+      "Chad",
+      "Congo-Brazzaville",
+      "Central African Republic",
+      "Gabon",
+      "Nigeria_North"
+    ],
+    "africa_central_african_republic": [
+      "South Sudan",
+      "Congo-Kinshasa_West",
+      "Chad",
+      "Congo-Brazzaville",
+      "Cameroon_Central",
+      "Sudan_West"
+    ],
+    "africa_chad": [
+      "Niger",
+      "Sudan_West",
+      "Libya",
+      "Central African Republic",
+      "Cameroon_Central"
+    ],
+    "africa_comores": [
+      "France_Southern Islands"
+    ],
+    "africa_congo_brazzaville": [
+      "Gabon",
+      "Congo-Kinshasa_West",
+      "Cameroon_Central",
+      "Central African Republic",
+      "Angola"
+    ],
+    "africa_congo_democratic_republic": [
+      "Angola",
+      "Zambia",
+      "Congo-Brazzaville",
+      "Central African Republic",
+      "Tanzania_Western",
+      "South Sudan",
+      "Tanzania_Southern Highlands"
+    ],
+    "africa_djibouti": [
+      "Ethiopia",
+      "Yemen",
+      "Eritrea",
+      "Somalia"
+    ],
+    "africa_egypt": [
+      "Libya",
+      "Sudan_West",
+      "Saudi Arabia_North",
+      "Sudan_East"
+    ],
+    "africa_equatorial_guinea": [
+      "Gabon",
+      "Cameroon_Central",
+      "Cameroon_West",
+      "Sao Tome and Principe"
+    ],
+    "africa_eritrea": [
+      "Ethiopia",
+      "Sudan_East",
+      "Yemen",
+      "Djibouti"
+    ],
+    "africa_ethiopia": [
+      "South Sudan",
+      "Eritrea",
+      "Somalia",
+      "Kenya",
+      "Sudan_East",
+      "Djibouti"
+    ],
+    "africa_gabon": [
+      "Congo-Brazzaville",
+      "Equatorial Guinea",
+      "Angola",
+      "Cameroon_Central"
+    ],
+    "africa_ghana": [
+      "Togo",
+      "Cote dIvoire",
+      "Burkina Faso"
+    ],
+    "africa_guinea": [
+      "Mali",
+      "Sierra Leone",
+      "Guinea-Bissau",
+      "Cote dIvoire",
+      "Liberia",
+      "Senegal"
+    ],
+    "africa_guinea_bissau": [
+      "Guinea",
+      "Senegal"
+    ],
+    "africa_ivory_coast": [
+      "Ghana",
+      "Burkina Faso",
+      "Guinea",
+      "Mali",
+      "Liberia"
+    ],
+    "africa_kenya": [
+      "Uganda",
+      "Ethiopia",
+      "Somalia",
+      "Tanzania_Offshore Islands",
+      "Tanzania_Northern"
+    ],
+    "africa_lesotho": [
+      "South Africa_Free State",
+      "South Africa_KwaZulu-Natal",
+      "South Africa_Eastern Cape"
+    ],
+    "africa_liberia": [
+      "Cote dIvoire",
+      "Guinea",
+      "Sierra Leone"
+    ],
+    "africa_libya": [
+      "Chad",
+      "Algeria_Central",
+      "Egypt",
+      "Sudan_West",
+      "Tunisia",
+      "Niger"
+    ],
+    "africa_madagascar": [
+      "France_Southern Islands"
+    ],
+    "africa_malawi": [
+      "Mozambique",
+      "Zambia",
+      "Tanzania_Southern Highlands"
+    ],
+    "africa_mali": [
+      "Mauritania",
+      "Algeria_Central",
+      "Niger",
+      "Burkina Faso",
+      "Guinea",
+      "Cote dIvoire",
+      "Senegal"
+    ],
+    "africa_mauritania": [
+      "Mali",
+      "Sahrawi Arab Democratic Republic",
+      "Senegal"
+    ],
+    "africa_mauritius": [
+      "France_Southern Islands",
+      "Seychelles"
+    ],
+    "africa_morocco": [
+      "Algeria_Central",
+      "Spain_Andalusia_Granada",
+      "Mauritania",
+      "Algeria_Coast"
+    ],
+    "africa_mozambique": [
+      "France_Southern Islands",
+      "Malawi",
+      "Zimbabwe",
+      "Tanzania_Southern Highlands",
+      "South Africa_Mpumalanga",
+      "South Africa_Limpopo",
+      "Zambia",
+      "Tanzania_Coastal"
+    ],
+    "africa_namibia": [
+      "Angola",
+      "Botswana",
+      "South Africa_Northern Cape"
+    ],
+    "africa_niger": [
+      "Chad",
+      "Mali",
+      "Algeria_Central",
+      "Nigeria_North",
+      "Burkina Faso",
+      "Libya",
+      "Benin"
+    ],
+    "africa_nigeria": [
+      "Niger",
+      "Cameroon_Central",
+      "Cameroon_West",
+      "Benin"
+    ],
+    "africa_rwanda": [
+      "Tanzania_Lake",
+      "Burundi",
+      "Congo-Kinshasa_Kivu",
+      "Uganda"
+    ],
+    "africa_senegal_and_gambia": [
+      "Mauritania",
+      "Mali",
+      "Guinea",
+      "Guinea-Bissau"
+    ],
+    "africa_seychelles": [
+      "France_Southern Islands",
+      "Madagascar"
+    ],
+    "africa_sierra_leone": [
+      "Guinea",
+      "Liberia"
+    ],
+    "africa_somalia": [
+      "Ethiopia",
+      "Kenya",
+      "Yemen"
+    ],
+    "africa_south_africa": [
+      "Botswana",
+      "Namibia"
+    ],
+    "africa_south_africa_and_lesotho": [
+      "Botswana",
+      "Namibia"
+    ],
+    "africa_south_sudan": [
+      "Sudan_West",
+      "Central African Republic",
+      "Ethiopia",
+      "Kenya",
+      "Uganda",
+      "Congo-Kinshasa_West",
+      "Sudan_East"
+    ],
+    "africa_sudan": [
+      "South Sudan",
+      "Libya",
+      "Chad",
+      "Egypt",
+      "Ethiopia",
+      "Eritrea",
+      "Central African Republic"
+    ],
+    "africa_swaziland": [
+      "South Africa_Mpumalanga",
+      "South Africa_KwaZulu-Natal",
+      "Mozambique"
+    ],
+    "africa_tanzania": [
+      "Mozambique",
+      "Malawi",
+      "Congo-Kinshasa_West",
+      "Zambia",
+      "Kenya",
+      "Burundi"
+    ],
+    "africa_togo": [
+      "Ghana",
+      "Benin",
+      "Burkina Faso"
+    ],
+    "africa_tunisia": [
+      "Italy_Sicily",
+      "Libya",
+      "Algeria_Central",
+      "Algeria_Coast"
+    ],
+    "africa_uganda": [
+      "Kenya",
+      "Congo-Kinshasa_West",
+      "South Sudan",
+      "Tanzania_Lake",
+      "Rwanda",
+      "Congo-Kinshasa_Kivu"
+    ],
+    "africa_zambia": [
+      "Congo-Kinshasa_West",
+      "Angola",
+      "Malawi",
+      "Zimbabwe",
+      "Mozambique",
+      "Tanzania_Southern Highlands"
+    ],
+    "africa_zimbabwe": [
+      "Mozambique",
+      "Zambia",
+      "Botswana",
+      "South Africa_Limpopo"
+    ],
+    "asia_afghanistan": [
+      "Pakistan",
+      "Tajikistan",
+      "Iran_East",
+      "Turkmenistan"
+    ],
+    "asia_armenia": [
+      "Azerbaijan",
+      "Turkey_Eastern Anatolia Region",
+      "Nagorno-Karabakh",
+      "Georgia"
+    ],
+    "asia_azerbaijan": [
+      "Kazakhstan_South",
+      "Turkmenistan",
+      "Armenia",
+      "Iran_North",
+      "Russia_Republic of Dagestan",
+      "Georgia"
+    ],
+    "asia_bangladesh": [
+      "India_West Bengal",
+      "India_Tripura",
+      "Myanmar",
+      "India_Mizoram",
+      "India_Assam",
+      "India_Meghalaya"
+    ],
+    "asia_bhutan": [
+      "China_Tibet Autonomous Region",
+      "India_Assam",
+      "India_Arunachal Pradesh",
+      "India_West Bengal",
+      "India_Sikkim"
+    ],
+    "asia_cambodia": [
+      "Vietnam_South",
+      "Laos",
+      "Thailand_Central",
+      "Thailand_South"
+    ],
+    "asia_china_anhui": [
+      "China_Jiangsu",
+      "China_Henan",
+      "China_Jiangxi",
+      "China_Zhejiang",
+      "China_Hubei"
+    ],
+    "asia_china_chongqing": [
+      "China_Sichuan",
+      "China_Guizhou",
+      "China_Hubei",
+      "China_Hunan",
+      "China_Shaanxi"
+    ],
+    "asia_china_fujian": [
+      "China_Hainan",
+      "China_Jiangxi",
+      "Taiwan_North",
+      "China_Zhejiang",
+      "China_Guangdong"
+    ],
+    "asia_china_gansu": [
+      "China_Qinghai",
+      "China_Inner Mongolia",
+      "China_Xinjiang",
+      "China_Sichuan",
+      "China_Shaanxi",
+      "China_Ningxia Hui"
+    ],
+    "asia_china_guangdong": [
+      "China_Hainan",
+      "China_Guangxi",
+      "China_Jiangxi",
+      "Taiwan_South",
+      "China_Hunan",
+      "China_Fujian"
+    ],
+    "asia_china_guangxi": [
+      "Vietnam_North",
+      "China_Guangdong",
+      "China_Guizhou",
+      "China_Hunan",
+      "China_Yunnan"
+    ],
+    "asia_china_guizhou": [
+      "China_Guangxi",
+      "China_Yunnan",
+      "China_Chongqing",
+      "China_Hunan",
+      "China_Sichuan"
+    ],
+    "asia_china_hainan": [
+      "China_Guangdong",
+      "Philippines_Luzon_North"
+    ],
+    "asia_china_hebei": [
+      "China_Inner Mongolia",
+      "China_Shandong",
+      "China_Shanxi",
+      "China_Liaoning",
+      "China_Henan"
+    ],
+    "asia_china_heilongjiang": [
+      "China_Inner Mongolia",
+      "Russia_Amur Oblast",
+      "Russia_Jewish Autonomous Oblast",
+      "Russia_Primorsky Krai",
+      "China_Jilin",
+      "Russia_Khabarovsk Krai",
+      "Russia_Zabaykalsky Krai"
+    ],
+    "asia_china_henan": [
+      "China_Anhui",
+      "China_Hubei",
+      "China_Shandong",
+      "China_Shanxi",
+      "China_Shaanxi",
+      "China_Hebei"
+    ],
+    "asia_china_hong_kong": [
+      "China_Guangdong"
+    ],
+    "asia_china_hubei": [
+      "China_Hunan",
+      "China_Chongqing",
+      "China_Henan",
+      "China_Shaanxi",
+      "China_Jiangxi",
+      "China_Anhui"
+    ],
+    "asia_china_hunan": [
+      "China_Hubei",
+      "China_Jiangxi",
+      "China_Guangxi",
+      "China_Guizhou",
+      "China_Guangdong"
+    ],
+    "asia_china_inner_mongolia": [
+      "Mongolia",
+      "Russia_Zabaykalsky Krai",
+      "China_Gansu",
+      "China_Heilongjiang",
+      "China_Hebei",
+      "China_Jilin",
+      "China_Liaoning",
+      "China_Shaanxi"
+    ],
+    "asia_china_jiangsu": [
+      "China_Shandong",
+      "China_Anhui",
+      "China_Shanghai",
+      "China_Zhejiang"
+    ],
+    "asia_china_jiangxi": [
+      "China_Fujian",
+      "China_Guangdong",
+      "China_Hunan",
+      "China_Anhui",
+      "China_Hubei",
+      "China_Zhejiang"
+    ],
+    "asia_china_jilin": [
+      "North Korea",
+      "China_Heilongjiang",
+      "China_Inner Mongolia",
+      "Russia_Primorsky Krai",
+      "China_Liaoning"
+    ],
+    "asia_china_liaoning": [
+      "North Korea",
+      "China_Hebei",
+      "China_Inner Mongolia",
+      "China_Jilin"
+    ],
+    "asia_china_macau": [
+      "China_Guangdong"
+    ],
+    "asia_china_ningxia": [
+      "China_Gansu",
+      "China_Inner Mongolia",
+      "China_Shaanxi"
+    ],
+    "asia_china_qinghai": [
+      "China_Gansu",
+      "China_Sichuan",
+      "China_Xinjiang",
+      "China_Tibet Autonomous Region"
+    ],
+    "asia_china_shaanxi": [
+      "China_Gansu",
+      "China_Shanxi",
+      "China_Hubei",
+      "China_Inner Mongolia",
+      "China_Sichuan",
+      "China_Henan",
+      "China_Chongqing",
+      "China_Ningxia Hui"
+    ],
+    "asia_china_shandong": [
+      "China_Hebei",
+      "China_Jiangsu",
+      "China_Henan"
+    ],
+    "asia_china_shanghai": [
+      "China_Zhejiang",
+      "China_Jiangsu"
+    ],
+    "asia_china_shanxi": [
+      "China_Shaanxi",
+      "China_Hebei",
+      "China_Henan",
+      "China_Inner Mongolia"
+    ],
+    "asia_china_sichuan": [
+      "China_Gansu",
+      "China_Qinghai",
+      "China_Yunnan",
+      "China_Chongqing",
+      "China_Shaanxi",
+      "China_Tibet Autonomous Region",
+      "China_Guizhou"
+    ],
+    "asia_china_tibet": [
+      "China_Qinghai",
+      "India_Arunachal Pradesh",
+      "Nepal_West",
+      "India_Jammu and Kashmir",
+      "China_Xinjiang",
+      "India_Uttarakhand",
+      "Bhutan",
+      "India_Himachal Pradesh",
+      "Nepal_Purwanchal",
+      "India_Sikkim",
+      "China_Sichuan",
+      "Myanmar",
+      "China_Yunnan",
+      "Nepal_Kathmandu"
+    ],
+    "asia_china_xinjiang": [
+      "Kazakhstan_South",
+      "Mongolia",
+      "Kyrgyzstan",
+      "China_Tibet Autonomous Region",
+      "China_Qinghai",
+      "Tajikistan",
+      "Pakistan",
+      "India_Jammu and Kashmir",
+      "China_Gansu"
+    ],
+    "asia_china_yunnan": [
+      "Myanmar",
+      "Laos",
+      "Vietnam_North",
+      "China_Sichuan",
+      "China_Guizhou",
+      "China_Guangxi",
+      "China_Tibet Autonomous Region"
+    ],
+    "asia_china_zhejiang": [
+      "China_Shanghai",
+      "China_Fujian",
+      "China_Jiangsu",
+      "China_Anhui",
+      "China_Jiangxi"
+    ],
+    "asia_east_timor": [
+      "Indonesia_Nusa Tenggara",
+      "Indonesia_East"
+    ],
+    "asia_gcc_states": [
+      "Yemen",
+      "Iran_South",
+      "Iraq_South",
+      "Jordan",
+      "Eritrea"
+    ],
+    "asia_india_central_zone": [
+      "India_Rajasthan",
+      "India_Maharashtra",
+      "India_Odisha",
+      "India_Bihar",
+      "China_Tibet Autonomous Region",
+      "India_Jharkhand",
+      "India_Himachal Pradesh",
+      "India_Gujarat",
+      "Nepal_West",
+      "India_Telangana",
+      "India_Haryana"
+    ],
+    "asia_india_eastern_zone": [
+      "Bangladesh",
+      "India_Chhattisgarh",
+      "India_Uttar Pradesh",
+      "India_Andhra Pradesh",
+      "Nepal_Madhyamanchal",
+      "Bhutan"
+    ],
+    "asia_india_north_eastern_zone": [
+      "Myanmar",
+      "China_Tibet Autonomous Region",
+      "Bangladesh",
+      "Bhutan",
+      "India_West Bengal",
+      "Nepal_Purwanchal"
+    ],
+    "asia_india_northern_zone": [
+      "Pakistan",
+      "China_Tibet Autonomous Region",
+      "India_Madhya Pradesh",
+      "China_Xinjiang",
+      "India_Gujarat",
+      "India_Uttar Pradesh",
+      "India_Uttarakhand"
+    ],
+    "asia_india_southern_zone": [
+      "Myanmar",
+      "India_Maharashtra",
+      "India_Odisha",
+      "Sri Lanka",
+      "India_Chhattisgarh"
+    ],
+    "asia_india_western_zone": [
+      "Pakistan",
+      "India_Madhya Pradesh",
+      "India_Rajasthan",
+      "India_Karnataka_North",
+      "India_Chhattisgarh",
+      "India_Telangana"
+    ],
+    "asia_indonesia_java": [
+      "Indonesia_Central",
+      "Indonesia_West",
+      "Indonesia_Nusa Tenggara"
+    ],
+    "asia_indonesia_kalimantan": [
+      "Indonesia_West",
+      "Malaysia_East",
+      "Indonesia_Jawa Timur",
+      "Indonesia_Jawa Tengah",
+      "Indonesia_Jawa Barat"
+    ],
+    "asia_indonesia_maluku": [
+      "Indonesia_Central"
+    ],
+    "asia_indonesia_nusa_tenggara": [
+      "Indonesia_East",
+      "Indonesia_Central",
+      "Indonesia_Jawa Timur"
+    ],
+    "asia_indonesia_papua": [
+      "Papua New Guinea"
+    ],
+    "asia_indonesia_sulawesi": [
+      "Indonesia_Nusa Tenggara",
+      "Indonesia_East",
+      "Indonesia_Jawa Timur",
+      "Philippines_Mindanao"
+    ],
+    "asia_indonesia_sumatra": [
+      "Indonesia_Central",
+      "Malaysia_West",
+      "Indonesia_Jawa Barat"
+    ],
+    "asia_iran": [
+      "Turkmenistan",
+      "Afghanistan",
+      "Pakistan",
+      "Iraq_South",
+      "Iraq_North",
+      "Azerbaijan"
+    ],
+    "asia_iraq": [
+      "Saudi Arabia_North",
+      "Iran_South",
+      "Kuwait",
+      "Syria",
+      "Iran_North",
+      "Turkey_Eastern Anatolia Region"
+    ],
+    "asia_israel_and_palestine": [
+      "Jordan",
+      "Lebanon",
+      "Egypt",
+      "Syria"
+    ],
+    "asia_japan_chubu": [
+      "Japan_Kinki Region_Mie",
+      "Japan_Kanto_Kanagawa",
+      "Japan_Kanto_Tokyo",
+      "Japan_Shikoku Region_Kyoto",
+      "Japan_Kanto_Gunma",
+      "Japan_Tohoku_Yamagata",
+      "Japan_Tohoku_Fukushima"
+    ],
+    "asia_japan_chugoku": [
+      "Japan_Kyushu Region_Fukuoka",
+      "Japan_Shikoku Region_Ehime",
+      "Japan_Kinki Region_Osaka_West",
+      "South Korea_South",
+      "Japan_Kyushu Region_Oita",
+      "Japan_Shikoku Region_Kagawa"
+    ],
+    "asia_japan_hokkaido": [
+      "Russia_Sakhalin Oblast",
+      "Japan_Tohoku_Aomori"
+    ],
+    "asia_japan_kansai": [
+      "Japan_Chubu Region_Fukui",
+      "Japan_Shikoku Region_Tokushima",
+      "Japan_Shikoku Region_Kagawa",
+      "Japan_Chubu Region_Aichi_Toyohashi",
+      "Japan_Chubu Region_Aichi_Nagoya",
+      "Japan_Chugoku Region_Okayama"
+    ],
+    "asia_japan_kyushu": [
+      "Japan_Chugoku Region_Yamaguchi"
+    ],
+    "asia_japan_shikoku": [
+      "Japan_Kyushu Region_Oita",
+      "Japan_Kinki Region_Wakayama",
+      "Japan_Chugoku Region_Yamaguchi",
+      "Japan_Kinki Region_Osaka_West",
+      "Japan_Chugoku Region_Hiroshima",
+      "Japan_Chugoku Region_Okayama"
+    ],
+    "asia_japan_tohoku": [
+      "Japan_Kanto_Ibaraki",
+      "Japan_Chubu Region_Niigata"
+    ],
+    "asia_jordan": [
+      "Saudi Arabia_North",
+      "Israel",
+      "Syria",
+      "Palestine",
+      "Iraq_South"
+    ],
+    "asia_kazakhstan": [
+      "Uzbekistan",
+      "Russia_Orenburg Oblast",
+      "China_Xinjiang",
+      "Russia_Astrakhan Oblast",
+      "Russia_Omsk Oblast",
+      "Kyrgyzstan",
+      "Russia_Saratov Oblast",
+      "Russia_Altai Krai",
+      "Russia_Chelyabinsk Oblast",
+      "Russia_Kurgan Oblast",
+      "Russia_Altai Republic",
+      "Russia_Novosibirsk Oblast",
+      "Turkmenistan"
+    ],
+    "asia_kyrgyzstan": [
+      "China_Xinjiang",
+      "Kazakhstan_South",
+      "Tajikistan",
+      "Uzbekistan"
+    ],
+    "asia_laos": [
+      "Vietnam_North",
+      "Cambodia",
+      "Thailand_Central",
+      "Thailand_North",
+      "China_Yunnan",
+      "Vietnam_South",
+      "Myanmar"
+    ],
+    "asia_lebanon": [
+      "Syria",
+      "Israel"
+    ],
+    "asia_malaysia_singapore_brunei": [
+      "Indonesia_Central",
+      "Philippines_Mindanao",
+      "Indonesia_West",
+      "Thailand_South",
+      "Philippines_Luzon_South"
+    ],
+    "asia_maldives": [
+      "India_Lakshadweep"
+    ],
+    "asia_mongolia": [
+      "China_Inner Mongolia",
+      "China_Xinjiang",
+      "Russia_Tuva",
+      "Russia_Zabaykalsky Krai",
+      "Russia_Buryatia",
+      "Russia_Altai Republic"
+    ],
+    "asia_myanmar": [
+      "China_Yunnan",
+      "India_Andaman and Nicobar Islands",
+      "Thailand_North",
+      "Thailand_South",
+      "India_Arunachal Pradesh",
+      "Thailand_Central",
+      "Bangladesh",
+      "India_Manipur",
+      "India_Mizoram",
+      "Laos",
+      "India_Nagaland"
+    ],
+    "asia_nepal": [
+      "China_Tibet Autonomous Region",
+      "India_Uttar Pradesh",
+      "India_Uttarakhand",
+      "India_Bihar",
+      "India_Sikkim",
+      "India_West Bengal"
+    ],
+    "asia_north_korea": [
+      "China_Jilin",
+      "South Korea_North",
+      "China_Liaoning"
+    ],
+    "asia_pakistan": [
+      "Afghanistan",
+      "India_Rajasthan",
+      "India_Gujarat",
+      "India_Jammu and Kashmir",
+      "Iran_East",
+      "China_Xinjiang",
+      "India_Punjab"
+    ],
+    "asia_philippines": [
+      "China_Hainan",
+      "Indonesia_Central",
+      "Vietnam_South",
+      "Taiwan_South"
+    ],
+    "asia_sea": [
+      "China_Hainan",
+      "China_Yunnan"
+    ],
+    "asia_south_korea": [
+      "Japan_Kyushu Region_Nagasaki",
+      "North Korea"
+    ],
+    "asia_syria": [
+      "Iraq_North",
+      "Jordan",
+      "Turkey_Mediterranean Region",
+      "Turkey_Southeastern Anatolia Region",
+      "Lebanon"
+    ],
+    "asia_taiwan": [
+      "Japan_Kyushu Region_Okinawa",
+      "Philippines_Luzon_North",
+      "China_Fujian",
+      "China_Hainan"
+    ],
+    "asia_tajikistan": [
+      "Kyrgyzstan",
+      "Afghanistan",
+      "China_Xinjiang",
+      "Uzbekistan"
+    ],
+    "asia_thailand": [
+      "Myanmar",
+      "Laos",
+      "Malaysia_West",
+      "Cambodia"
+    ],
+    "asia_turkmenistan": [
+      "Uzbekistan",
+      "Afghanistan",
+      "Iran_North",
+      "Iran_East",
+      "Kazakhstan_South"
+    ],
+    "asia_uzbekistan": [
+      "Kazakhstan_South",
+      "Turkmenistan",
+      "Kyrgyzstan",
+      "Tajikistan",
+      "Afghanistan"
+    ],
+    "asia_vietnam": [
+      "China_Hainan",
+      "Laos",
+      "Cambodia",
+      "Philippines_Luzon_South",
+      "China_Yunnan",
+      "China_Guangxi"
+    ],
+    "asia_yemen": [
+      "Somalia",
+      "Saudi Arabia_South",
+      "Eritrea",
+      "Oman",
+      "Djibouti"
+    ],
+    "australia_oceania_american_oceania": [
+      "US_United States Minor Outlying Islands",
+      "Kiribati",
+      "Japan_Kanto_Tokyo",
+      "Cook Islands",
+      "Tokelau"
+    ],
+    "australia_oceania_australia_coral_sea_islands": [
+      "Australia_New South Wales",
+      "France_New Caledonia"
+    ],
+    "australia_oceania_australia_new_south_wales": [
+      "Australia_Victoria"
+    ],
+    "australia_oceania_australia_northern_territory": [
+      "Australia_Queensland"
+    ],
+    "australia_oceania_australia_queensland": [
+      "Australia_Brisbane",
+      "Papua New Guinea"
+    ],
+    "australia_oceania_australia_victoria": [
+      "Australia_New South Wales",
+      "Australia_Sydney",
+      "Australia_South Australia"
+    ],
+    "australia_oceania_australia_western_australia": [
+      "Australia_Northern Territory",
+      "Australia_South Australia"
+    ],
+    "australia_oceania_cook_islands": [
+      "Samoa",
+      "French Polynesia",
+      "Tokelau",
+      "Kiribati"
+    ],
+    "australia_oceania_fiji": [
+      "Tonga",
+      "France_New Caledonia",
+      "Wallis and Futuna"
+    ],
+    "australia_oceania_kiribati": [
+      "US_United States Minor Outlying Islands",
+      "Tokelau",
+      "Cook Islands",
+      "French Polynesia",
+      "Nauru",
+      "Marshall Islands"
+    ],
+    "australia_oceania_marshall_islands": [
+      "Nauru",
+      "Kiribati"
+    ],
+    "australia_oceania_micronesia": [
+      "Marshall Islands",
+      "Papua New Guinea",
+      "Nauru",
+      "US_Guam"
+    ],
+    "australia_oceania_new_caledonia": [
+      "Australia_Brisbane",
+      "Vanuatu"
+    ],
+    "australia_oceania_palau": [
+      "Federated States of Micronesia"
+    ],
+    "australia_oceania_papua_new_guinea": [
+      "Australia_Queensland",
+      "Solomon Islands",
+      "Federated States of Micronesia"
+    ],
+    "australia_oceania_pitcairn_islands": [
+      "French Polynesia"
+    ],
+    "australia_oceania_polynesie_francaise": [
+      "Cook Islands",
+      "Pitcairn Islands"
+    ],
+    "australia_oceania_samoa": [
+      "Wallis and Futuna"
+    ],
+    "australia_oceania_solomon_islands": [
+      "Papua New Guinea",
+      "France_New Caledonia"
+    ],
+    "australia_oceania_tokelau": [
+      "Samoa",
+      "Cook Islands",
+      "Wallis and Futuna"
+    ],
+    "australia_oceania_tonga": [
+      "Wallis and Futuna"
+    ],
+    "australia_oceania_tuvalu": [
+      "Wallis and Futuna"
+    ],
+    "australia_oceania_vanuatu": [
+      "France_New Caledonia",
+      "Solomon Islands"
+    ],
+    "australia_oceania_wallis_et_futuna": [
+      "Tonga",
+      "Samoa"
+    ],
+    "central_america_bahamas": [
+      "Cuba",
+      "US_Florida_Miami",
+      "Turks and Caicos Islands"
+    ],
+    "central_america_belize": [
+      "Guatemala",
+      "Mexico_East"
+    ],
+    "central_america_costa_rica": [
+      "Panama",
+      "Nicaragua"
+    ],
+    "central_america_cuba": [
+      "The Bahamas"
+    ],
+    "central_america_el_salvador": [
+      "Honduras",
+      "Guatemala",
+      "Nicaragua"
+    ],
+    "central_america_guatemala": [
+      "Mexico_East",
+      "Belize",
+      "Honduras",
+      "El Salvador"
+    ],
+    "central_america_haiti_and_domrep": [
+      "Turks and Caicos Islands",
+      "US_Puerto Rico",
+      "US_United States Minor Outlying Islands"
+    ],
+    "central_america_honduras": [
+      "Belize",
+      "Nicaragua",
+      "Guatemala",
+      "El Salvador"
+    ],
+    "central_america_nicaragua": [
+      "Honduras",
+      "Costa Rica"
+    ],
+    "central_america_panama": [
+      "Colombia_West",
+      "Colombia_North",
+      "Costa Rica"
+    ],
+    "europe_albania": [
+      "Greece_Decentralized Administration of West Greece",
+      "Italy_Apulia",
+      "Greece_Decentralized Administration of Epirus - Western Macedonia",
+      "Macedonia",
+      "Montenegro",
+      "Republic of Kosovo"
+    ],
+    "europe_alps": [
+      "France_Provence-Alpes-Cote dAzur_Bouches-du-Rhone",
+      "Austria_Lower Austria_West",
+      "Italy_Liguria",
+      "Slovenia_East",
+      "Germany_Free State of Bavaria_Swabia",
+      "France_Corsica",
+      "Italy_Piemont_Vercelli",
+      "Austria_Upper Austria_Linz",
+      "Switzerland_Espace Mittelland_Bern",
+      "France_Rhone-Alpes_Ain",
+      "Italy_Piemont_Novara",
+      "Switzerland_Zurich",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Tubingen",
+      "Italy_Friuli-Venezia Giulia_Gorizia",
+      "Hungary_Transdanubia",
+      "France_Free County_South"
+    ],
+    "europe_andorra": [
+      "Spain_Catalonia_Provincia de Lleida",
+      "France_Midi-Pyrenees_Ariege",
+      "France_Languedoc-Roussillon_Pyrenees-Orientales"
+    ],
+    "europe_austria": [
+      "Italy_Trentino-Alto Adige Sudtirol",
+      "Hungary_Transdanubia",
+      "Germany_Free State of Bavaria_Upper Bavaria_East",
+      "Czech_Jihozapad_Jihocesky kraj",
+      "Germany_Free State of Bavaria_Swabia",
+      "Czech_Jihovychod_Jihomoravsky kraj",
+      "Switzerland_Eastern",
+      "Slovenia_East",
+      "Germany_Free State of Bavaria_Lower Bavaria",
+      "Italy_Friuli-Venezia Giulia_Udine",
+      "Germany_Free State of Bavaria_Upper Bavaria_South",
+      "Slovakia_Region of Bratislava"
+    ],
+    "europe_belarus": [
+      "Russia_Smolensk Oblast",
+      "Russia_Bryansk Oblast",
+      "Ukraine_Kyiv Oblast",
+      "Lithuania_East",
+      "Ukraine_Rivne Oblast",
+      "Russia_Pskov Oblast",
+      "Ukraine_Zhytomyr Oblast",
+      "Ukraine_Chernihiv Oblast",
+      "Ukraine_Volyn Oblast",
+      "Poland_Podlaskie Voivodeship"
+    ],
+    "europe_belgium": [
+      "Belgium_West Flanders",
+      "France_Champagne-Ardenne",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Koln_Aachen",
+      "France_Nord-Pas-de-Calais_Nord",
+      "Netherlands_North Brabant_Tiburg",
+      "Netherlands_Zeeland",
+      "Luxembourg",
+      "Netherlands_Limburg",
+      "France_Nord-Pas-de-Calais_Lille"
+    ],
+    "europe_bosnia_herzegovina": [
+      "Croatia_West",
+      "Croatia_Central",
+      "Serbia",
+      "Montenegro"
+    ],
+    "europe_britain_and_ireland": [
+      "France_Brittany_Finistere",
+      "France_Brittany_Cotes-dArmor",
+      "France_Lower Normandy_Manche",
+      "France_Upper Normandy",
+      "France_Nord-Pas-de-Calais_Pas-de-Calais",
+      "France_Lower Normandy_Calvados"
+    ],
+    "europe_bulgaria": [
+      "Greece_Decentralized Administration of Macedonia and Thrace",
+      "Serbia",
+      "Romania_South",
+      "Turkey_Marmara Region_Istanbul",
+      "Romania_South_West",
+      "Macedonia",
+      "Romania_South_East"
+    ],
+    "europe_croatia": [
+      "Bosnia and Herzegovina_Entity Federation of Bosnia and Herzegovina",
+      "Serbia",
+      "Hungary_Transdanubia",
+      "Slovenia_East",
+      "Montenegro",
+      "Bosnia and Herzegovina_Republic of Srpska",
+      "Slovenia_West"
+    ],
+    "europe_cyprus": [
+      "Lebanon",
+      "Turkey_Mediterranean Region",
+      "Syria"
+    ],
+    "europe_czech_republic_jihocesky": [
+      "Austria_Lower Austria_West",
+      "Austria_Upper Austria_Linz",
+      "Germany_Free State of Bavaria_Lower Bavaria",
+      "Czech_Stredni Cechy_East",
+      "Czech_Jihovychod_Kraj Vysocina",
+      "Czech_Jihozapad_Plzensky kraj"
+    ],
+    "europe_czech_republic_jihomoravsky": [
+      "Slovakia_Region of Trnava",
+      "Austria_Lower Austria_West",
+      "Austria_Lower Austria_Wien",
+      "Slovakia_Region of Trencin",
+      "Czech_Jihovychod_Kraj Vysocina",
+      "Czech_Zlinsky Kraj",
+      "Czech_Olomoucky kraj",
+      "Czech_Severovychod_Pardubicky kraj"
+    ],
+    "europe_czech_republic_karlovarsky": [
+      "Germany_Saxony_Leipzig",
+      "Germany_Free State of Bavaria_Upper Franconia",
+      "Germany_Free State of Bavaria_Upper Palatinate",
+      "Czech_Jihozapad_Plzensky kraj",
+      "Czech_Ustecky kraj"
+    ],
+    "europe_czech_republic_kralovehradecky": [
+      "Poland_Lower Silesian Voivodeship",
+      "Czech_Severovychod_Pardubicky kraj",
+      "Czech_Severovychod_Liberecky kraj",
+      "Czech_Stredni Cechy_East",
+      "Czech_Stredni Cechy_West"
+    ],
+    "europe_czech_republic_liberecky": [
+      "Poland_Lower Silesian Voivodeship",
+      "Germany_Saxony_Dresden",
+      "Czech_Severovychod_Kralovehradecky kraj",
+      "Czech_Stredni Cechy_West",
+      "Czech_Ustecky kraj"
+    ],
+    "europe_czech_republic_moravskoslezky": [
+      "Poland_Silesian Voivodeship",
+      "Poland_Opole Voivodeship",
+      "Czech_Olomoucky kraj",
+      "Slovakia_Region of Zilina",
+      "Czech_Zlinsky Kraj"
+    ],
+    "europe_czech_republic_olomoucky": [
+      "Czech_Moravskoslezsko",
+      "Poland_Lower Silesian Voivodeship",
+      "Poland_Opole Voivodeship",
+      "Czech_Jihovychod_Jihomoravsky kraj",
+      "Czech_Zlinsky Kraj",
+      "Czech_Severovychod_Pardubicky kraj"
+    ],
+    "europe_czech_republic_pardubicky": [
+      "Poland_Lower Silesian Voivodeship",
+      "Czech_Severovychod_Kralovehradecky kraj",
+      "Czech_Jihovychod_Kraj Vysocina",
+      "Czech_Olomoucky kraj",
+      "Czech_Stredni Cechy_East",
+      "Czech_Jihovychod_Jihomoravsky kraj"
+    ],
+    "europe_czech_republic_plzensky": [
+      "Germany_Free State of Bavaria_Upper Palatinate",
+      "Czech_Stredni Cechy_West",
+      "Czech_Stredni Cechy_East",
+      "Germany_Free State of Bavaria_Lower Bavaria",
+      "Czech_Karlovasky kraj",
+      "Czech_Jihozapad_Jihocesky kraj"
+    ],
+    "europe_czech_republic_praha": [
+      "Czech_Stredni Cechy_West",
+      "Czech_Stredni Cechy_East"
+    ],
+    "europe_czech_republic_stredocesky": [
+      "Czech_Ustecky kraj",
+      "Czech_Jihozapad_Jihocesky kraj",
+      "Czech_Jihovychod_Kraj Vysocina",
+      "Czech_Jihozapad_Plzensky kraj",
+      "Czech_Severovychod_Kralovehradecky kraj",
+      "Czech_Severovychod_Liberecky kraj"
+    ],
+    "europe_czech_republic_ustecky": [
+      "Germany_Saxony_Dresden",
+      "Germany_Saxony_Leipzig",
+      "Czech_Stredni Cechy_West",
+      "Czech_Karlovasky kraj",
+      "Czech_Severovychod_Liberecky kraj",
+      "Czech_Jihozapad_Plzensky kraj"
+    ],
+    "europe_czech_republic_vysocina": [
+      "Czech_Jihovychod_Jihomoravsky kraj",
+      "Czech_Jihozapad_Jihocesky kraj",
+      "Czech_Stredni Cechy_East",
+      "Czech_Severovychod_Pardubicky kraj"
+    ],
+    "europe_czech_republic_zlinsky": [
+      "Slovakia_Region of Trencin",
+      "Czech_Jihovychod_Jihomoravsky kraj",
+      "Czech_Olomoucky kraj",
+      "Slovakia_Region of Zilina",
+      "Czech_Moravskoslezsko"
+    ],
+    "europe_dach": [
+      "Denmark_Region of Southern Denmark",
+      "Sweden_Sodra Gotaland"
+    ],
+    "europe_denmark": [
+      "Sweden_Sodra Gotaland",
+      "Germany_Mecklenburg-Vorpommern",
+      "Sweden_Vastra Gotaland",
+      "Poland_West Pomeranian Voivodeship",
+      "Germany_Schleswig-Holstein_Kiel",
+      "Poland_Pomeranian Voivodeship",
+      "Germany_Schleswig-Holstein_Flensburg"
+    ],
+    "europe_estonia": [
+      "Latvia",
+      "Russia_Leningradskaya Oblast_Southeast",
+      "Russia_Pskov Oblast"
+    ],
+    "europe_finland": [
+      "Sweden_Norra Sverige",
+      "Estonia_West",
+      "Norway_Northern",
+      "Russia_Republic of Karelia_North",
+      "Russia_Leningradskaya Oblast_Southeast",
+      "Sweden_Stockholm",
+      "Russia_Republic of Karelia_South",
+      "Russia_Murmansk Oblast",
+      "Russia_Leningradskaya Oblast_Karelsky"
+    ],
+    "europe_france_alsace": [
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Freiburg",
+      "France_Lorraine_Moselle",
+      "France_Lorraine_Vosges",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Karlsruhe",
+      "Switzerland_Espace Mittelland_Bern",
+      "Germany_Rhineland-Palatinate_South",
+      "France_Free County_North"
+    ],
+    "europe_france_aquitaine": [
+      "France_Poitou-Charentes_Charente-Maritime",
+      "Spain_Comunidad Foral de Navarra",
+      "France_Midi-Pyrenees_Gers",
+      "France_Limousin",
+      "Spain_Aragon",
+      "France_Midi-Pyrenees_Hautes-Pyrenees",
+      "France_Midi-Pyrenees_Lot",
+      "France_Poitou-Charentes_Charente"
+    ],
+    "europe_france_auvergne": [
+      "France_Limousin",
+      "France_Rhone-Alpes_Loire",
+      "France_Languedoc-Roussillon_Lozere",
+      "France_Midi-Pyrenees_Aveyron",
+      "France_Rhone-Alpes_Ardeche",
+      "France_Centre-Val de Loire_Cher",
+      "France_Burgundy_Saone-et-Loire",
+      "France_Burgundy_Nievre",
+      "France_Midi-Pyrenees_Lot"
+    ],
+    "europe_france_basse_normandie": [
+      "France_Brittany_Ille-et-Vilaine",
+      "France_Upper Normandy",
+      "France_Pays de la Loire_Mayenne",
+      "Guernsey",
+      "France_Pays de la Loire_Sarthe",
+      "France_Centre-Val de Loire_Eure-et-Loir"
+    ],
+    "europe_france_bourgogne": [
+      "France_Champagne-Ardenne",
+      "France_Free County_North",
+      "France_Auvergne_Allier",
+      "France_Centre-Val de Loire_Loiret"
+    ],
+    "europe_france_bretagne": [
+      "Jersey",
+      "France_Pays de la Loire_Loire-Atlantique_Saint-Nazaire",
+      "Guernsey"
+    ],
+    "europe_france_centre": [
+      "France_Poitou-Charentes_Vienne",
+      "France_Pays de la Loire_Sarthe",
+      "France_Limousin"
+    ],
+    "europe_france_champagne_ardenne": [
+      "Belgium_Namur",
+      "France_Lorraine_Meuse",
+      "France_Picardy_Aisne",
+      "France_Burgundy_Cote-dOr",
+      "Belgium_Luxembourg",
+      "France_Burgundy_Yonne",
+      "France_Lorraine_Vosges",
+      "France_Ile-de-France_Seine-et-Marne",
+      "France_Free County_North"
+    ],
+    "europe_france_franche_comte": [
+      "Switzerland_Espace Mittelland_Bern",
+      "Switzerland_Lake Geneva region",
+      "France_Burgundy_Saone-et-Loire",
+      "France_Lorraine_Vosges",
+      "France_Burgundy_Cote-dOr",
+      "France_Rhone-Alpes_Ain",
+      "France_Champagne-Ardenne",
+      "France_Alsace_Haut-Rhin"
+    ],
+    "europe_france_guadeloupe": [
+      "Dominica"
+    ],
+    "europe_france_guyane": [
+      "Brazil_North Region_East",
+      "Suriname"
+    ],
+    "europe_france_haute_normandie": [
+      "France_Picardy_Oise",
+      "France_Lower Normandy_Calvados",
+      "France_Centre-Val de Loire_Eure-et-Loir",
+      "France_Lower Normandy_Orne",
+      "France_Picardy_Somme",
+      "France_Ile-de-France_Yvelines"
+    ],
+    "europe_france_ile_de_france": [
+      "France_Picardy_Oise",
+      "France_Centre-Val de Loire_Loiret",
+      "France_Centre-Val de Loire_Eure-et-Loir",
+      "France_Champagne-Ardenne",
+      "France_Burgundy_Yonne",
+      "France_Picardy_Aisne",
+      "France_Upper Normandy"
+    ],
+    "europe_france_languedoc_roussillon": [
+      "Spain_Catalonia_Provincia de Girona",
+      "France_Midi-Pyrenees_Aveyron",
+      "France_Midi-Pyrenees_Ariege",
+      "France_Rhone-Alpes_Ardeche",
+      "France_Midi-Pyrenees_Tarn",
+      "France_Provence-Alpes-Cote dAzur_Bouches-du-Rhone",
+      "France_Auvergne_Haute-Loire",
+      "France_Midi-Pyrenees_Haute-Garonne",
+      "France_Auvergne_Cantal"
+    ],
+    "europe_france_limousin": [
+      "France_Aquitaine_Dordogne",
+      "France_Centre-Val de Loire_Indre",
+      "France_Auvergne_Cantal",
+      "France_Auvergne_Puy-de-Dome",
+      "France_Poitou-Charentes_Charente",
+      "France_Poitou-Charentes_Vienne",
+      "France_Midi-Pyrenees_Lot",
+      "France_Auvergne_Allier"
+    ],
+    "europe_france_lorraine": [
+      "France_Champagne-Ardenne",
+      "France_Alsace_Bas-Rhin",
+      "Germany_Saarland",
+      "France_Free County_North",
+      "Belgium_Luxembourg",
+      "Luxembourg",
+      "France_Alsace_Haut-Rhin",
+      "Germany_Rhineland-Palatinate_South"
+    ],
+    "europe_france_martinique": [
+      "Saint Lucia",
+      "Dominica"
+    ],
+    "europe_france_mayotte": [
+      "Comoros"
+    ],
+    "europe_france_midi_pyrenees": [
+      "France_Aquitaine_Pyrenees-Atlantiques",
+      "Spain_Catalonia_Provincia de Lleida",
+      "Spain_Aragon",
+      "France_Languedoc-Roussillon_Aude",
+      "France_Aquitaine_Lot-et-Garonne",
+      "France_Auvergne_Cantal",
+      "Andorra"
+    ],
+    "europe_france_nord_pas_de_calais": [
+      "Belgium_West Flanders",
+      "Belgium_Hainaut",
+      "France_Picardy_Somme",
+      "France_Picardy_Aisne"
+    ],
+    "europe_france_pays_de_la_loire": [
+      "France_Poitou-Charentes_Charente-Maritime",
+      "France_Poitou-Charentes_Deux-Sevres",
+      "France_Lower Normandy_Orne",
+      "France_Brittany_Ille-et-Vilaine",
+      "France_Centre-Val de Loire_Indre-et-Loire",
+      "France_Centre-Val de Loire_Loir-et-Cher",
+      "France_Brittany_Morbihan"
+    ],
+    "europe_france_picardie": [
+      "France_Nord-Pas-de-Calais_Pas-de-Calais",
+      "France_Champagne-Ardenne",
+      "France_Upper Normandy",
+      "France_Ile-de-France_Seine-et-Marne",
+      "France_Nord-Pas-de-Calais_Nord",
+      "France_Ile-de-France_Val-dOise"
+    ],
+    "europe_france_poitou_charentes": [
+      "France_Pays de la Loire_Vendee",
+      "France_Aquitaine_Gironde",
+      "France_Limousin",
+      "France_Pays de la Loire_Maine-et-Loire",
+      "France_Centre-Val de Loire_Indre-et-Loire",
+      "France_Aquitaine_Dordogne",
+      "France_Centre-Val de Loire_Indre"
+    ],
+    "europe_france_provence_alpes_cote_d_azur": [
+      "France_Corsica",
+      "France_Rhone-Alpes_Drome",
+      "Italy_Liguria",
+      "Italy_Piemont_Cuneo",
+      "Italy_Piemont_Torino",
+      "France_Languedoc-Roussillon_Gard",
+      "France_Rhone-Alpes_Isere"
+    ],
+    "europe_france_rhone_alpes": [
+      "Switzerland_Lake Geneva region",
+      "Italy_Aosta Valley",
+      "Italy_Piemont_Torino",
+      "France_Provence-Alpes-Cote dAzur_Hautes-Alpes",
+      "France_Auvergne_Haute-Loire",
+      "France_Burgundy_Saone-et-Loire",
+      "France_Provence-Alpes-Cote dAzur_Vaucluse",
+      "France_Free County_South",
+      "France_Languedoc-Roussillon_Gard",
+      "France_Auvergne_Puy-de-Dome"
+    ],
+    "europe_georgia": [
+      "Azerbaijan",
+      "Armenia",
+      "Russia_North Ossetia-Alania",
+      "Russia_Republic of Dagestan",
+      "Turkey_Eastern Anatolia Region",
+      "Turkey_Black Sea Region",
+      "Russia_Karachay-Cherkessia",
+      "Russia_Kabardino-Balkaria",
+      "Russia_Chechen Republic"
+    ],
+    "europe_germany_baden_wuerttemberg_freiburg_regbez": [
+      "Switzerland_Eastern",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Karlsruhe",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Tubingen",
+      "France_Alsace_Bas-Rhin",
+      "Switzerland_Northwestern",
+      "France_Alsace_Haut-Rhin",
+      "Switzerland_Zurich"
+    ],
+    "europe_germany_baden_wuerttemberg_karlsruhe_regbez": [
+      "Germany_Hesse_Regierungsbezirk Darmstadt",
+      "Germany_Rhineland-Palatinate_South",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Stuttgart_Heilbronn",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Freiburg",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Stuttgart_Stuttgart",
+      "Germany_Free State of Bavaria_Lower Franconia",
+      "France_Alsace_Bas-Rhin",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Tubingen"
+    ],
+    "europe_germany_baden_wuerttemberg_stuttgart_regbez": [
+      "Germany_Free State of Bavaria_Lower Franconia",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Karlsruhe",
+      "Germany_Free State of Bavaria_Swabia",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Tubingen",
+      "Germany_Free State of Bavaria_Middle Franconia"
+    ],
+    "europe_germany_baden_wuerttemberg_tuebingen_regbez": [
+      "Germany_Free State of Bavaria_Swabia",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Stuttgart_Stuttgart",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Freiburg",
+      "Switzerland_Eastern",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Karlsruhe"
+    ],
+    "europe_germany_bayern_mittelfranken": [
+      "Germany_Free State of Bavaria_Upper Franconia",
+      "Germany_Free State of Bavaria_Upper Palatinate",
+      "Germany_Free State of Bavaria_Lower Franconia",
+      "Germany_Free State of Bavaria_Swabia",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Stuttgart_Heilbronn",
+      "Germany_Free State of Bavaria_Upper Bavaria_Ingolstadt",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Stuttgart_Stuttgart"
+    ],
+    "europe_germany_bayern_niederbayern": [
+      "Germany_Free State of Bavaria_Upper Palatinate",
+      "Austria_Upper Austria_Wels",
+      "Germany_Free State of Bavaria_Upper Bavaria_East",
+      "Germany_Free State of Bavaria_Upper Bavaria_Ingolstadt",
+      "Czech_Jihozapad_Jihocesky kraj",
+      "Austria_Upper Austria_Linz",
+      "Czech_Jihozapad_Plzensky kraj"
+    ],
+    "europe_germany_bayern_oberbayern": [
+      "Germany_Free State of Bavaria_Swabia",
+      "Austria_Salzburg",
+      "Austria_Tyrol",
+      "Germany_Free State of Bavaria_Lower Bavaria",
+      "Germany_Free State of Bavaria_Middle Franconia",
+      "Austria_Upper Austria_Wels",
+      "Germany_Free State of Bavaria_Upper Palatinate"
+    ],
+    "europe_germany_bayern_oberfranken": [
+      "Germany_Thuringia",
+      "Germany_Free State of Bavaria_Middle Franconia",
+      "Germany_Free State of Bavaria_Lower Franconia",
+      "Czech_Karlovasky kraj",
+      "Germany_Free State of Bavaria_Upper Palatinate",
+      "Germany_Saxony_Leipzig"
+    ],
+    "europe_germany_bayern_oberpfalz": [
+      "Germany_Free State of Bavaria_Lower Bavaria",
+      "Germany_Free State of Bavaria_Upper Franconia",
+      "Germany_Free State of Bavaria_Middle Franconia",
+      "Czech_Jihozapad_Plzensky kraj",
+      "Germany_Free State of Bavaria_Upper Bavaria_Ingolstadt",
+      "Czech_Karlovasky kraj"
+    ],
+    "europe_germany_bayern_schwaben": [
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Tubingen",
+      "Austria_Tyrol",
+      "Germany_Free State of Bavaria_Upper Bavaria_South",
+      "Germany_Free State of Bavaria_Upper Bavaria_Munchen",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Stuttgart_Stuttgart",
+      "Austria_Vorarlberg",
+      "Germany_Free State of Bavaria_Upper Bavaria_Ingolstadt",
+      "Germany_Free State of Bavaria_Middle Franconia"
+    ],
+    "europe_germany_bayern_unterfranken": [
+      "Germany_Hesse_Regierungsbezirk Darmstadt",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Stuttgart_Heilbronn",
+      "Germany_Thuringia",
+      "Germany_Free State of Bavaria_Upper Franconia",
+      "Germany_Free State of Bavaria_Middle Franconia",
+      "Germany_Hesse_Regierungsbezirk Kassel",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Karlsruhe"
+    ],
+    "europe_germany_berlin": [
+      "Germany_Brandenburg_North",
+      "Germany_Brandenburg_South"
+    ],
+    "europe_germany_brandenburg": [
+      "Germany_Mecklenburg-Vorpommern",
+      "Germany_Saxony-Anhalt_Magdeburg",
+      "Germany_Saxony-Anhalt_Halle",
+      "Poland_Lubusz Voivodeship",
+      "Germany_Saxony_Leipzig",
+      "Germany_Saxony_Dresden",
+      "Poland_West Pomeranian Voivodeship",
+      "Germany_Lower Saxony_Bremen_Munster"
+    ],
+    "europe_germany_bremen": [
+      "Germany_Lower Saxony_Oldenburg"
+    ],
+    "europe_germany_hamburg": [
+      "Germany_Schleswig-Holstein_Flensburg",
+      "Germany_Schleswig-Holstein_Kiel",
+      "Germany_Lower Saxony_Bremen_Munster",
+      "Germany_Lower Saxony_Oldenburg"
+    ],
+    "europe_germany_hessen": [
+      "Germany_Free State of Bavaria_Lower Franconia",
+      "Germany_Thuringia",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Karlsruhe",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Arnsberg_Arnsberg",
+      "Germany_Rhineland-Palatinate_Koblenz",
+      "Germany_Rhineland-Palatinate_South",
+      "Germany_Lower Saxony_Braunschweig",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Detmold",
+      "Germany_Lower Saxony_Hannover"
+    ],
+    "europe_germany_mecklenburg_vorpommern": [
+      "Germany_Brandenburg_North",
+      "Germany_Schleswig-Holstein_Kiel",
+      "Poland_West Pomeranian Voivodeship",
+      "Sweden_Sodra Gotaland",
+      "Germany_Lower Saxony_Bremen_Munster"
+    ],
+    "europe_germany_niedersachsen": [
+      "Germany_Schleswig-Holstein_Flensburg",
+      "Netherlands_Groningen",
+      "Germany_Saxony-Anhalt_Magdeburg",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Detmold",
+      "Germany_Hesse_Regierungsbezirk Kassel",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Munster_Munster",
+      "Germany_Thuringia",
+      "Germany_Mecklenburg-Vorpommern",
+      "Netherlands_Drenthe"
+    ],
+    "europe_germany_nordrhein_westfalen_arnsberg_regbez": [
+      "Germany_Hesse_Regierungsbezirk Kassel",
+      "Germany_Hesse_Regierungsbezirk Giessen",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Detmold",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Munster_Recklinghausen",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Munster_Munster",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Koln_Koln",
+      "Germany_Rhineland-Palatinate_Koblenz",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Dusseldorf_Dusseldorf",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Dusseldorf_Mulheim"
+    ],
+    "europe_germany_nordrhein_westfalen_detmold_regbez": [
+      "Germany_Lower Saxony_Hannover",
+      "Germany_Hesse_Regierungsbezirk Kassel",
+      "Germany_Lower Saxony_Bremen_Bremen",
+      "Germany_Lower Saxony_Oldenburg",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Arnsberg_Arnsberg",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Arnsberg_Dortmund",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Munster_Munster"
+    ],
+    "europe_germany_nordrhein_westfalen_duesseldorf_regbez": [
+      "Netherlands_Limburg",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Munster_Recklinghausen",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Koln_Koln",
+      "Netherlands_Gelderland_North",
+      "Netherlands_Gelderland_Nijmegen",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Koln_Aachen",
+      "Netherlands_Gelderland_Zutphen",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Arnsberg_Dortmund"
+    ],
+    "europe_germany_nordrhein_westfalen_koeln_regbez": [
+      "Germany_Rhineland-Palatinate_Koblenz",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Dusseldorf_Dusseldorf",
+      "Belgium_Liege",
+      "Netherlands_Limburg",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Arnsberg_Arnsberg"
+    ],
+    "europe_germany_nordrhein_westfalen_muenster_regbez": [
+      "Germany_Lower Saxony_Oldenburg",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Arnsberg_Dortmund",
+      "Netherlands_Gelderland_Zutphen",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Dusseldorf_Wesel",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Detmold",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Dusseldorf_Mulheim"
+    ],
+    "europe_germany_rheinland_pfalz": [
+      "Germany_Saarland",
+      "Germany_Hesse_Regierungsbezirk Darmstadt",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Koln_Aachen",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Karlsruhe",
+      "Luxembourg",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Koln_Koln",
+      "Germany_Hesse_Regierungsbezirk Giessen",
+      "France_Lorraine_Moselle",
+      "Belgium_Liege",
+      "France_Alsace_Bas-Rhin",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Arnsberg_Arnsberg"
+    ],
+    "europe_germany_saarland": [
+      "France_Lorraine_Moselle",
+      "Germany_Rhineland-Palatinate_Koblenz",
+      "Germany_Rhineland-Palatinate_South",
+      "Luxembourg"
+    ],
+    "europe_germany_sachsen": [
+      "Czech_Ustecky kraj",
+      "Germany_Thuringia",
+      "Germany_Brandenburg_South",
+      "Czech_Karlovasky kraj",
+      "Germany_Saxony-Anhalt_Halle",
+      "Poland_Lower Silesian Voivodeship",
+      "Poland_Lubusz Voivodeship",
+      "Czech_Severovychod_Liberecky kraj",
+      "Germany_Free State of Bavaria_Upper Franconia"
+    ],
+    "europe_germany_sachsen_anhalt": [
+      "Germany_Brandenburg_North",
+      "Germany_Thuringia",
+      "Germany_Saxony_Leipzig",
+      "Germany_Lower Saxony_Braunschweig",
+      "Germany_Brandenburg_South",
+      "Germany_Lower Saxony_Bremen_Munster"
+    ],
+    "europe_germany_schleswig_holstein": [
+      "Denmark_Region of Southern Denmark",
+      "Germany_Lower Saxony_Bremen_Bremen",
+      "Germany_Mecklenburg-Vorpommern",
+      "Germany_Lower Saxony_Oldenburg",
+      "Germany_Lower Saxony_Bremen_Munster",
+      "Denmark_Region Zealand",
+      "Germany_Hamburg_main"
+    ],
+    "europe_germany_thueringen": [
+      "Germany_Hesse_Regierungsbezirk Kassel",
+      "Germany_Free State of Bavaria_Upper Franconia",
+      "Germany_Saxony-Anhalt_Halle",
+      "Germany_Saxony_Leipzig",
+      "Germany_Free State of Bavaria_Lower Franconia",
+      "Germany_Lower Saxony_Braunschweig",
+      "Germany_Saxony-Anhalt_Magdeburg"
+    ],
+    "europe_great_britain": [
+      "France_Upper Normandy",
+      "Guernsey",
+      "Isle of Man",
+      "France_Lower Normandy_Manche",
+      "Belgium_West Flanders",
+      "UK_Northern Ireland",
+      "France_Brittany_Finistere",
+      "France_Nord-Pas-de-Calais_Pas-de-Calais",
+      "Ireland_Northern Counties",
+      "France_Lower Normandy_Calvados"
+    ],
+    "europe_greece": [
+      "Turkey_Aegean Region",
+      "Turkey_Marmara Region_Bursa",
+      "Bulgaria_West",
+      "Turkey_Marmara Region_Istanbul"
+    ],
+    "europe_guernsey_jersey": [
+      "France_Brittany_Cotes-dArmor",
+      "France_Lower Normandy_Manche"
+    ],
+    "europe_hungary": [
+      "Romania_North_West",
+      "Croatia_Central",
+      "Romania_West",
+      "Austria_Burgenland",
+      "Serbia",
+      "Slovakia_Region of Kosice",
+      "Slovakia_Region of Banska Bystrica",
+      "Slovakia_Region of Nitra",
+      "Ukraine_Zakarpattia Oblast"
+    ],
+    "europe_ireland_and_northern_ireland": [
+      "UK_Wales",
+      "UK_England_South West England_Cornwall",
+      "UK_Scotland_North",
+      "Isle of Man",
+      "UK_Scotland_South"
+    ],
+    "europe_isle_of_man": [
+      "UK_England_North West England_Lancaster",
+      "UK_Wales",
+      "UK_Scotland_South",
+      "UK_Northern Ireland"
+    ],
+    "europe_italy_centro": [
+      "Croatia_West",
+      "France_Corsica",
+      "Italy_Campania",
+      "Italy_Abruzzo",
+      "Italy_Emilia-Romagna_Rimini",
+      "Italy_Liguria",
+      "Italy_Emilia-Romagna_Bologna",
+      "Italy_Emilia-Romagna_Forli-Cesena"
+    ],
+    "europe_italy_isole": [
+      "Italy_Campania",
+      "Italy_Lazio",
+      "Tunisia",
+      "Algeria_Coast",
+      "France_Corsica",
+      "Italy_Calabria"
+    ],
+    "europe_italy_nord_est": [
+      "Croatia_West",
+      "Austria_Tyrol",
+      "Slovenia_West",
+      "Austria_Carinthia",
+      "Italy_Tuscany_Massa e Carrara",
+      "Italy_Lombardy_Mantua",
+      "Switzerland_Eastern",
+      "Italy_Lombardy_Brescia"
+    ],
+    "europe_italy_nord_ovest": [
+      "France_Corsica",
+      "Switzerland_Eastern",
+      "Switzerland_Lake Geneva region",
+      "France_Rhone-Alpes_Savoie",
+      "France_Provence-Alpes-Cote dAzur_Maritime Alps",
+      "Switzerland_Ticino",
+      "Italy_Tuscany_Massa e Carrara",
+      "France_Provence-Alpes-Cote dAzur_Hautes-Alpes",
+      "Italy_Emilia-Romagna_Piacenza",
+      "Italy_Veneto_Verona",
+      "Italy_Trentino-Alto Adige Sudtirol",
+      "France_Rhone-Alpes_Haute-Savoie",
+      "France_Provence-Alpes-Cote dAzur_Alpes-de-Haute-Provence",
+      "Italy_Emilia-Romagna_Parma"
+    ],
+    "europe_italy_sud": [
+      "Italy_Campania",
+      "Albania",
+      "Italy_Lazio",
+      "Croatia_West",
+      "Greece_Decentralized Administration of West Greece",
+      "Italy_Sicily",
+      "Italy_Marche"
+    ],
+    "europe_kosovo": [
+      "Serbia",
+      "Macedonia",
+      "Albania",
+      "Montenegro"
+    ],
+    "europe_latvia": [
+      "Estonia_West",
+      "Lithuania_West",
+      "Russia_Pskov Oblast",
+      "Estonia_East",
+      "Belarus_Vitebsk Region",
+      "Lithuania_East"
+    ],
+    "europe_liechtenstein": [
+      "Switzerland_Eastern",
+      "Austria_Vorarlberg"
+    ],
+    "europe_lithuania": [
+      "Latvia",
+      "Belarus_Hrodna Region",
+      "Russia_Kaliningrad Oblast",
+      "Belarus_Vitebsk Region"
+    ],
+    "europe_luxembourg": [
+      "Belgium_Luxembourg",
+      "Germany_Rhineland-Palatinate_Koblenz",
+      "France_Lorraine_Moselle",
+      "Belgium_Liege",
+      "Germany_Saarland",
+      "France_Lorraine_Meurthe-et-Moselle"
+    ],
+    "europe_macedonia": [
+      "Albania",
+      "Greece_Decentralized Administration of Macedonia and Thrace",
+      "Republic of Kosovo",
+      "Bulgaria_West",
+      "Greece_Decentralized Administration of Epirus - Western Macedonia",
+      "Serbia"
+    ],
+    "europe_moldova": [
+      "Ukraine_Odessa Oblast",
+      "Romania_North_East",
+      "Romania_South_East",
+      "Ukraine_Vinnytsia Oblast",
+      "Ukraine_Chernivtsi Oblast"
+    ],
+    "europe_monaco": [
+      "France_Provence-Alpes-Cote dAzur_Maritime Alps"
+    ],
+    "europe_montenegro": [
+      "Albania",
+      "Bosnia and Herzegovina_Republic of Srpska",
+      "Serbia",
+      "Republic of Kosovo",
+      "Croatia_West"
+    ],
+    "europe_netherlands_drenthe": [
+      "Germany_Lower Saxony_Oldenburg",
+      "Netherlands_Overijssel_Zwolle",
+      "Netherlands_Groningen",
+      "Netherlands_Friesland"
+    ],
+    "europe_netherlands_flevoland": [
+      "Netherlands_Overijssel_Zwolle",
+      "Netherlands_Gelderland_North",
+      "Netherlands_North Holland_Alkmaar",
+      "Netherlands_Friesland",
+      "Netherlands_North Holland_Zaandam",
+      "Netherlands_North Holland_Amsterdam"
+    ],
+    "europe_netherlands_friesland": [
+      "Netherlands_Groningen",
+      "Netherlands_North Holland_Alkmaar",
+      "Netherlands_Drenthe",
+      "Netherlands_Overijssel_Zwolle",
+      "Netherlands_Flevoland"
+    ],
+    "europe_netherlands_gelderland": [
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Munster_Recklinghausen",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Dusseldorf_Wesel",
+      "Netherlands_Utrecht_Amersfoort",
+      "Netherlands_Overijssel_Zwolle",
+      "Netherlands_Flevoland",
+      "Netherlands_Overijssel_Enschede",
+      "Netherlands_North Brabant_Uden",
+      "Netherlands_South Holland_Rotterdam",
+      "Netherlands_North Brabant_Tiburg"
+    ],
+    "europe_netherlands_groningen": [
+      "Germany_Lower Saxony_Oldenburg",
+      "Netherlands_Drenthe",
+      "Netherlands_Friesland"
+    ],
+    "europe_netherlands_limburg": [
+      "Netherlands_North Brabant_Uden",
+      "Belgium_Limburg",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Koln_Aachen",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Dusseldorf_Wesel",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Dusseldorf_Dusseldorf",
+      "Belgium_Liege",
+      "Netherlands_North Brabant_Eindhoven",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Dusseldorf_Mulheim",
+      "Netherlands_Gelderland_Nijmegen"
+    ],
+    "europe_netherlands_noord_brabant": [
+      "Belgium_Antwerp",
+      "Netherlands_Limburg",
+      "Netherlands_Gelderland_Nijmegen",
+      "Belgium_Limburg",
+      "Netherlands_South Holland_Rotterdam",
+      "Netherlands_South Holland_Brielle",
+      "Netherlands_Zeeland"
+    ],
+    "europe_netherlands_noord_holland": [
+      "Netherlands_Friesland",
+      "Netherlands_Flevoland",
+      "Netherlands_Utrecht_Utrecht",
+      "Netherlands_South Holland_Leiden"
+    ],
+    "europe_netherlands_overijssel": [
+      "Germany_Lower Saxony_Oldenburg",
+      "Netherlands_Drenthe",
+      "Netherlands_Gelderland_North",
+      "Netherlands_Gelderland_Zutphen",
+      "Netherlands_Flevoland",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Munster_Recklinghausen",
+      "Netherlands_Friesland",
+      "Germany_North Rhine-Westphalia_Regierungsbezirk Munster_Munster"
+    ],
+    "europe_netherlands_utrecht": [
+      "Netherlands_South Holland_Rotterdam",
+      "Netherlands_North Holland_Amsterdam",
+      "Netherlands_Gelderland_North",
+      "Netherlands_Gelderland_Nijmegen",
+      "Netherlands_South Holland_Leiden",
+      "Netherlands_South Holland_Den Haag",
+      "Netherlands_Flevoland"
+    ],
+    "europe_netherlands_zeeland": [
+      "Belgium_East Flanders",
+      "Belgium_West Flanders",
+      "Netherlands_South Holland_Brielle",
+      "Netherlands_North Brabant_Roosendaal",
+      "Belgium_Antwerp"
+    ],
+    "europe_netherlands_zuid_holland": [
+      "Netherlands_Utrecht_Utrecht",
+      "Netherlands_Zeeland",
+      "Netherlands_North Holland_Amsterdam",
+      "Netherlands_North Brabant_Roosendaal",
+      "Netherlands_North Brabant_Tiburg"
+    ],
+    "hedmark": [
+      "Sweden_Bergslagen",
+      "Norway_Oppland",
+      "Norway_South Trondelag",
+      "Norway_Central"
+    ],
+    "europe_norway_nord_norge": [
+      "Norway_Svalbard",
+      "Finland_Northern Finland",
+      "Sweden_Norra Sverige",
+      "Norway_North Trondelag",
+      "Russia_Murmansk Oblast"
+    ],
+    "europe_norway_ostlandet": [
+      "Denmark_North Denmark Region",
+      "Sweden_Bergslagen",
+      "Norway_Western",
+      "Sweden_Vastra Gotaland",
+      "Norway_Hordaland"
+    ],
+    "europe_norway_sorlandet": [
+      "Denmark_North Denmark Region",
+      "Norway_Rogaland"
+    ],
+    "europe_norway_trondelag": [
+      "Norway_Western",
+      "Sweden_Mellannorrland",
+      "Norway_Nordland"
+    ],
+    "europe_norway_vestlandet": [
+      "Norway_Oppland",
+      "Norway_South Trondelag",
+      "Norway_Southern"
+    ],
+    "europe_poland_dolnoslaskie": [
+      "Czech_Severovychod_Kralovehradecky kraj",
+      "Poland_Lubusz Voivodeship",
+      "Poland_Greater Poland Voivodeship",
+      "Poland_Opole Voivodeship",
+      "Czech_Severovychod_Liberecky kraj",
+      "Germany_Saxony_Dresden",
+      "Czech_Olomoucky kraj",
+      "Czech_Severovychod_Pardubicky kraj"
+    ],
+    "europe_poland_kujawsko_pomorskie": [
+      "Poland_Greater Poland Voivodeship",
+      "Poland_Pomeranian Voivodeship",
+      "Poland_Masovian Voivodeship",
+      "Poland_Warmian-Masurian Voivodeship",
+      "Poland_Lodz Voivodeship"
+    ],
+    "europe_poland_lodzkie": [
+      "Poland_Masovian Voivodeship",
+      "Poland_Greater Poland Voivodeship",
+      "Poland_Swietokrzyskie Voivodeship",
+      "Poland_Silesian Voivodeship",
+      "Poland_Opole Voivodeship",
+      "Poland_Kuyavian-Pomeranian Voivodeship"
+    ],
+    "europe_poland_lubelskie": [
+      "Poland_Masovian Voivodeship",
+      "Poland_Subcarpathian Voivodeship",
+      "Ukraine_Volyn Oblast",
+      "Belarus_Brest Region",
+      "Ukraine_Lviv Oblast",
+      "Poland_Swietokrzyskie Voivodeship"
+    ],
+    "europe_poland_lubuskie": [
+      "Poland_Greater Poland Voivodeship",
+      "Poland_Lower Silesian Voivodeship",
+      "Poland_West Pomeranian Voivodeship",
+      "Germany_Brandenburg_South",
+      "Germany_Saxony_Dresden"
+    ],
+    "europe_poland_malopolskie": [
+      "Slovakia_Region of Presov",
+      "Poland_Silesian Voivodeship",
+      "Poland_Swietokrzyskie Voivodeship",
+      "Poland_Subcarpathian Voivodeship",
+      "Slovakia_Region of Zilina"
+    ],
+    "europe_poland_mazowieckie": [
+      "Poland_Lublin Voivodeship",
+      "Poland_Lodz Voivodeship",
+      "Poland_Podlaskie Voivodeship",
+      "Poland_Warmian-Masurian Voivodeship",
+      "Poland_Swietokrzyskie Voivodeship",
+      "Poland_Kuyavian-Pomeranian Voivodeship"
+    ],
+    "europe_poland_opolskie": [
+      "Czech_Moravskoslezsko",
+      "Poland_Silesian Voivodeship",
+      "Poland_Lower Silesian Voivodeship",
+      "Czech_Olomoucky kraj",
+      "Poland_Lodz Voivodeship",
+      "Poland_Greater Poland Voivodeship"
+    ],
+    "europe_poland_podkarpackie": [
+      "Ukraine_Lviv Oblast",
+      "Slovakia_Region of Presov",
+      "Poland_Lublin Voivodeship",
+      "Poland_Lesser Poland Voivodeship",
+      "Ukraine_Zakarpattia Oblast",
+      "Poland_Swietokrzyskie Voivodeship"
+    ],
+    "europe_poland_podlaskie": [
+      "Poland_Masovian Voivodeship",
+      "Belarus_Hrodna Region",
+      "Poland_Warmian-Masurian Voivodeship",
+      "Belarus_Brest Region",
+      "Lithuania_West",
+      "Lithuania_East"
+    ],
+    "europe_poland_pomorskie": [
+      "Russia_Kaliningrad Oblast",
+      "Lithuania_West",
+      "Poland_Kuyavian-Pomeranian Voivodeship",
+      "Poland_Warmian-Masurian Voivodeship",
+      "Poland_West Pomeranian Voivodeship",
+      "Poland_Greater Poland Voivodeship"
+    ],
+    "europe_poland_slaskie": [
+      "Poland_Lesser Poland Voivodeship",
+      "Poland_Opole Voivodeship",
+      "Czech_Moravskoslezsko",
+      "Poland_Lodz Voivodeship",
+      "Slovakia_Region of Zilina",
+      "Poland_Swietokrzyskie Voivodeship"
+    ],
+    "europe_poland_swietokrzyskie": [
+      "Poland_Masovian Voivodeship",
+      "Poland_Lesser Poland Voivodeship",
+      "Poland_Lodz Voivodeship",
+      "Poland_Silesian Voivodeship",
+      "Poland_Subcarpathian Voivodeship",
+      "Poland_Lublin Voivodeship"
+    ],
+    "europe_poland_warminsko_mazurskie": [
+      "Russia_Kaliningrad Oblast",
+      "Poland_Masovian Voivodeship",
+      "Poland_Podlaskie Voivodeship",
+      "Poland_Pomeranian Voivodeship",
+      "Poland_Kuyavian-Pomeranian Voivodeship"
+    ],
+    "europe_poland_wielkopolskie": [
+      "Poland_Kuyavian-Pomeranian Voivodeship",
+      "Poland_Lodz Voivodeship",
+      "Poland_Lubusz Voivodeship",
+      "Poland_Lower Silesian Voivodeship",
+      "Poland_West Pomeranian Voivodeship",
+      "Poland_Pomeranian Voivodeship",
+      "Poland_Opole Voivodeship"
+    ],
+    "europe_poland_zachodniopomorskie": [
+      "Poland_Pomeranian Voivodeship",
+      "Germany_Mecklenburg-Vorpommern",
+      "Denmark_Capital Region of Denmark",
+      "Poland_Lubusz Voivodeship",
+      "Poland_Greater Poland Voivodeship",
+      "Germany_Brandenburg_North",
+      "Germany_Brandenburg_South"
+    ],
+    "europe_romania": [
+      "Serbia",
+      "Hungary_Northern Great Plain",
+      "Moldova",
+      "Bulgaria_East",
+      "Ukraine_Zakarpattia Oblast",
+      "Ukraine_Odessa Oblast",
+      "Bulgaria_West",
+      "Ukraine_Chernivtsi Oblast"
+    ],
+    "europe_serbia": [
+      "Croatia_Central",
+      "Republic of Kosovo",
+      "Romania_West",
+      "Bosnia and Herzegovina_Republic of Srpska",
+      "Bulgaria_West",
+      "Hungary_Northern Great Plain",
+      "Romania_South_West",
+      "Montenegro",
+      "Macedonia"
+    ],
+    "europe_slovakia": [
+      "Hungary_Northern Great Plain",
+      "Poland_Lesser Poland Voivodeship",
+      "Poland_Subcarpathian Voivodeship",
+      "Hungary_Transdanubia",
+      "Ukraine_Zakarpattia Oblast",
+      "Czech_Zlinsky Kraj",
+      "Poland_Silesian Voivodeship",
+      "Czech_Jihovychod_Jihomoravsky kraj",
+      "Austria_Lower Austria_Wien"
+    ],
+    "europe_slovenia": [
+      "Croatia_West",
+      "Croatia_Central",
+      "Austria_Carinthia",
+      "Italy_Friuli-Venezia Giulia_Udine",
+      "Austria_Styria_Graz",
+      "Hungary_Transdanubia",
+      "Italy_Friuli-Venezia Giulia_Trieste",
+      "Italy_Friuli-Venezia Giulia_Gorizia"
+    ],
+    "europe_spain_andalucia": [
+      "Spain_Castile-La Mancha",
+      "Spain_Extremadura",
+      "Morocco_Rabat-Sale-Zemmour-Zaer",
+      "Portugal_South",
+      "Spain_Ceuta",
+      "Spain_Region de Murcia"
+    ],
+    "europe_spain_aragon": [
+      "Spain_Castile-La Mancha",
+      "Spain_Valencian Community",
+      "Spain_Catalonia_Provincia de Lleida",
+      "Spain_Comunidad Foral de Navarra",
+      "Spain_Castile and Leon_East",
+      "Spain_Catalonia_Provincia de Tarragona",
+      "France_Midi-Pyrenees_Hautes-Pyrenees"
+    ],
+    "europe_spain_asturias": [
+      "Spain_Galicia_North",
+      "Spain_Castile and Leon_West",
+      "Spain_Cantabria"
+    ],
+    "europe_spain_cantabria": [
+      "Spain_Basque Country",
+      "Spain_Castile and Leon_East",
+      "Spain_Castile and Leon_West",
+      "Spain_Principado de Asturias"
+    ],
+    "europe_spain_castilla_la_mancha": [
+      "Spain_Andalusia_Granada",
+      "Spain_Community of Madrid",
+      "Spain_Castile and Leon_East",
+      "Spain_Valencian Community",
+      "Spain_Extremadura",
+      "Spain_Aragon",
+      "Spain_Region de Murcia",
+      "Spain_Castile and Leon_West"
+    ],
+    "europe_spain_castilla_y_leon": [
+      "Spain_Basque Country",
+      "Spain_La Rioja",
+      "Spain_Cantabria",
+      "Spain_Castile-La Mancha",
+      "Spain_Principado de Asturias",
+      "Spain_Aragon",
+      "Spain_Extremadura",
+      "Spain_Community of Madrid",
+      "Portugal_Viseu",
+      "Spain_Galicia_South"
+    ],
+    "europe_spain_cataluna": [
+      "France_Languedoc-Roussillon_Pyrenees-Orientales",
+      "Spain_Aragon",
+      "France_Midi-Pyrenees_Ariege"
+    ],
+    "europe_spain_ceuta": [
+      "Spain_Andalusia_Granada",
+      "Morocco_Rabat-Sale-Zemmour-Zaer"
+    ],
+    "europe_spain_extremadura": [
+      "Spain_Castile-La Mancha",
+      "Spain_Andalusia_Sevilla",
+      "Spain_Castile and Leon_West",
+      "Portugal_South",
+      "Portugal_Viseu"
+    ],
+    "europe_spain_galicia": [
+      "Spain_Principado de Asturias",
+      "Spain_Castile and Leon_West",
+      "Portugal_Viseu",
+      "Portugal_Porto"
+    ],
+    "europe_spain_islas_baleares": [
+      "Algeria_Coast",
+      "Spain_Valencian Community",
+      "Spain_Catalonia_Provincia de Barcelona"
+    ],
+    "europe_spain_la_rioja": [
+      "Spain_Castile and Leon_East",
+      "Spain_Comunidad Foral de Navarra",
+      "Spain_Basque Country",
+      "Spain_Aragon"
+    ],
+    "europe_spain_madrid": [
+      "Spain_Castile-La Mancha",
+      "Spain_Castile and Leon_West",
+      "Spain_Castile and Leon_East"
+    ],
+    "europe_spain_melilla": [
+      "Morocco_Southern"
+    ],
+    "europe_spain_murcia": [
+      "Algeria_Coast",
+      "Spain_Andalusia_Granada",
+      "Spain_Castile-La Mancha",
+      "Spain_Valencian Community"
+    ],
+    "europe_spain_navarra": [
+      "Spain_Aragon",
+      "Spain_La Rioja",
+      "Spain_Basque Country",
+      "France_Aquitaine_Pyrenees-Atlantiques"
+    ],
+    "europe_spain_pais_vasco": [
+      "France_Aquitaine_Pyrenees-Atlantiques",
+      "Spain_Castile and Leon_East",
+      "Spain_Cantabria",
+      "Spain_Comunidad Foral de Navarra",
+      "France_Aquitaine_Landes",
+      "Spain_La Rioja"
+    ],
+    "europe_spain_valencia": [
+      "Spain_Catalonia_Provincia de Barcelona",
+      "Spain_Balearic Islands",
+      "Algeria_Coast",
+      "Spain_Aragon",
+      "Spain_Castile-La Mancha",
+      "Spain_Catalonia_Provincia de Tarragona",
+      "Spain_Region de Murcia"
+    ],
+    "europe_sweden_blekinge": [
+      "Sweden_Ostra Gotaland"
+    ],
+    "europe_sweden_dalarna": [
+      "Sweden_Mellannorrland",
+      "Sweden_Malardalen",
+      "Norway_Hedmark"
+    ],
+    "europe_sweden_gavleborg": [
+      "Sweden_Mellannorrland",
+      "Sweden_Malardalen"
+    ],
+    "europe_sweden_halland": [
+      "Sweden_Ostra Gotaland",
+      "Sweden_Sodra Gotaland"
+    ],
+    "europe_sweden_jamtland": [
+      "Sweden_Bergslagen",
+      "Norway_North Trondelag",
+      "Sweden_Norra Sverige",
+      "Norway_South Trondelag"
+    ],
+    "europe_sweden_jonkoping": [
+      "Sweden_Vastra Gotaland"
+    ],
+    "europe_sweden_kalmar": [
+      "Sweden_Sodra Gotaland",
+      "Poland_Pomeranian Voivodeship"
+    ],
+    "europe_sweden_kronoberg": [
+      "Sweden_Sodra Gotaland",
+      "Sweden_Vastra Gotaland"
+    ],
+    "europe_sweden_norrbotten": [
+      "Finland_Northern Finland",
+      "Norway_Nordland",
+      "Norway_Northern"
+    ],
+    "europe_sweden_orebro": [
+      "Sweden_Malardalen",
+      "Sweden_Ostra Gotaland",
+      "Sweden_Vastra Gotaland"
+    ],
+    "europe_sweden_ostergotland": [
+      "Sweden_Malardalen",
+      "Sweden_Bergslagen",
+      "Sweden_Vastra Gotaland"
+    ],
+    "europe_sweden_skane": [
+      "Sweden_Vastra Gotaland",
+      "Denmark_Capital Region of Denmark",
+      "Sweden_Ostra Gotaland"
+    ],
+    "europe_sweden_sodermanland": [
+      "Sweden_Ostra Gotaland",
+      "Sweden_Stockholm",
+      "Sweden_Bergslagen"
+    ],
+    "europe_sweden_stockholm": [
+      "Sweden_Ostra Gotaland",
+      "Sweden_Malardalen",
+      "Finland_Southern Finland_West",
+      "Estonia_West"
+    ],
+    "europe_sweden_uppsala": [
+      "Sweden_Stockholm",
+      "Sweden_Bergslagen",
+      "Finland_Southern Finland_West"
+    ],
+    "europe_sweden_varmland": [
+      "Sweden_Vastra Gotaland",
+      "Norway_Hedmark",
+      "Norway_Southern",
+      "Norway_Central"
+    ],
+    "europe_sweden_vasterbotten": [
+      "Sweden_Mellannorrland",
+      "Norway_Nordland",
+      "Finland_Western Finland_Tampere"
+    ],
+    "europe_sweden_vasternorrland": [
+      "Sweden_Norra Sverige",
+      "Sweden_Bergslagen"
+    ],
+    "europe_sweden_vastmanland": [
+      "Sweden_Bergslagen"
+    ],
+    "europe_sweden_vastra_gotaland": [
+      "Sweden_Bergslagen",
+      "Denmark_North Denmark Region",
+      "Sweden_Ostra Gotaland",
+      "Norway_Southern"
+    ],
+    "europe_switzerland": [
+      "France_Rhone-Alpes_Haute-Savoie",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Freiburg",
+      "Italy_Lombardy_Sondrio",
+      "Italy_Piemont_Verbano-Cusio-Ossola",
+      "France_Free County_South",
+      "Italy_Aosta Valley",
+      "Austria_Vorarlberg",
+      "Germany_Baden-Wurttemberg_Regierungsbezirk Tubingen",
+      "France_Alsace_Haut-Rhin",
+      "Italy_Lombardy_Como"
+    ],
+    "europe_turkey": [
+      "Greece_Decentralized Administration of Aegean",
+      "Iran_North",
+      "Syria",
+      "Iraq_North"
+    ],
+    "europe_ukraine": [
+      "Russia_Krasnodar Krai",
+      "Belarus_Homiel Region",
+      "Moldova",
+      "Belarus_Brest Region",
+      "Russia_Rostov Oblast",
+      "Russia_Belgorod Oblast",
+      "Russia_Bryansk Oblast"
+    ],
+    "europe_united_kingdom_england_bedfordshire": [
+      "UK_England_South East_Oxford",
+      "UK_England_East of England_Norfolk",
+      "UK_England_East Midlands"
+    ],
+    "europe_united_kingdom_england_berkshire": [
+      "UK_England_South East_Brighton",
+      "UK_England_South West England_Bristol"
+    ],
+    "europe_united_kingdom_england_buckinghamshire": [
+      "UK_England_East of England_Essex",
+      "UK_England_East Midlands"
+    ],
+    "europe_united_kingdom_england_cambridgeshire": [
+      "UK_England_East Midlands",
+      "UK_England_East of England_Essex"
+    ],
+    "europe_united_kingdom_england_cheshire": [
+      "UK_England_West Midlands",
+      "UK_Wales",
+      "UK_England_East Midlands"
+    ],
+    "europe_united_kingdom_england_cornwall": [
+      "France_Brittany_Finistere"
+    ],
+    "europe_united_kingdom_england_cumbria": [
+      "UK_Scotland_South"
+    ],
+    "europe_united_kingdom_england_derbyshire": [
+      "UK_England_West Midlands",
+      "UK_England_Yorkshire and the Humber",
+      "UK_England_North West England_Manchester"
+    ],
+    "europe_united_kingdom_england_devon": [
+      "UK_England_South West England_Bristol"
+    ],
+    "europe_united_kingdom_england_dorset": [
+      "UK_England_South East_Oxford",
+      "UK_England_South West England_Cornwall"
+    ],
+    "europe_united_kingdom_england_durham": [
+      "UK_England_Yorkshire and the Humber",
+      "UK_England_North West England_Lancaster"
+    ],
+    "europe_united_kingdom_england_east_yorkshire_with_hull": [
+      "UK_England_East Midlands"
+    ],
+    "europe_united_kingdom_england_essex": [
+      "UK_England_East of England_Norfolk",
+      "UK_England_South East_Brighton"
+    ],
+    "europe_united_kingdom_england_gloucestershire": [
+      "UK_England_West Midlands",
+      "UK_England_South East_Oxford",
+      "UK_Wales"
+    ],
+    "europe_united_kingdom_england_greater_london": [
+      "UK_England_South East_Brighton",
+      "UK_England_East of England_Essex",
+      "UK_England_South East_Oxford"
+    ],
+    "europe_united_kingdom_england_greater_manchester": [
+      "UK_England_Yorkshire and the Humber",
+      "UK_England_East Midlands"
+    ],
+    "europe_united_kingdom_england_hampshire": [
+      "UK_England_South West England_Bristol",
+      "UK_England_South East_Brighton"
+    ],
+    "europe_united_kingdom_england_herefordshire": [
+      "UK_Wales",
+      "UK_England_South West England_Bristol"
+    ],
+    "europe_united_kingdom_england_hertfordshire": [
+      "UK_England_South East_Oxford",
+      "UK_England_Greater London",
+      "UK_England_East of England_Norfolk"
+    ],
+    "europe_united_kingdom_england_kent": [
+      "UK_England_Greater London",
+      "UK_England_East of England_Essex"
+    ],
+    "europe_united_kingdom_england_lancashire": [
+      "UK_England_Yorkshire and the Humber"
+    ],
+    "europe_united_kingdom_england_leicestershire": [
+      "UK_England_West Midlands"
+    ],
+    "europe_united_kingdom_england_lincolnshire": [
+      "UK_England_Yorkshire and the Humber",
+      "UK_England_East of England_Norfolk"
+    ],
+    "europe_united_kingdom_england_merseyside": [
+      "UK_Wales"
+    ],
+    "europe_united_kingdom_england_norfolk": [
+      "UK_England_East Midlands"
+    ],
+    "europe_united_kingdom_england_north_yorkshire": [
+      "UK_England_North East England",
+      "UK_England_North West England_Lancaster",
+      "UK_England_North West England_Manchester"
+    ],
+    "europe_united_kingdom_england_northamptonshire": [
+      "UK_England_South East_Oxford",
+      "UK_England_East of England_Norfolk",
+      "UK_England_West Midlands",
+      "UK_England_East of England_Essex"
+    ],
+    "europe_united_kingdom_england_northumberland": [
+      "UK_Scotland_South",
+      "UK_England_North West England_Lancaster"
+    ],
+    "europe_united_kingdom_england_nottinghamshire": [
+      "UK_England_Yorkshire and the Humber"
+    ],
+    "europe_united_kingdom_england_oxfordshire": [
+      "UK_England_East Midlands",
+      "UK_England_West Midlands",
+      "UK_England_South West England_Bristol"
+    ],
+    "europe_united_kingdom_england_shropshire": [
+      "UK_Wales",
+      "UK_England_North West England_Manchester"
+    ],
+    "europe_united_kingdom_england_somerset": [
+      "UK_Wales",
+      "UK_England_South West England_Cornwall"
+    ],
+    "europe_united_kingdom_england_south_yorkshire": [
+      "UK_England_East Midlands"
+    ],
+    "europe_united_kingdom_england_staffordshire": [
+      "UK_England_East Midlands",
+      "UK_England_North West England_Manchester"
+    ],
+    "europe_united_kingdom_england_suffolk": [
+      "UK_England_East of England_Essex"
+    ],
+    "europe_united_kingdom_england_surrey": [
+      "UK_England_Greater London",
+      "UK_England_South East_Oxford"
+    ],
+    "europe_united_kingdom_england_warwickshire": [
+      "UK_England_East Midlands",
+      "UK_England_South East_Oxford",
+      "UK_England_South West England_Bristol"
+    ],
+    "europe_united_kingdom_england_west_sussex": [
+      "UK_England_South East_Oxford"
+    ],
+    "europe_united_kingdom_england_west_yorkshire": [
+      "UK_England_North West England_Manchester",
+      "UK_England_East Midlands"
+    ],
+    "europe_united_kingdom_england_wiltshire": [
+      "UK_England_South East_Oxford"
+    ],
+    "europe_united_kingdom_england_worcestershire": [
+      "UK_England_South West England_Bristol"
+    ],
+    "europe_united_kingdom_scotland": [
+      "Ireland_Northern Counties",
+      "UK_Northern Ireland",
+      "UK_England_North East England"
+    ],
+    "europe_united_kingdom_wales": [
+      "UK_England_South West England_Cornwall",
+      "Ireland_Leinster",
+      "UK_England_South West England_Bristol",
+      "UK_England_West Midlands",
+      "UK_England_North West England_Manchester"
+    ],
+    "north_america_canada_british_columbia_interior_admreg": [
+      "Canada_British Columbia_Vancouver",
+      "Canada_British Columbia_North"
+    ],
+    "north_america_canada_british_columbia_island_admreg": [
+      "Canada_British Columbia_Vancouver",
+      "Canada_British Columbia_Central",
+      "US_Washington_Coast"
+    ],
+    "north_america_canada_british_columbia_kootenay_admreg": [
+      "Canada_Alberta_South",
+      "Canada_Alberta_Edmonton",
+      "US_Montana_West",
+      "US_Washington_Yakima",
+      "US_Idaho_North"
+    ],
+    "north_america_canada_british_columbia_north_admreg": [
+      "Canada_British Columbia_Islands",
+      "Canada_British Columbia_Central",
+      "US_Alaska",
+      "Canada_Alberta_Edmonton"
+    ],
+    "north_america_canada_british_columbia_okanagan_admreg": [
+      "Canada_Alberta_Edmonton",
+      "Canada_British Columbia_Central",
+      "US_Washington_Yakima",
+      "Canada_British Columbia_Vancouver"
+    ],
+    "north_america_canada_british_columbia_southcoast_admreg": [
+      "Canada_British Columbia_Southeast",
+      "Canada_British Columbia_Islands",
+      "Canada_British Columbia_Central",
+      "US_Washington_Coast"
+    ],
+    "north_america_canada_manitoba": [
+      "Canada_Nunavut_South",
+      "Canada_Ontario_Northwestern"
+    ],
+    "north_america_canada_new_brunswick": [
+      "Canada_Quebek_Southeast_Rimouski",
+      "Canada_Prince Edward Island",
+      "Canada_Nova Scotia_Halifax",
+      "US_Maine"
+    ],
+    "north_america_canada_newfoundland_and_labrador": [
+      "Canada_Quebek_North",
+      "Canada_Quebek_Far North",
+      "Canada_Nova Scotia_Sydney",
+      "Canada_Quebek_Southeast_Rimouski"
+    ],
+    "north_america_canada_northwest_territories": [
+      "Canada_Yukon_North",
+      "Canada_Nunavut_South",
+      "Canada_Nunavut_North"
+    ],
+    "north_america_canada_nova_scotia": [
+      "Canada_Quebek_Southeast_Rimouski",
+      "Canada_Newfoundland_West",
+      "Canada_New Brunswick"
+    ],
+    "north_america_canada_nunavut_kitikmeot": [
+      "Canada_Northwest Territories_North"
+    ],
+    "north_america_canada_nunavut_kivalliq": [
+      "Canada_Manitoba_Northeast"
+    ],
+    "north_america_canada_nunavut_qikiqtaaluk": [
+      "Canada_Quebek_Far North",
+      "Canada_Ontario_Northwestern",
+      "Canada_Manitoba_Northeast",
+      "Canada_Ontario_Northeastern_North",
+      "Greenland",
+      "Canada_Labrador_North"
+    ],
+    "north_america_canada_ontario": [
+      "US_Michigan_Lansing",
+      "US_Michigan_North",
+      "US_Minnesota_North"
+    ],
+    "north_america_canada_prince_edward_island": [
+      "Canada_Quebek_Southeast_Rimouski",
+      "Canada_Nova Scotia_Sydney",
+      "Canada_New Brunswick",
+      "Canada_Nova Scotia_Halifax"
+    ],
+    "north_america_canada_quebec": [
+      "Canada_Labrador_West",
+      "Canada_Labrador_North",
+      "Canada_Prince Edward Island",
+      "Canada_Newfoundland_North",
+      "Canada_Nunavut_South",
+      "Canada_New Brunswick",
+      "Canada_Labrador_South"
+    ],
+    "north_america_canada_saskatchewan": [
+      "Canada_Manitoba_South",
+      "US_Montana_East"
+    ],
+    "north_america_canada_yukon": [
+      "Canada_Northwest Territories_North",
+      "US_Alaska"
+    ],
+    "north_america_greenland": [
+      "Canada_Nunavut_South",
+      "Canada_Nunavut_North"
+    ],
+    "north_america_mexico": [
+      "US_Texas_San Antonio"
+    ],
+    "north_america_us_midwest": [
+      "Canada_Ontario_Northwestern",
+      "Canada_Ontario_London",
+      "Canada_Ontario_Northeastern_SW"
+    ],
+    "north_america_us_northeast": [
+      "Canada_Ontario_Kingston",
+      "Canada_Ontario_London",
+      "Canada_New Brunswick"
+    ],
+    "north_america_us_pacific": [
+      "US_United States Minor Outlying Islands"
+    ],
+    "north_america_us_south": [
+      "Mexico_Chihuahua"
+    ],
+    "north_america_us_west": [
+      "Canada_British Columbia_Islands"
+    ],
+    "north_america_us_alabama": [
+      "US_Florida_Jacksonville",
+      "US_Mississippi_Gulfport"
+    ],
+    "north_america_us_alaska": [
+      "Canada_British Columbia_North",
+      "Canada_British Columbia_Islands"
+    ],
+    "north_america_us_arizona": [
+      "Mexico_Sonora",
+      "US_Nevada"
+    ],
+    "north_america_us_arkansas": [
+      "US_Mississippi_North",
+      "US_Tennessee_West",
+      "US_Missouri_Springfield",
+      "US_Missouri_East",
+      "US_Oklahoma_East",
+      "US_Texas_Tyler"
+    ],
+    "north_america_us_california_norcal": [
+      "US_California_Bakersfield_Lancaster",
+      "US_California_Bakersfield_Bakersfield",
+      "US_Nevada"
+    ],
+    "north_america_us_california_socal": [
+      "Mexico_California",
+      "US_Arizona_Phoenix"
+    ],
+    "north_america_us_colorado": [
+      "US_New Mexico_Albuquerque"
+    ],
+    "north_america_us_connecticut": [
+      "US_Massachusetts_West",
+      "US_Rhode Island",
+      "US_New York_East",
+      "US_New York_North"
+    ],
+    "north_america_us_delaware": [
+      "US_New Jersey_South",
+      "US_Pennsylvania_Reading",
+      "US_Maryland_Baltimore"
+    ],
+    "north_america_us_district_of_columbia": [
+      "US_Virginia_Alexandria"
+    ],
+    "north_america_us_georgia": [
+      "US_Florida_Jacksonville",
+      "US_South Carolina_Columbia",
+      "US_Alabama_Montgomery",
+      "US_South Carolina_Charleston"
+    ],
+    "north_america_us_hawaii": [
+      "US_United States Minor Outlying Islands"
+    ],
+    "north_america_us_idaho": [
+      "US_Montana_West",
+      "US_Nevada",
+      "US_Montana_East",
+      "US_Oregon_West",
+      "US_Utah_North"
+    ],
+    "north_america_us_illinois": [
+      "US_Missouri_St Louis",
+      "US_Kentucky_West",
+      "US_Indiana_Evansville",
+      "US_Missouri_East",
+      "US_Iowa_Des Moines"
+    ],
+    "north_america_us_indiana": [
+      "US_Kentucky_Louisville",
+      "US_Illinois_South",
+      "US_Kentucky_West",
+      "US_Kentucky_East",
+      "US_Ohio_Cincinnati"
+    ],
+    "north_america_us_iowa": [
+      "US_Nebraska_East",
+      "US_South Dakota",
+      "US_Minnesota_Rochester"
+    ],
+    "north_america_us_kansas": [
+      "US_Oklahoma_West"
+    ],
+    "north_america_us_kentucky": [
+      "US_Indiana_Evansville",
+      "US_Tennessee_West",
+      "US_Illinois_South",
+      "US_Missouri_East",
+      "US_Virginia_Roanoke",
+      "US_West Virginia"
+    ],
+    "north_america_us_louisiana": [
+      "US_Mississippi_North"
+    ],
+    "north_america_us_maine": [
+      "Canada_New Brunswick",
+      "Canada_Quebec_Quebec",
+      "US_New Hampshire"
+    ],
+    "north_america_us_maryland": [
+      "US_Pennsylvania_Central",
+      "US_West Virginia",
+      "US_Virginia_Norfolk",
+      "US_Virginia_Alexandria",
+      "US_Delaware",
+      "US_Pennsylvania_Reading"
+    ],
+    "north_america_us_massachusetts": [
+      "US_Rhode Island",
+      "US_Maine",
+      "US_Connecticut"
+    ],
+    "north_america_us_michigan": [
+      "US_Wisconsin_Milwaukee",
+      "Canada_Ontario_Northeastern_SW",
+      "US_Illinois_Chickago",
+      "Canada_Ontario_London",
+      "Canada_Ontario_Northern",
+      "Canada_Ontario_Bame",
+      "US_Wisconsin_North"
+    ],
+    "north_america_us_minnesota": [
+      "Canada_Ontario_Northwestern",
+      "Canada_Manitoba_Winnipeg",
+      "US_North Dakota_East",
+      "Canada_Ontario_Northern",
+      "US_Wisconsin_North"
+    ],
+    "north_america_us_mississippi": [
+      "US_Louisiana_New Orleans",
+      "US_Arkansas_South",
+      "US_Louisiana_Central",
+      "US_Alabama_Montgomery",
+      "US_Tennessee_West"
+    ],
+    "north_america_us_missouri": [
+      "US_Tennessee_West",
+      "US_Illinois_South",
+      "US_Kansas_East",
+      "US_Arkansas_North",
+      "US_Iowa_Des Moines"
+    ],
+    "north_america_us_montana": [
+      "US_Idaho_North",
+      "Canada_Alberta_South"
+    ],
+    "north_america_us_nebraska": [
+      "US_South Dakota",
+      "US_Iowa_West",
+      "US_Kansas_West",
+      "US_Colorado_Denver"
+    ],
+    "north_america_us_new_hampshire": [
+      "US_Massachusetts_Boston",
+      "US_Vermont",
+      "US_Maine",
+      "Canada_Quebec_Quebec"
+    ],
+    "north_america_us_new_jersey": [
+      "US_Delaware",
+      "US_New York_New York",
+      "US_New York_East",
+      "US_Pennsylvania_Scranton"
+    ],
+    "north_america_us_new_mexico": [
+      "US_Texas_Lubbock",
+      "US_Texas_West"
+    ],
+    "north_america_us_new_york": [
+      "Canada_Ontario_Kingston",
+      "Canada_Ontario_London",
+      "US_Connecticut",
+      "Canada_Ontario_Toronto",
+      "US_Vermont",
+      "US_Rhode Island",
+      "US_Pennsylvania_Scranton"
+    ],
+    "north_america_us_north_carolina": [
+      "US_Tennessee_East"
+    ],
+    "north_america_us_north_dakota": [
+      "Canada_Manitoba_Winnipeg",
+      "US_Minnesota_North",
+      "Canada_Saskatchewan_Regina",
+      "Canada_Manitoba_South"
+    ],
+    "north_america_us_ohio": [
+      "Canada_Ontario_London",
+      "US_West Virginia",
+      "US_Kentucky_East",
+      "US_Pennsylvania_Pittsburgh"
+    ],
+    "north_america_us_oklahoma": [
+      "US_Texas_Amarillo",
+      "US_Texas_Dallas",
+      "US_Texas_Tyler"
+    ],
+    "north_america_us_oregon": [
+      "US_California_Redding",
+      "US_Nevada",
+      "US_Idaho_North"
+    ],
+    "north_america_us_pennsylvania": [
+      "Canada_Ontario_London",
+      "US_New York_West"
+    ],
+    "north_america_us_puerto_rico": [
+      "United States Virgin Islands"
+    ],
+    "north_america_us_rhode_island": [
+      "US_New York_East",
+      "US_Massachusetts_Plymouth",
+      "US_Connecticut",
+      "US_Massachusetts_Southeastern"
+    ],
+    "north_america_us_south_carolina": [
+      "US_Georgia_Macon",
+      "US_Georgia_South",
+      "US_North Carolina_Asheville",
+      "US_North Carolina_Wilmington"
+    ],
+    "north_america_us_south_dakota": [
+      "US_Nebraska_West",
+      "US_North Dakota_Bismarck"
+    ],
+    "north_america_us_tennessee": [
+      "US_Arkansas_North",
+      "US_North Carolina_Asheville",
+      "US_Missouri_East",
+      "US_Kentucky_West"
+    ],
+    "north_america_us_texas": [
+      "Mexico_Chihuahua",
+      "US_Oklahoma_Oklahoma",
+      "US_Oklahoma_West",
+      "US_Louisiana_Central",
+      "Mexico_Central_East",
+      "US_Oklahoma_East"
+    ],
+    "north_america_us_us_virgin_islands": [
+      "US_Puerto Rico",
+      "British Virgin Islands"
+    ],
+    "north_america_us_utah": [
+      "US_Nevada"
+    ],
+    "north_america_us_vermont": [
+      "US_New Hampshire",
+      "US_New York_North",
+      "Canada_Quebek_Montreal",
+      "US_Massachusetts_West",
+      "Canada_Quebec_Quebec"
+    ],
+    "north_america_us_virginia": [
+      "US_Maryland_and_DC",
+      "US_West Virginia",
+      "US_Maryland_Baltimore",
+      "US_Kentucky_East",
+      "US_North Carolina_Raleigh"
+    ],
+    "north_america_us_washington": [
+      "Canada_British Columbia_Islands",
+      "US_Oregon_West",
+      "US_Oregon_Portland",
+      "US_Idaho_North"
+    ],
+    "us_west_virginia": [
+      "US_Virginia_Lynchburg",
+      "US_Maryland_and_DC",
+      "US_Pennsylvania_Pittsburgh",
+      "US_Virginia_Roanoke",
+      "US_Ohio_Columbus",
+      "US_Kentucky_East"
+    ],
+    "north_america_us_wisconsin": [
+      "US_Michigan_Grand Rapids",
+      "US_Minnesota_North",
+      "US_Michigan_North",
+      "US_Iowa_Waterloo"
+    ],
+    "russia_central_fed_district": [
+      "Russia_Vologda Oblast",
+      "Russia_Nizhny Novgorod Oblast",
+      "Ukraine_Sumy Oblast",
+      "Russia_Novgorod Oblast",
+      "Belarus_Maglieu Region",
+      "Ukraine_Kharkiv Oblast",
+      "Ukraine_Luhansk Oblast",
+      "Ukraine_Chernihiv Oblast",
+      "Russia_Volgograd Oblast",
+      "Russia_Kirov Oblast",
+      "Russia_Penza Oblast",
+      "Russia_Pskov Oblast",
+      "Russia_Republic of Mordovia",
+      "Belarus_Vitebsk Region",
+      "Belarus_Homiel Region",
+      "Russia_Saratov Oblast",
+      "Russia_Rostov Oblast"
+    ],
+    "russia_crimean_fed_district": [
+      "Ukraine_Kherson Oblast",
+      "Russia_Krasnodar Krai"
+    ],
+    "russia_far_eastern_fed_district": [
+      "US_Alaska",
+      "Russia_Irkutsk Oblast",
+      "Russia_Krasnoyarsk Krai_North",
+      "China_Heilongjiang"
+    ],
+    "russia_kaliningrad": [
+      "Lithuania_West",
+      "Poland_Warmian-Masurian Voivodeship"
+    ],
+    "russia_north_caucasus_fed_district": [
+      "Georgia",
+      "Azerbaijan",
+      "Abkhazia",
+      "South Ossetia",
+      "Kazakhstan_South",
+      "Russia_Republic of Kalmykia",
+      "Russia_Krasnodar Krai"
+    ],
+    "russia_northwestern_fed_district": [
+      "Norway_Svalbard",
+      "Russia_Yamalo-Nenets Autonomous Okrug",
+      "Russia_Tver Oblast",
+      "Russia_Kirov Oblast",
+      "Russia_Perm Krai_North",
+      "Russia_Kostroma Oblast",
+      "Russia_Yugra_Khanty",
+      "Finland_Eastern Finland_North",
+      "Finland_Northern Finland"
+    ],
+    "russia_siberian_fed_district": [
+      "Russia_Arkhangelsk Oblast_North",
+      "Russia_Sakha Republic",
+      "Mongolia",
+      "Russia_Yamalo-Nenets Autonomous Okrug",
+      "Russia_Yugra_Surgut",
+      "Russia_Tyumen Oblast",
+      "Kazakhstan_North",
+      "Russia_Amur Oblast",
+      "Kazakhstan_South",
+      "China_Inner Mongolia"
+    ],
+    "russia_south_fed_district": [
+      "Kazakhstan_South",
+      "Ukraine_Luhansk Oblast",
+      "Ukraine_Donetsk Oblast",
+      "Russia_Stavropol Krai",
+      "Abkhazia",
+      "Russia_Saratov Oblast",
+      "Russia_Voronezh Oblast"
+    ],
+    "russia_ural_fed_district": [
+      "Russia_Krasnoyarsk Krai_North",
+      "Russia_Arkhangelsk Oblast_North",
+      "Russia_Bashkortostan",
+      "Kazakhstan_North",
+      "Russia_Omsk Oblast",
+      "Russia_Komi Republic",
+      "Russia_Tomsk Oblast",
+      "Russia_Perm Krai_North",
+      "Russia_Nenets Autonomous Okrug",
+      "Russia_Perm Krai_South",
+      "Russia_Orenburg Oblast"
+    ],
+    "russia_volga_fed_district": [
+      "Kazakhstan_South",
+      "Russia_Chelyabinsk Oblast",
+      "Russia_Komi Republic",
+      "Russia_Volgograd Oblast",
+      "Russia_Kostroma Oblast",
+      "Russia_Sverdlovsk Oblast_North",
+      "Russia_Sverdlovsk Oblast_Ekaterinburg",
+      "Russia_Tambov Oblast",
+      "Russia_Ryazan Oblast",
+      "Kazakhstan_North",
+      "Russia_Vologda Oblast",
+      "Russia_Vladimir Oblast",
+      "Russia_Ivanovo Oblast"
+    ],
+    "south_america_argentina": [
+      "Chile_South",
+      "Chile_North",
+      "Paraguay",
+      "Uruguay",
+      "Chile_Central",
+      "Bolivia_South",
+      "Brazil_South Region_West"
+    ],
+    "south_america_bolivia": [
+      "Brazil_North Region_West",
+      "Chile_North",
+      "Peru_South",
+      "Paraguay",
+      "Argentina_Northwest",
+      "Brazil_Mato Grosso",
+      "Brazil_Mato Grosso Do Sul"
+    ],
+    "south_america_brazil_centro_oeste": [
+      "Brazil_North Region_East",
+      "Bolivia_North",
+      "Brazil_North Region_West",
+      "Paraguay",
+      "Brazil_Southeast Region_Minas Gerais_North",
+      "Brazil_Southeast Region_Sao Paulo_West",
+      "Brazil_Bahia"
+    ],
+    "south_america_brazil_nordeste": [
+      "Brazil_Northeast Region_East",
+      "Brazil_North Region_East",
+      "Brazil_Southeast Region_Minas Gerais_North"
+    ],
+    "south_america_brazil_norte": [
+      "Brazil_Mato Grosso",
+      "Venezuela_South",
+      "Guyana",
+      "Colombia_East",
+      "Brazil_Northeast Region_West",
+      "Peru_North",
+      "Bolivia_North",
+      "France_French Guiana",
+      "Brazil_Goias_North",
+      "Suriname",
+      "Brazil_Bahia"
+    ],
+    "south_america_brazil_sudeste": [
+      "Brazil_Bahia",
+      "Brazil_Goias_Brasilia",
+      "Brazil_Parana_East",
+      "Brazil_Mato Grosso Do Sul"
+    ],
+    "south_america_brazil_sul": [
+      "Argentina_Mesopotamia",
+      "Uruguay",
+      "Paraguay",
+      "Brazil_Southeast Region_Sao Paulo_West",
+      "Brazil_Southeast Region_Sao Paulo_Campinas",
+      "Brazil_Southeast Region_Sao Paulo_City"
+    ],
+    "south_america_chile": [
+      "Argentina_Patagonia",
+      "Argentina_Cuyo",
+      "Argentina_Northwest"
+    ],
+    "south_america_colombia": [
+      "Panama",
+      "Ecuador_West",
+      "Nicaragua",
+      "Venezuela_South",
+      "Brazil_North Region_West",
+      "Peru_North",
+      "Ecuador_East"
+    ],
+    "south_america_ecuador": [
+      "Peru_North"
+    ],
+    "south_america_guyana": [
+      "Venezuela_South",
+      "Suriname",
+      "Brazil_North Region_West",
+      "Brazil_North Region_East"
+    ],
+    "south_america_paraguay": [
+      "Argentina_Northwest",
+      "Brazil_Mato Grosso Do Sul",
+      "Argentina_Mesopotamia",
+      "Bolivia_North",
+      "Bolivia_South",
+      "Brazil_Parana_West"
+    ],
+    "south_america_peru": [
+      "Chile_North",
+      "Ecuador_West",
+      "Colombia_East",
+      "Brazil_North Region_West",
+      "Ecuador_East",
+      "Bolivia_North"
+    ],
+    "south_america_suriname": [
+      "Guyana",
+      "Brazil_North Region_East",
+      "France_French Guiana"
+    ],
+    "south_america_uruguay": [
+      "Argentina_Buenos Aires_North",
+      "Brazil_South Region_West",
+      "Argentina_Buenos Aires_Buenos Aires",
+      "Brazil_South Region_East",
+      "Argentina_Mesopotamia"
+    ],
+    "south_america_venezuela": [
+      "Brazil_North Region_West",
+      "Colombia_East",
+      "Caribisch Nederland",
+      "Guyana",
+      "Colombia_North"
+    ]
+  }
+}
