@@ -15,6 +15,9 @@ class ProviderSpecError(ValueError):
 AUTH_TYPES = frozenset({"none", "basic", "api-key", "bearer"})
 
 
+FETCH_MODES = frozenset({"get", "html_index"})
+
+
 @dataclass(frozen=True)
 class Publication:
     name: str
@@ -22,6 +25,11 @@ class Publication:
     interval_secs: int = 300
     enabled: bool = True
     use_conditional: bool = True
+    # Expand {YYYYMMDD} using this IANA timezone (Europe/Sofia for Bulgaria RIA).
+    url_date_tz: str = ""
+    # get = single URL; html_index = parse directory HTML for *.xml and aggregate.
+    fetch_mode: str = "get"
+    index_max_files: int = 100
 
 
 @dataclass(frozen=True)
@@ -44,6 +52,8 @@ class ProviderSpec:
     api_key_in: str = "header"  # header | query
     api_key_name: str = "Authorization"
     accept_encoding_gzip: bool = False
+    # Default timezone for publication {YYYYMMDD} expansion when pub.url_date_tz empty.
+    url_date_tz: str = ""
     config_path: Optional[Path] = None
 
     @property
@@ -97,6 +107,18 @@ def parse_provider_dict(data: Mapping[str, Any], *, config_path: Path | None = N
             interval = _clamp_interval(int(row.get("interval_secs") or 300))
         except (TypeError, ValueError) as e:
             raise ProviderSpecError(f"{pid}: bad interval_secs for {name}") from e
+        fetch_mode = str(row.get("fetch_mode") or "get").strip().lower()
+        if fetch_mode not in FETCH_MODES:
+            raise ProviderSpecError(
+                f"{pid}: publication {name!r} fetch_mode must be one of "
+                f"{sorted(FETCH_MODES)}, got {fetch_mode!r}"
+            )
+        try:
+            index_max = int(row.get("index_max_files") or 100)
+        except (TypeError, ValueError) as e:
+            raise ProviderSpecError(f"{pid}: bad index_max_files for {name}") from e
+        if index_max < 1:
+            raise ProviderSpecError(f"{pid}: index_max_files must be >= 1 for {name}")
         pubs.append(
             Publication(
                 name=name,
@@ -104,6 +126,9 @@ def parse_provider_dict(data: Mapping[str, Any], *, config_path: Path | None = N
                 interval_secs=interval,
                 enabled=_as_bool(row.get("enabled"), True),
                 use_conditional=_as_bool(row.get("use_conditional"), True),
+                url_date_tz=str(row.get("url_date_tz") or "").strip(),
+                fetch_mode=fetch_mode,
+                index_max_files=min(index_max, 5000),
             )
         )
 
@@ -133,6 +158,7 @@ def parse_provider_dict(data: Mapping[str, Any], *, config_path: Path | None = N
         api_key_in=str(data.get("api_key_in") or "header").strip().lower(),
         api_key_name=str(data.get("api_key_name") or "Authorization"),
         accept_encoding_gzip=_as_bool(data.get("accept_encoding_gzip"), False),
+        url_date_tz=str(data.get("url_date_tz") or "").strip(),
         config_path=config_path,
     )
 

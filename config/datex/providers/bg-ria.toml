@@ -1,0 +1,73 @@
+# Bulgaria RIA / LIMA Datasheet — anonymous dated DATEX II v2 files.
+# URL date is Europe/Sofia YYYYMMDD; fetcher retries yesterday on HTTP 404.
+# Docs: docs/datex-open-feeds.md
+
+id = "bg-ria"
+publish_id = "bulgaria"
+display_name = "Bulgaria RIA (LIMA Datasheet)"
+country = "BG"
+attribution = "Road Infrastructure Agency (Bulgaria) via datasheet.api.bg"
+licence = "Not declared on NAP metadata — re-check before redistribution claims"
+source_label = "RIA Bulgaria datasheet.api.bg"
+datex_version = "2"
+auth_type = "none"
+enabled = true
+url_date_tz = "Europe/Sofia"
+user_agent = "navi-server-datex/0.1 (open-feeds; contact: navi-server)"
+timeout_secs = 60
+
+[[publications]]
+name = "DangerD01"
+url = "https://datasheet.api.bg/files/{YYYYMMDD}_danger_d01.xml"
+interval_secs = 600
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "DangerD02"
+url = "https://datasheet.api.bg/files/{YYYYMMDD}_danger_d02.xml"
+interval_secs = 600
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "RoadworksR01"
+url = "https://datasheet.api.bg/files/{YYYYMMDD}_roadworks_r01.xml"
+interval_secs = 600
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "RoadworksR02"
+url = "https://datasheet.api.bg/files/{YYYYMMDD}_roadworks_r02.xml"
+interval_secs = 600
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "RoadworksR03"
+url = "https://datasheet.api.bg/files/{YYYYMMDD}_roadworks_r03.xml"
+interval_secs = 600
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "OtherO04"
+url = "https://datasheet.api.bg/files/{YYYYMMDD}_other_o04.xml"
+interval_secs = 600
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "OtherO05"
+url = "https://datasheet.api.bg/files/{YYYYMMDD}_other_o05.xml"
+interval_secs = 600
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "OtherO06"
+url = "https://datasheet.api.bg/files/{YYYYMMDD}_other_o06.xml"
+interval_secs = 600
+enabled = true
+use_conditional = true

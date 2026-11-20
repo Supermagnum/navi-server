@@ -6,12 +6,16 @@ import gzip
 import json
 import logging
 import random
+import re
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 from .auth_types import AuthMaterial, apply_auth_headers, redact_secrets
 from .provider_spec import ProviderSpec, Publication
@@ -20,6 +24,7 @@ from .publish import atomic_write_bytes, provider_publish_dir, write_source_json
 LOG = logging.getLogger("navi.datex.fetcher")
 
 UrlOpener = Callable[[urllib.request.Request, float], object]
+_HREF_XML_RE = re.compile(r"""href=["']([^"']+\.xml)["']""", re.IGNORECASE)
 
 
 @dataclass
@@ -73,8 +78,12 @@ def _save_state(path: Path, state: dict) -> None:
 
 def detect_datex_version(xml_bytes: bytes) -> str:
     """Return coarse version label: 3.x / 2.x / unknown."""
-    head = xml_bytes[:4096].decode("utf-8", errors="replace")
-    if "datex2.eu/schema/3/" in head or "messageContainer" in head:
+    head = xml_bytes[:8192].decode("utf-8", errors="replace")
+    if (
+        "datex2.eu/schema/3/" in head
+        or "messageContainer" in head
+        or "EnergyInfrastructure" in head
+    ):
         return "3.x"
     if "datex2.eu/schema/2/" in head or "d2LogicalModel" in head:
         return "2.x"
@@ -86,6 +95,20 @@ def validate_datex_xml(xml_bytes: bytes, expect_version: str) -> tuple[bool, str
         return False, "not XML"
     detected = detect_datex_version(xml_bytes)
     exp = (expect_version or "").strip()
+    if not exp:
+        # Empty expect: accept any DATEX-like payload (directory aggregates).
+        if detected == "unknown" and not any(
+            m in xml_bytes[:8192]
+            for m in (
+                b"SituationPublication",
+                b"payloadPublication",
+                b"MeasuredDataPublication",
+                b"EnergyInfrastructure",
+                b"naviDatexDirectoryAggregate",
+            )
+        ):
+            return False, "not DATEX-like XML"
+        return True, detected or "aggregate"
     if exp.startswith("3") and not detected.startswith("3"):
         return False, f"expected DATEX 3.x, detected {detected}"
     if exp.startswith("2") and not detected.startswith("2"):
@@ -97,6 +120,82 @@ def _maybe_gunzip(body: bytes) -> bytes:
     if len(body) >= 2 and body[0] == 0x1F and body[1] == 0x8B:
         return gzip.decompress(body)
     return body
+
+
+def resolve_publication_url(
+    spec: ProviderSpec,
+    pub: Publication,
+    *,
+    now: Optional[float] = None,
+    day_offset: int = 0,
+) -> str:
+    """Expand {YYYYMMDD} in publication URLs (Bulgaria RIA dated files)."""
+    url = pub.url
+    if "{YYYYMMDD}" not in url:
+        return url
+    tz_name = (pub.url_date_tz or spec.url_date_tz or "UTC").strip() or "UTC"
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception as exc:  # noqa: BLE001
+        raise ValueError(f"invalid url_date_tz {tz_name!r}: {exc}") from exc
+    if now is None:
+        now = time.time()
+    day = datetime.fromtimestamp(now, tz) + timedelta(days=day_offset)
+    return url.replace("{YYYYMMDD}", day.strftime("%Y%m%d"))
+
+
+def _absolute_href(base_url: str, href: str) -> str:
+    return urllib.parse.urljoin(base_url if base_url.endswith("/") else base_url + "/", href)
+
+
+def list_xml_hrefs_from_html(html: bytes, base_url: str) -> List[str]:
+    """Return absolute *.xml URLs from an Apache-style directory listing."""
+    text = html.decode("utf-8", errors="replace")
+    found: List[Tuple[int, str]] = []
+    seen = set()
+    for match in _HREF_XML_RE.finditer(text):
+        href = match.group(1).strip()
+        if not href or href.startswith("?") or href.startswith("../"):
+            continue
+        abs_url = _absolute_href(base_url, href)
+        if abs_url in seen:
+            continue
+        seen.add(abs_url)
+        base = href.rsplit("/", 1)[-1]
+        num = None
+        m = re.match(r"^(\d+)\.xml$", base, re.IGNORECASE)
+        if m:
+            num = int(m.group(1))
+        found.append((num if num is not None else -1, abs_url))
+    # Prefer highest numeric basename (TIPI numbered events); else stable alpha.
+    found.sort(key=lambda t: (t[0], t[1]), reverse=True)
+    return [u for _, u in found]
+
+
+def build_directory_aggregate(parts: List[Tuple[str, bytes]], *, source_url: str) -> bytes:
+    """Wrap validated child DATEX XML files in a navi aggregate root."""
+    chunks = [
+        b'<?xml version="1.0" encoding="UTF-8"?>\n',
+        (
+            b'<naviDatexDirectoryAggregate xmlns="urn:navi-server:datex-directory-aggregate:1" '
+            + f'source="{source_url}" count="{len(parts)}">\n'.encode("utf-8")
+        ),
+    ]
+    for name, body in parts:
+        safe = name.replace("--", "-")
+        chunks.append(f"<!-- begin {safe} -->\n".encode("utf-8"))
+        # Strip XML declaration from children to keep one prolog.
+        text = body.lstrip()
+        if text.startswith(b"<?xml"):
+            end = text.find(b"?>")
+            if end != -1:
+                text = text[end + 2 :].lstrip()
+        chunks.append(text)
+        if not text.endswith(b"\n"):
+            chunks.append(b"\n")
+        chunks.append(f"<!-- end {safe} -->\n".encode("utf-8"))
+    chunks.append(b"</naviDatexDirectoryAggregate>\n")
+    return b"".join(chunks)
 
 
 def fetch_publication(
@@ -143,7 +242,7 @@ def fetch_publication(
     }
     if spec.accept_encoding_gzip:
         headers["Accept-Encoding"] = "gzip"
-    if pub.use_conditional:
+    if pub.use_conditional and pub.fetch_mode == "get":
         lm = state.get("last_modified")
         et = state.get("etag")
         if lm:
@@ -152,7 +251,18 @@ def fetch_publication(
             headers["If-None-Match"] = et
 
     try:
-        url, headers = apply_auth_headers(spec, auth, headers, pub.url)
+        resolved = resolve_publication_url(spec, pub, now=now, day_offset=0)
+    except ValueError as exc:
+        return PubFetchResult(
+            name=pub.name,
+            status=0,
+            bytes=0,
+            not_modified=False,
+            error=str(exc),
+        )
+
+    try:
+        url, headers = apply_auth_headers(spec, auth, headers, resolved)
     except Exception as exc:
         return PubFetchResult(
             name=pub.name,
@@ -162,10 +272,10 @@ def fetch_publication(
             error=redact_secrets(str(exc), auth),
         )
 
-    request = urllib.request.Request(url, headers=headers, method="GET")
-    safe_url = pub.url  # original without query secrets when possible
+    safe_url = resolved
 
-    try:
+    def _http_get(get_url: str, get_headers: Dict[str, str]) -> Tuple[int, bytes, Optional[str], Optional[str]]:
+        request = urllib.request.Request(get_url, headers=get_headers, method="GET")
         with opener(request, float(spec.timeout_secs)) as resp:
             status = int(getattr(resp, "status", 200))
             body = resp.read() if status != 304 else b""
@@ -174,9 +284,44 @@ def fetch_publication(
             if hasattr(resp, "getheader"):
                 last_mod = resp.getheader("Last-Modified") or resp.getheader("last-modified")
                 etag = resp.getheader("ETag") or resp.getheader("etag")
-                enc = (resp.getheader("Content-Encoding") or "").lower()
-            else:
-                enc = ""
+            # Always decompress gzip magic (NDW *.xml.gz) and Content-Encoding gzip.
+            try:
+                body = _maybe_gunzip(body)
+            except OSError:
+                pass
+            return status, body, last_mod, etag
+
+    def _fail(status: int, body_len: int, err: str) -> PubFetchResult:
+        fail_count = int(state.get("fail_count") or 0) + 1
+        delay = min(3600, (2 ** min(fail_count, 8)) * 5)
+        state.update(
+            {
+                "fail_count": fail_count,
+                "next_attempt_unix": now + delay,
+                "last_status": status,
+                "last_error": err[:500],
+            }
+        )
+        _save_state(state_path, state)
+        return PubFetchResult(
+            name=pub.name,
+            status=status,
+            bytes=body_len,
+            not_modified=False,
+            error=f"{err} (backoff {delay}s)",
+        )
+
+    last_mod: Optional[str] = None
+    etag: Optional[str] = None
+    status = 0
+    body = b""
+
+    try:
+        if pub.fetch_mode == "html_index":
+            # Directory listing (TIPI Evenementiel): fetch newest N *.xml and aggregate.
+            index_headers = dict(headers)
+            index_headers["Accept"] = "text/html, application/xml, */*"
+            status, index_body, last_mod, etag = _http_get(url, index_headers)
             if status == 304:
                 state["last_status"] = 304
                 state["next_attempt_unix"] = now + pub.interval_secs
@@ -189,87 +334,114 @@ def fetch_publication(
                     not_modified=True,
                     path=publish_dir / f"{pub.name}.xml",
                 )
-            if "gzip" in enc or spec.accept_encoding_gzip:
+            if status != 200:
+                return _fail(status, len(index_body), f"HTTP {status} for {safe_url}")
+            child_urls = list_xml_hrefs_from_html(index_body, safe_url)[: pub.index_max_files]
+            if not child_urls:
+                return _fail(status, len(index_body), f"no *.xml links in directory {safe_url}")
+            parts: List[Tuple[str, bytes]] = []
+            child_headers = {
+                "User-Agent": spec.user_agent,
+                "Accept": "application/xml, text/xml, */*",
+            }
+            if spec.accept_encoding_gzip:
+                child_headers["Accept-Encoding"] = "gzip"
+            for child in child_urls:
                 try:
-                    body = _maybe_gunzip(body)
-                except OSError:
-                    pass
+                    child_url, ch = apply_auth_headers(spec, auth, dict(child_headers), child)
+                    c_status, c_body, _, _ = _http_get(child_url, ch)
+                except (urllib.error.URLError, TimeoutError, OSError, urllib.error.HTTPError) as exc:
+                    LOG.warning(
+                        "provider=%s pub=%s child fetch skip: %s",
+                        spec.id,
+                        pub.name,
+                        redact_secrets(str(exc), auth),
+                    )
+                    continue
+                if c_status != 200 or not c_body:
+                    continue
+                ok_child, _detail = validate_datex_xml(c_body, spec.datex_version)
+                if not ok_child:
+                    continue
+                parts.append((child.rsplit("/", 1)[-1], c_body))
+            if not parts:
+                return _fail(status, 0, f"no valid DATEX children under {safe_url}")
+            body = build_directory_aggregate(parts, source_url=safe_url)
+            # Aggregates use a navi wrapper; validate as DATEX-like without strict version.
+            ok, detail = validate_datex_xml(body, "")
+        else:
+            try:
+                status, body, last_mod, etag = _http_get(url, headers)
+            except urllib.error.HTTPError as exc:
+                status = int(exc.code)
+                body = b""
+                try:
+                    if exc.fp is not None:
+                        body = exc.read() or b""
+                        try:
+                            body = _maybe_gunzip(body)
+                        except OSError:
+                            pass
+                except Exception:
+                    body = b""
+                # Bulgaria: dated file may roll; retry yesterday once on 404.
+                if (
+                    status == 404
+                    and "{YYYYMMDD}" in pub.url
+                    and resolve_publication_url(spec, pub, now=now, day_offset=-1) != resolved
+                ):
+                    yurl = resolve_publication_url(spec, pub, now=now, day_offset=-1)
+                    try:
+                        yurl, yheaders = apply_auth_headers(spec, auth, headers, yurl)
+                        status, body, last_mod, etag = _http_get(yurl, yheaders)
+                        safe_url = yurl
+                    except urllib.error.HTTPError as exc2:
+                        status = int(exc2.code)
+                        return _fail(status, 0, f"HTTP {status} for {yurl}")
+                elif status in (401, 403):
+                    return PubFetchResult(
+                        name=pub.name,
+                        status=status,
+                        bytes=len(body),
+                        not_modified=False,
+                        error=f"HTTP {status} for {safe_url}",
+                    )
+                elif status != 200:
+                    return _fail(status, len(body), f"HTTP {status} for {safe_url}")
+
+            if status == 304:
+                state["last_status"] = 304
+                state["next_attempt_unix"] = now + pub.interval_secs
+                state["fail_count"] = 0
+                _save_state(state_path, state)
+                return PubFetchResult(
+                    name=pub.name,
+                    status=304,
+                    bytes=0,
+                    not_modified=True,
+                    path=publish_dir / f"{pub.name}.xml",
+                )
+            if status != 200:
+                return _fail(status, len(body), f"HTTP {status} for {safe_url}")
+            ok, detail = validate_datex_xml(body, spec.datex_version)
+
     except urllib.error.HTTPError as exc:
         status = int(exc.code)
-        body = b""
-        try:
-            if exc.fp is not None:
-                body = exc.read() or b""
-        except Exception:
-            body = b""
         if status in (401, 403):
-            msg = f"HTTP {status} for {safe_url}"
             return PubFetchResult(
                 name=pub.name,
                 status=status,
-                bytes=len(body),
+                bytes=0,
                 not_modified=False,
-                error=msg,
+                error=f"HTTP {status} for {safe_url}",
             )
-        fail_count = int(state.get("fail_count") or 0) + 1
-        delay = min(3600, (2 ** min(fail_count, 8)) * 5)
-        state.update(
-            {
-                "fail_count": fail_count,
-                "next_attempt_unix": now + delay,
-                "last_status": status,
-                "last_error": f"HTTP {status}",
-            }
-        )
-        _save_state(state_path, state)
-        return PubFetchResult(
-            name=pub.name,
-            status=status,
-            bytes=len(body),
-            not_modified=False,
-            error=f"HTTP {status} for {safe_url} (backoff {delay}s)",
-        )
+        return _fail(status, 0, f"HTTP {status} for {safe_url}")
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        fail_count = int(state.get("fail_count") or 0) + 1
-        delay = min(3600, (2 ** min(fail_count, 8)) * 5)
         err = redact_secrets(str(exc), auth)
-        state.update(
-            {
-                "fail_count": fail_count,
-                "next_attempt_unix": now + delay,
-                "last_status": 0,
-                "last_error": err,
-            }
-        )
-        _save_state(state_path, state)
-        return PubFetchResult(
-            name=pub.name,
-            status=0,
-            bytes=0,
-            not_modified=False,
-            error=f"network error for {safe_url}: {err} (backoff {delay}s)",
-        )
+        return _fail(0, 0, f"network error for {safe_url}: {err}")
 
-    ok, detail = validate_datex_xml(body, spec.datex_version)
     if not ok:
-        fail_count = int(state.get("fail_count") or 0) + 1
-        delay = min(3600, (2 ** min(fail_count, 8)) * 5)
-        state.update(
-            {
-                "fail_count": fail_count,
-                "next_attempt_unix": now + delay,
-                "last_status": status,
-                "last_error": detail,
-            }
-        )
-        _save_state(state_path, state)
-        return PubFetchResult(
-            name=pub.name,
-            status=status,
-            bytes=len(body),
-            not_modified=False,
-            error=f"DATEX validate failed: {detail}",
-        )
+        return _fail(status, len(body), f"DATEX validate failed: {detail}")
 
     out_path = publish_dir / f"{pub.name}.xml"
     atomic_write_bytes(out_path, body)

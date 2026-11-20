@@ -181,25 +181,65 @@ GET /mwm/&lt;version&gt;/country_groups.json</pre>
       <code>.rkyv</code> weekly bake is retired and no longer refreshes packs.
     </p>
 
-    <h2>Optional DATEX (Norway)</h2>
+    <h2>DATEX II traffic feeds</h2>
     <p>
-      This host may also cache NPRA DATEX II snapshots under
-      <code>/datex/</code> for Navi clients. That feature is <strong>off by
-      default</strong>, separate from MWM sidecars, and holds credentials only
-      on the server. See
-      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/datex-npra.md"><code>docs/datex-npra.md</code></a>
-      in the repository.
+      This host also caches DATEX II snapshots under <code>/datex/</code> for
+      Navi clients. The live registry is
+      <a href="/datex/providers.json"><code>/datex/providers.json</code></a>
+      (credentials never listed). Canonical paths are
+      <code>/datex/&lt;provider&gt;/</code>; legacy flat
+      <code>/datex/*.xml</code> URLs redirect to NPRA.
     </p>
+    <p>Currently served (enabled with published data):</p>
+    <ul>
+      <li>
+        <a href="/datex/flanders/"><code>/datex/flanders/</code></a> —
+        Flanders Verkeerscentrum (Belgium), DATEX v3
+      </li>
+      <li>
+        <a href="/datex/digitraffic/"><code>/datex/digitraffic/</code></a> —
+        Digitraffic (Finland), DATEX II v2.3
+      </li>
+      <li>
+        <a href="/datex/tipi/"><code>/datex/tipi/</code></a> —
+        TIPI / Bison Futé DIR (France), DATEX II v2
+      </li>
+      <li>
+        <a href="/datex/cita/"><code>/datex/cita/</code></a> —
+        CITA (Luxembourg), DATEX II v2
+      </li>
+      <li>
+        <a href="/datex/ndw/"><code>/datex/ndw/</code></a> —
+        NDW (Netherlands), DATEX v3
+      </li>
+      <li>
+        <a href="/datex/bulgaria/"><code>/datex/bulgaria/</code></a> —
+        Bulgaria RIA (LIMA Datasheet), DATEX II v2
+      </li>
+      <li>
+        <a href="/datex/mobie/"><code>/datex/mobie/</code></a> —
+        MOBI.E EV charging (Portugal NAP), DATEX v3.3
+      </li>
+      <li>
+        <a href="/datex/npra/"><code>/datex/npra/</code></a> —
+        NPRA / Statens vegvesen (Norway), DATEX II v3.1 (server-side Basic auth)
+      </li>
+    </ul>
+    <p class="note">
+      Open no-registration sources and operator notes:
+      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/datex-open-feeds.md"><code>docs/datex-open-feeds.md</code></a>.
+      NPRA plugin:
+      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/datex-npra.md"><code>docs/datex-npra.md</code></a>.
+      Multi-provider setup:
+      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/datex-providers.md"><code>docs/datex-providers.md</code></a>.
+    </p>
+
+    <h2>Navi app</h2>
     <p>
-      Other European DATEX II feeds that need <strong>no registration</strong>
-      (France TIPI open DIR events, Flanders, Finland Digitraffic, Luxembourg
-      CITA, Dutch NDW open data, and similar) are catalogued in
-      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/datex-open-feeds.md"><code>docs/datex-open-feeds.md</code></a>,
-      cross-checked against
-      <a href="https://github.com/graphhopper/open-traffic-collection">graphhopper/open-traffic-collection</a>
-      (portals that still need signup are marked there). They are not polled by
-      navi-server today. To wire another provider, see
-      <a href="https://github.com/Supermagnum/navi-server/blob/main/docs/datex-adding-sources.md"><code>docs/datex-adding-sources.md</code></a>.
+      Download the Android app from
+      <a href="https://f-droid.org/en/packages/no.navi.app/">F-Droid (<code>no.navi.app</code>)</a>
+      or browse the client source at
+      <a href="https://github.com/Supermagnum/Navi">github.com/Supermagnum/Navi</a>.
     </p>
 
     <footer>
@@ -208,6 +248,12 @@ GET /mwm/&lt;version&gt;/country_groups.json</pre>
         <a href="https://opendatacommons.org/licenses/odbl/">Open Database License (ODbL)</a>.
         Extracts typically come via Geofabrik or OSM.fr. This server redistributes
         <em>derived</em> Navi sidecars and catalogs, not a raw dump of the OSM database.
+      </p>
+      <p>
+        Navi app:
+        <a href="https://f-droid.org/en/packages/no.navi.app/">F-Droid</a>
+        ·
+        <a href="https://github.com/Supermagnum/Navi">GitHub</a>
       </p>
       <p>
         Operator docs and source:

@@ -1,0 +1,33 @@
+# France TIPI / Bison Futé open DIR publications — anonymous.
+# QTV is a single MeasuredData snapshot; Evenementiel is a directory of SOAP DATEX files
+# aggregated (newest N) into one naviDatexDirectoryAggregate document.
+# Docs: docs/datex-open-feeds.md
+
+id = "fr-tipi"
+publish_id = "tipi"
+display_name = "TIPI / Bison Fute (France DIR)"
+country = "FR"
+attribution = "TIPI / Bison Fute open DIR publications (reseau routier national non concede)"
+licence = "Opendata-style (see transport.data.gouv.fr)"
+source_label = "TIPI bison-fute.gouv.fr"
+datex_version = "2"
+auth_type = "none"
+enabled = true
+user_agent = "navi-server-datex/0.1 (open-feeds; contact: navi-server)"
+timeout_secs = 120
+
+[[publications]]
+name = "QTV"
+url = "https://tipi.bison-fute.gouv.fr/bison-fute-ouvert/publicationsDIR/QTV-DIR/qtvDir.xml"
+interval_secs = 300
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "EvenementielRRN"
+url = "https://tipi.bison-fute.gouv.fr/bison-fute-ouvert/publicationsDIR/Evenementiel-DIR/grt/RRN/"
+interval_secs = 600
+enabled = true
+use_conditional = false
+fetch_mode = "html_index"
+index_max_files = 50

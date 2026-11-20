@@ -17,10 +17,18 @@ from plugins.datex_common.auth_types import (
     load_auth_material,
     redact_secrets,
 )
-from plugins.datex_common.fetcher import detect_datex_version, validate_datex_xml
+from plugins.datex_common.fetcher import (
+    build_directory_aggregate,
+    detect_datex_version,
+    list_xml_hrefs_from_html,
+    resolve_publication_url,
+    validate_datex_xml,
+    _maybe_gunzip,
+)
 from plugins.datex_common.multi_poll import poll_provider
 from plugins.datex_common.provider_spec import parse_provider_dict
 from plugins.datex_common.secrets import Credentials
+import gzip
 
 
 class TestProviderSpec(unittest.TestCase):
@@ -136,6 +144,64 @@ class TestDatexDetect(unittest.TestCase):
         )
         self.assertTrue(detect_datex_version(xml).startswith("2"))
         ok, _ = validate_datex_xml(xml, "2.3")
+        self.assertTrue(ok)
+
+    def test_energy_infra_v3(self):
+        xml = b'<?xml version="1.0"?><EnergyInfrastructureTable/>'
+        self.assertTrue(detect_datex_version(xml).startswith("3"))
+        ok, _ = validate_datex_xml(xml, "3.3")
+        self.assertTrue(ok)
+
+    def test_gunzip_magic(self):
+        raw = b'<?xml version="1.0"?><d2LogicalModel xmlns="http://datex2.eu/schema/2/2_0"/>'
+        gz = gzip.compress(raw)
+        self.assertEqual(_maybe_gunzip(gz), raw)
+        self.assertEqual(_maybe_gunzip(raw), raw)
+
+
+class TestUrlDateAndDirectory(unittest.TestCase):
+    def test_resolve_yyyymmdd(self):
+        spec = parse_provider_dict(
+            {
+                "id": "bg-ria",
+                "display_name": "BG",
+                "country": "BG",
+                "attribution": "a",
+                "licence": "l",
+                "datex_version": "2",
+                "auth_type": "none",
+                "url_date_tz": "Europe/Sofia",
+                "publications": [
+                    {
+                        "name": "d01",
+                        "url": "https://example.test/{YYYYMMDD}_danger_d01.xml",
+                    }
+                ],
+            }
+        )
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        now = datetime(2026, 11, 20, 12, 0, tzinfo=ZoneInfo("UTC")).timestamp()
+        url = resolve_publication_url(spec, spec.publications[0], now=now)
+        self.assertIn("20261120_danger_d01.xml", url)
+
+    def test_html_index_listing(self):
+        html = b"""<html><a href="10.xml">10</a><a href="2.xml">2</a><a href="foo.xml">f</a></html>"""
+        urls = list_xml_hrefs_from_html(html, "https://example.test/dir/")
+        self.assertEqual(urls[0], "https://example.test/dir/10.xml")
+        self.assertIn("https://example.test/dir/2.xml", urls)
+
+    def test_directory_aggregate(self):
+        parts = [
+            (
+                "1.xml",
+                b'<?xml version="1.0"?><d2LogicalModel xmlns="http://datex2.eu/schema/2/2_0"/>',
+            )
+        ]
+        blob = build_directory_aggregate(parts, source_url="https://example.test/")
+        self.assertIn(b"naviDatexDirectoryAggregate", blob)
+        ok, _ = validate_datex_xml(blob, "")
         self.assertTrue(ok)
 
 
