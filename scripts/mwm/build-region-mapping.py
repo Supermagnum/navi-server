@@ -24,6 +24,8 @@ from region_mapping import (  # noqa: E402
     DEFAULT_INCLUDE_THRESHOLD_PCT,
     DEFAULT_MAX_LEAVES_WARN,
     DEFAULT_MICRO_THRESHOLD_PCT,
+    DEFAULT_MOSTLY_OUTSIDE_MIN_COVERAGE_PCT,
+    DEFAULT_MOSTLY_OUTSIDE_OVERSPILL_PCT,
     THRESHOLD_JUSTIFICATION,
     OverlapConfig,
     annotate_shared_leaves,
@@ -131,6 +133,18 @@ def main() -> int:
     ap.add_argument("--comaps-release", default="")
     ap.add_argument("--include-threshold-pct", type=float, default=DEFAULT_INCLUDE_THRESHOLD_PCT)
     ap.add_argument("--micro-threshold-pct", type=float, default=DEFAULT_MICRO_THRESHOLD_PCT)
+    ap.add_argument(
+        "--mostly-outside-min-coverage-pct",
+        type=float,
+        default=DEFAULT_MOSTLY_OUTSIDE_MIN_COVERAGE_PCT,
+        help="Keep mostly-outside leaves only if they cover ≥ this %% of the region",
+    )
+    ap.add_argument(
+        "--mostly-outside-overspill-pct",
+        type=float,
+        default=DEFAULT_MOSTLY_OUTSIDE_OVERSPILL_PCT,
+        help="Treat a leaf as mostly-outside when overspill_pct ≥ this",
+    )
     ap.add_argument("--gap-warn-pct", type=float, default=DEFAULT_GAP_WARN_PCT)
     ap.add_argument("--max-leaves-warn", type=int, default=DEFAULT_MAX_LEAVES_WARN)
     ap.add_argument("--limit", type=int, default=0, help="Process only first N regions (debug)")
@@ -139,6 +153,8 @@ def main() -> int:
     cfg = OverlapConfig(
         include_threshold_pct=args.include_threshold_pct,
         micro_threshold_pct=args.micro_threshold_pct,
+        mostly_outside_min_coverage_pct=args.mostly_outside_min_coverage_pct,
+        mostly_outside_overspill_pct=args.mostly_outside_overspill_pct,
         gap_warn_pct=args.gap_warn_pct,
         max_leaves_warn=args.max_leaves_warn,
     )
@@ -247,6 +263,8 @@ def main() -> int:
         "generated_unix": int(time.time()),
         "include_threshold_pct": cfg.include_threshold_pct,
         "micro_threshold_pct": cfg.micro_threshold_pct,
+        "mostly_outside_min_coverage_pct": cfg.mostly_outside_min_coverage_pct,
+        "mostly_outside_overspill_pct": cfg.mostly_outside_overspill_pct,
         "threshold_justification": THRESHOLD_JUSTIFICATION,
         "gap_warn_pct": cfg.gap_warn_pct,
         "max_leaves_warn": cfg.max_leaves_warn,

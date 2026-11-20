@@ -311,8 +311,12 @@ hierarchy may show the leaf in multiple groups for navigation.
 
 **Include threshold (default 0.5% of region area):** below that, numeric border
 noise dominates. CoMaps borders are land-only, so stable land overlaps ≥ 0.05%
-are also kept (`micro_land_overlap`) as a proxy for border roads/places. Both
-are configurable on the generator (`build-region-mapping.py`).
+are also kept (`micro_land_overlap`) as a proxy for border roads/places. Leaves
+with ≥50% of their area outside the Navi region are kept only when they still
+cover ≥25% of that region — otherwise neighbouring-country coastal noise
+(Geofabrik sea/fjord ∩ foreign land borders) pollutes `region_to_leaves`
+(e.g. DK/SE under Østlandet). Thresholds are configurable on
+`build-region-mapping.py`.
 
 Server source files: `config/mwm/catalog/region_leaf_mapping.json`,
 `display_name_overrides.json`; regenerated every CoMaps release by the MWM

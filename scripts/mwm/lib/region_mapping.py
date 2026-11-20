@@ -32,6 +32,12 @@ DEFAULT_INCLUDE_THRESHOLD_PCT = 0.5
 # sub-0.5% overlaps still carry border roads/places). Proxy for "any overlap
 # containing roads/places" until per-edge OSM sampling exists.
 DEFAULT_MICRO_THRESHOLD_PCT = 0.05
+# Reject leaves that lie mostly outside the Navi region unless they still
+# cover a substantial share of it. Without this, sea/fjord in Geofabrik polys
+# + land-only CoMaps borders pull in neighbouring-country leaves (e.g. DK/SE
+# under europe/norway/ostlandet) that barely touch the region.
+DEFAULT_MOSTLY_OUTSIDE_MIN_COVERAGE_PCT = 25.0
+DEFAULT_MOSTLY_OUTSIDE_OVERSPILL_PCT = 50.0
 DEFAULT_GAP_WARN_PCT = 0.5
 DEFAULT_MAX_LEAVES_WARN = 8
 DEFAULT_SIMPLIFY_DEG = 0.002
@@ -148,6 +154,8 @@ def resolve_region_poly(
 class OverlapConfig:
     include_threshold_pct: float = DEFAULT_INCLUDE_THRESHOLD_PCT
     micro_threshold_pct: float = DEFAULT_MICRO_THRESHOLD_PCT
+    mostly_outside_min_coverage_pct: float = DEFAULT_MOSTLY_OUTSIDE_MIN_COVERAGE_PCT
+    mostly_outside_overspill_pct: float = DEFAULT_MOSTLY_OUTSIDE_OVERSPILL_PCT
     gap_warn_pct: float = DEFAULT_GAP_WARN_PCT
     max_leaves_warn: int = DEFAULT_MAX_LEAVES_WARN
     simplify_deg: float = DEFAULT_SIMPLIFY_DEG
@@ -211,6 +219,11 @@ def overlap_region_to_leaves(
             continue
         la = leaf_index.areas[int(i)] or approx_area(leaf_g)
         overspill = 100.0 * max(0.0, 1.0 - (ia / la)) if la > 0 else 0.0
+        mostly_outside = overspill >= cfg.mostly_outside_overspill_pct
+        # Drop neighbouring-country / far-overspill noise: the leaf is mostly
+        # elsewhere and covers only a thin sliver of this Navi region.
+        if mostly_outside and cov < cfg.mostly_outside_min_coverage_pct:
+            continue
         included = cov >= cfg.include_threshold_pct or cov >= cfg.micro_threshold_pct
         if not included:
             continue
@@ -219,7 +232,7 @@ def overlap_region_to_leaves(
                 "leaf": leaf_index.names[int(i)],
                 "coverage_of_region_pct": round(cov, 4),
                 "overspill_pct": round(overspill, 4),
-                "leaf_mostly_outside_region": overspill >= 50.0,
+                "leaf_mostly_outside_region": mostly_outside,
                 "include_reason": (
                     "threshold" if cov >= cfg.include_threshold_pct else "micro_land_overlap"
                 ),
@@ -243,6 +256,55 @@ def overlap_region_to_leaves(
         "uncovered_pct": round(uncovered, 4),
         "comaps_leaves": hits,
     }
+
+
+def leaf_is_mostly_outside_noise(
+    leaf_meta: dict[str, Any],
+    cfg: OverlapConfig,
+) -> bool:
+    """True when a leaf should be dropped as mostly-outside low coverage."""
+    cov = float(leaf_meta.get("coverage_of_region_pct") or 0.0)
+    if "leaf_mostly_outside_region" in leaf_meta:
+        mostly = bool(leaf_meta["leaf_mostly_outside_region"])
+    elif leaf_meta.get("overspill_pct") is not None:
+        mostly = float(leaf_meta["overspill_pct"]) >= cfg.mostly_outside_overspill_pct
+    else:
+        mostly = False
+    return mostly and cov < cfg.mostly_outside_min_coverage_pct
+
+
+def apply_mostly_outside_filter(
+    regions: dict[str, dict[str, Any]],
+    cfg: OverlapConfig,
+) -> dict[str, list[str]]:
+    """Drop mostly-outside low-coverage leaves from an existing migration map.
+
+    Used to surgically repair published artifacts without re-running polygon
+    overlap. Recalculates ``union_coverage_pct`` as a capped sum of remaining
+    leaf coverages (overlap-unaware upper bound). Returns bake_id → dropped
+    leaf ids.
+    """
+    dropped: dict[str, list[str]] = {}
+    for rid, meta in regions.items():
+        leaves = meta.get("comaps_leaves") or []
+        kept: list[dict[str, Any]] = []
+        gone: list[str] = []
+        for leaf_meta in leaves:
+            if leaf_is_mostly_outside_noise(leaf_meta, cfg):
+                gone.append(leaf_meta["leaf"])
+                continue
+            kept.append(leaf_meta)
+        if gone:
+            dropped[rid] = gone
+            meta["comaps_leaves"] = kept
+            approx = min(
+                100.0,
+                sum(float(x.get("coverage_of_region_pct") or 0.0) for x in kept),
+            )
+            meta["union_coverage_pct"] = round(approx, 4)
+            meta["uncovered_pct"] = round(max(0.0, 100.0 - approx), 4)
+            meta["mostly_outside_filter_dropped"] = gone
+    return dropped
 
 
 def annotate_shared_leaves(regions: dict[str, dict[str, Any]]) -> dict[str, list[str]]:
@@ -533,5 +595,9 @@ THRESHOLD_JUSTIFICATION = (
     "catching meaningful county-scale coverage. CoMaps borders are land "
     "polygons (no ocean), so any stable land overlap ≥ 0.05% is also kept "
     "as a micro_land_overlap proxy for border roads/places (stricter than "
-    "ignoring those slivers; true OSM road sampling is not required for v1)."
+    "ignoring those slivers; true OSM road sampling is not required for v1). "
+    "Leaves with ≥50% of their area outside the Navi region are kept only "
+    "when they still cover ≥25% of that region — otherwise neighbouring "
+    "country coastal leaves (sea/fjord Geofabrik polys ∩ foreign land "
+    "borders) pollute region_to_leaves (e.g. DK/SE under Østlandet)."
 )

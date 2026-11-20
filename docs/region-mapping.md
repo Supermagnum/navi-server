@@ -61,11 +61,24 @@ Optional soft-fetch of missing region `.poly` files into `--poly-cache` only
 |------|---------|---------|
 | `--include-threshold-pct` | **0.5%** of region area | Leaf must cover at least this much of the Navi region |
 | `--micro-threshold-pct` | **0.05%** | Keep stable land-only overlaps as `micro_land_overlap` (border roads / places) |
+| `--mostly-outside-min-coverage-pct` | **25%** | If ≥50% of the leaf lies outside the region, keep it only when it still covers ≥ this share of the region (drops neighbouring-country coastal noise) |
 
 CoMaps borders are land polygons (no ocean). Gaps on coastal / island regions
-are often ocean or fjord in Geofabrik polys, not missing leaves. Library
-defaults live in `scripts/mwm/lib/region_mapping.py`
-(`DEFAULT_INCLUDE_THRESHOLD_PCT`, `DEFAULT_MICRO_THRESHOLD_PCT`).
+are often ocean or fjord in Geofabrik polys, not missing leaves. The same
+sea/fjord geometry can create thin intersections with neighbouring-country
+land borders; those hits are dropped unless the leaf covers ≥25% of the Navi
+region (`DEFAULT_MOSTLY_OUTSIDE_MIN_COVERAGE_PCT`). Library defaults live in
+`scripts/mwm/lib/region_mapping.py`.
+
+To repair an already-published migration without re-running polygon overlap:
+
+```bash
+python3 scripts/mwm/repair-region-mapping-mostly-outside.py \
+  --migration /media/navi/navi-server/data/published/mwm/261105/region-migration.json \
+  --out-dir config/mwm/catalog \
+  --catalog /media/navi/navi-server/data/published/mwm/current.json
+sudo bash scripts/mwm/apply-region-mapping-mostly-outside-fix.sh
+```
 
 ### Example (hand-run)
 
