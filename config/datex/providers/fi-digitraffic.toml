@@ -1,0 +1,37 @@
+# Digitraffic (Finnish Transport Infrastructure Agency) — anonymous DATEX II v2.3.
+# Requires Accept-Encoding: gzip. Docs: docs/datex-open-feeds.md
+
+id = "fi-digitraffic"
+publish_id = "digitraffic"
+display_name = "Digitraffic (Finland)"
+country = "FI"
+attribution = "Finnish Transport Infrastructure Agency / Digitraffic"
+licence = "CC BY 4.0"
+source_label = "Digitraffic (FTIA)"
+datex_version = "2.3"
+auth_type = "none"
+enabled = true
+accept_encoding_gzip = true
+user_agent = "navi-server-datex/0.1 (open-feeds; contact: navi-server)"
+timeout_secs = 90
+
+[[publications]]
+name = "TrafficAnnouncement"
+url = "https://tie.digitraffic.fi/api/traffic-message/v1/messages.datex2?inactiveHours=0&situationType=TRAFFIC_ANNOUNCEMENT"
+interval_secs = 300
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "RoadWork"
+url = "https://tie.digitraffic.fi/api/traffic-message/v1/messages.datex2?inactiveHours=0&situationType=ROAD_WORK"
+interval_secs = 300
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "WeightRestriction"
+url = "https://tie.digitraffic.fi/api/traffic-message/v1/messages.datex2?inactiveHours=0&situationType=WEIGHT_RESTRICTION"
+interval_secs = 300
+enabled = true
+use_conditional = true

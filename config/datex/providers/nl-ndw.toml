@@ -1,0 +1,44 @@
+# NDW Netherlands open data — anonymous gzip DATEX II v3.
+# Bodies are *.xml.gz (gunzip by magic bytes). Skips planningsfeed (~188 MiB).
+# Docs: docs/datex-open-feeds.md
+
+id = "nl-ndw"
+publish_id = "ndw"
+display_name = "NDW (Netherlands)"
+country = "NL"
+attribution = "National Data Warehouse for Traffic Information (NDW) open data"
+licence = "NDW open data terms"
+source_label = "NDW opendata.ndw.nu"
+datex_version = "3"
+auth_type = "none"
+enabled = true
+user_agent = "navi-server-datex/0.1 (open-feeds; contact: navi-server)"
+timeout_secs = 180
+
+[[publications]]
+name = "SRTI"
+url = "https://opendata.ndw.nu/veiligheidsgerelateerde_informatie_srti.xml.gz"
+interval_secs = 300
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "Closures"
+url = "https://opendata.ndw.nu/tijdelijke_verkeersmaatregelen_afsluitingen.xml.gz"
+interval_secs = 300
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "SpeedMeasures"
+url = "https://opendata.ndw.nu/tijdelijke_verkeersmaatregelen_maximum_snelheden.xml.gz"
+interval_secs = 300
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "TrafficImage"
+url = "https://opendata.ndw.nu/actueel_beeld.xml.gz"
+interval_secs = 300
+enabled = true
+use_conditional = true

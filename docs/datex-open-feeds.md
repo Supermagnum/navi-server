@@ -1,17 +1,31 @@
 # Open DATEX II feeds (no registration)
 
-**Status:** research / operator reference (re-probed 2026-11-19).  
-**Not** a navi-server poller plugin. These are upstream sources that answered
-anonymous HTTP GET during the survey. Licences and URLs can change — re-check
-before production use.
+**Status:** research / operator reference (re-probed 2026-11-19; wired 2026-11-20).  
+Upstream sources that answered anonymous HTTP GET during the survey. Licences
+and URLs can change — re-check before production use.
 
-Open feeds remain **not implemented**. The multi-provider framework
-(`config/datex/providers/`, `scripts/datex-provider.sh`, namespaced
-`/datex/<provider_id>/`) is ready when an operator adds a provider later —
-see [datex-providers.md](datex-providers.md) and
-[datex-adding-sources.md](datex-adding-sources.md).
-Do not enable or ship France TIPI / Flanders / Digitraffic / CITA / NDW /
-Bulgaria / MOBI.E pollers from this document alone.
+**Implemented** as multi-provider TOML under `config/datex/providers/` (auth
+`none`), polled by `scripts/datex-poll-all.sh` / `navi-datex-npra.timer`:
+
+| Provider id | publish_id | Notes |
+|---|---|---|
+| `be-flanders` | `flanders` | DATEX v3 full snapshot |
+| `fi-digitraffic` | `digitraffic` | gzip Accept-Encoding |
+| `lu-cita` | `cita` | `www.cita.lu/.../situationrecord` (empty `situationrecord36` skipped) |
+| `nl-ndw` | `ndw` | gzip bodies; skips ~188 MiB planningsfeed |
+| `fr-tipi` | `tipi` | QTV + Evenementiel directory aggregate (newest 50) |
+| `bg-ria` | `bulgaria` | `{YYYYMMDD}` URLs, `Europe/Sofia` |
+| `pt-mobie` | `mobie` | EV DATEX v3.3; large payloads / slow cadence |
+
+NPRA stays separate (`no-vegvesen` / `/datex/npra/`, Basic auth, fail-closed).
+See [datex-providers.md](datex-providers.md).
+
+Live apply (copies open tomls + shared fetcher; **does not** touch NPRA secrets
+or MWM):
+
+```bash
+sudo /media/navi/haaken-scratch/navi-server-mwm/scripts/apply-datex-open-feeds.sh
+```
 
 Primary external catalogues used for discovery (many more countries, mixed
 formats, mixed access rules):
@@ -178,8 +192,8 @@ Standards / background: [datex2.eu](https://datex2.eu/) **(GH)**.
 | Auth | Basic auth + account | None (open) **or** registration (GH portals) |
 | Packaging | Few large snapshot endpoints | Directory of small files **or** one snapshot URL **or** gzip API **or** dated daily files |
 | Schema | DATEX II **v3.1** `MessageContainer` | Mix of **v2** / **v2.3** / **v3** / EV EnergyInfrastructure |
-| Redistribution | Cached under `/datex/npra/` when enabled | Not implemented in navi-server today |
+| Redistribution | Cached under `/datex/npra/` when enabled | Cached under `/datex/<publish_id>/` via provider TOMLs |
 
-Do not assume an open feed can be dropped into the NPRA poller unchanged — URL shape, auth, schema version, and update cadence differ. Follow [datex-providers.md](datex-providers.md) (`auth_type = "none"`) for a new provider.
+Do not assume an open feed can be dropped into the NPRA poller unchanged — URL shape, auth, schema version, and update cadence differ. Open feeds use [datex-providers.md](datex-providers.md) (`auth_type = "none"`).
 
 When in doubt: if GraphHopper or the operator says **registration required**, treat it as credentialed even if a marketing page is publicly reachable.

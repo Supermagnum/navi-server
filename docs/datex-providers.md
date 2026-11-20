@@ -42,6 +42,7 @@ timeout_secs = 60
 # api_key_in = "header"         # or "query"
 # api_key_name = "Ocp-Apim-Subscription-Key"
 # accept_encoding_gzip = true   # Digitraffic
+# url_date_tz = "Europe/Sofia"  # expand {YYYYMMDD} in publication URLs
 # legacy_enabled_env = "NAVI_DATEX_NPRA_ENABLED"  # Vegvesen only
 
 [[publications]]
@@ -50,6 +51,9 @@ url = "https://…"
 interval_secs = 300
 enabled = true
 use_conditional = true          # If-Modified-Since / ETag when offered
+# fetch_mode = "html_index"     # TIPI-style directory of *.xml
+# index_max_files = 50
+# url_date_tz = "Europe/Sofia"  # per-publication override
 ```
 
 ### Auth / secrets file keys
@@ -132,6 +136,17 @@ accept_encoding_gzip = true
 ```
 
 No secrets file. Always re-check licence terms before production enable.
+
+Shipped open providers (see [datex-open-feeds.md](datex-open-feeds.md)):
+`be-flanders`, `fi-digitraffic`, `lu-cita`, `nl-ndw`, `fr-tipi`, `bg-ria`,
+`pt-mobie`. Disable a TOML with `enabled = false` if you do not want it polled.
+
+Live host apply from the scratch tree (open tomls + shared fetcher only; does
+**not** modify NPRA secrets, `no-vegvesen.toml`, or MWM):
+
+```bash
+sudo /media/navi/haaken-scratch/navi-server-mwm/scripts/apply-datex-open-feeds.sh
+```
 
 ---
 

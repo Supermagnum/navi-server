@@ -1,0 +1,22 @@
+# Verkeerscentrum Flanders — anonymous DATEX (no registration).
+# Docs: docs/datex-open-feeds.md
+
+id = "be-flanders"
+publish_id = "flanders"
+display_name = "Flanders Verkeerscentrum"
+country = "BE"
+attribution = "Traffic information from Verkeerscentrum (Flanders). CC-BY / Modellicentie."
+licence = "CC-BY / Modellicentie"
+source_label = "Verkeerscentrum (Flanders)"
+datex_version = "3"
+auth_type = "none"
+enabled = true
+user_agent = "navi-server-datex/0.1 (open-feeds; contact: navi-server)"
+timeout_secs = 60
+
+[[publications]]
+name = "SituationFullV3"
+url = "https://www.verkeerscentrum.be/uitwisseling/datex2v3full"
+interval_secs = 300
+enabled = true
+use_conditional = true

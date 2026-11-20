@@ -1,0 +1,23 @@
+# CITA Luxembourg traffic events — anonymous DATEX (CC0).
+# situationrecord36 returned empty body on 2026-11-20; use www situationrecord.
+# Docs: docs/datex-open-feeds.md
+
+id = "lu-cita"
+publish_id = "cita"
+display_name = "CITA Luxembourg"
+country = "LU"
+attribution = "CITA traffic events (data.public.lu) — CC0"
+licence = "CC0"
+source_label = "CITA (Luxembourg)"
+datex_version = "2"
+auth_type = "none"
+enabled = true
+user_agent = "navi-server-datex/0.1 (open-feeds; contact: navi-server)"
+timeout_secs = 60
+
+[[publications]]
+name = "SituationRecord"
+url = "https://www.cita.lu/info_trafic/datex/situationrecord"
+interval_secs = 300
+enabled = true
+use_conditional = true

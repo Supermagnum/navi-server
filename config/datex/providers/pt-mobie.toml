@@ -1,0 +1,30 @@
+# Portugal MOBI.E NAP — EV charging DATEX II v3.3 (AFIR). Anonymous.
+# Large payloads; long timeout / slow cadence. Not road SRTI.
+# Docs: docs/datex-open-feeds.md
+
+id = "pt-mobie"
+publish_id = "mobie"
+display_name = "MOBI.E EV charging (Portugal NAP)"
+country = "PT"
+attribution = "MOBI.E / NAP Portugal EV charging infrastructure (livre acesso)"
+licence = "NAP Portugal livre acesso — re-check operator terms"
+source_label = "MOBI.E pgm.mobie.pt"
+datex_version = "3.3"
+auth_type = "none"
+enabled = true
+user_agent = "navi-server-datex/0.1 (open-feeds; contact: navi-server)"
+timeout_secs = 600
+
+[[publications]]
+name = "EvActualStatus"
+url = "https://pgm.mobie.pt/integration/nap/evActualStatus"
+interval_secs = 900
+enabled = true
+use_conditional = true
+
+[[publications]]
+name = "EvChargingInfra"
+url = "https://pgm.mobie.pt/integration/nap/evChargingInfra"
+interval_secs = 86400
+enabled = true
+use_conditional = true
