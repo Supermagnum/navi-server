@@ -31,13 +31,24 @@ class TestRegionMigrationArtifact(unittest.TestCase):
     def test_ostlandet_spot(self):
         ost = self.mig["regions"]["europe_norway_ostlandet"]
         leaves = {x["leaf"] for x in ost["comaps_leaves"]}
-        for need in ("Norway_Hedmark", "Norway_Oppland", "Norway_Southern", "Norway_Central"):
-            self.assertIn(need, leaves)
-        # Spike 3 border leaves (Denmark / Sweden / Western)
-        self.assertTrue(
-            leaves & {"Denmark_North Denmark Region", "Sweden_Bergslagen", "Norway_Western"}
+        expected = {
+            "Norway_Hedmark",
+            "Norway_Oppland",
+            "Norway_Southern",
+            "Norway_Central",
+        }
+        self.assertEqual(leaves, expected)
+        # Mostly-outside gate must drop coastal DK/SE slivers (and Vestlandet).
+        self.assertFalse(
+            leaves
+            & {
+                "Denmark_North Denmark Region",
+                "Sweden_Bergslagen",
+                "Sweden_Vastra Gotaland",
+                "Norway_Western",
+            }
         )
-        self.assertLess(ost["uncovered_pct"], 1.0)
+        self.assertLess(ost["uncovered_pct"], 2.0)
 
     def test_sorlandet_shares_southern(self):
         sor = self.mig["regions"]["europe_norway_sorlandet"]
