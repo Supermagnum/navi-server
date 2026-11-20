@@ -107,6 +107,11 @@ for leaf in leaves:
         "elevation_policy_version": policy_version,
     }
     vl_report = version / "meta" / "vehicle_limits" / f"{leaf}.report.json"
+    if not vl_report.is_file():
+        # Bake stores reports under work/meta; version_dir is often publish-staging/<ver>.
+        alt = version.parent.parent / "meta" / "vehicle_limits" / f"{leaf}.report.json"
+        if alt.is_file():
+            vl_report = alt
     if vl_report.is_file():
         try:
             rep = json.loads(vl_report.read_text())
