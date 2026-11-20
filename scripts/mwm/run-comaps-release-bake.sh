@@ -62,9 +62,15 @@ export CARGO_TARGET_DIR='${ROOT}/target'
 export NAVI_MWM_PYTHON=\"\$PYTHON\"
 
 # Always rebuild so elevation/wetland CLI flags match sources (stale target/ is common).
+# IMPORTANT: this overwrites target/release/navi-mwm-sidecar from THIS tree's sources.
+# If VL PBF env is set, crate sources must include vehicle_limits (sync from scratch first).
 cargo build -p navi-mwm-sidecar --release --manifest-path \"\${ROOT}/Cargo.toml\"
 SIDECAR_BIN=\"\${CARGO_TARGET_DIR}/release/navi-mwm-sidecar\"
 \"\$SIDECAR_BIN\" bake --help | grep -q elevation-jsonl || mwm_die \"sidecar binary lacks --elevation-jsonl: \$SIDECAR_BIN\"
+# Fail fast when VL inputs are configured but sources/binary are pre-VL (common live lag).
+if [[ -n \"\${NAVI_MWM_VEHICLE_LIMITS_PBF:-}\${NAVI_MWM_VEHICLE_LIMITS_PBF_DIR:-}\${NAVI_MWM_PLANET_PBF:-}\" ]]; then
+  \"\$SIDECAR_BIN\" bake --help | grep -q -- '--vehicle-limits-jsonl' || mwm_die \"sidecar lacks --vehicle-limits-jsonl but VL PBF env is set (\$SIDECAR_BIN). Sync crates/navi-mwm-sidecar VL sources into this tree, then rebuild — a pre-copied binary alone is overwritten by cargo build above.\"
+fi
 export NAVI_MWM_FORCE_REBUILD=\"\${NAVI_MWM_FORCE_REBUILD:-0}\"
 # Do not swallow stdout: build-dump logs / mwm_die go to stdout and must reach journal.
 \"\${SCRIPT_DIR}/build-dump-mwm-roads.sh\"
@@ -235,15 +241,24 @@ fi
 # Region↔leaf migration + country_groups (catalog UI). Borders/extracts are
 # read-only; outputs land in the version staging dir for publish-mwm.
 # Under set -u: missing NAVI_MWM_REGION_MAP → WARN skip (same as missing borders).
+# Live lag: build-region-mapping.py may be synced without lib/region_mapping.py —
+# never ModuleNotFoundError the whole bake; WARN skip instead (or set
+# NAVI_MWM_SKIP_REGION_MAP=1 / NAVI_VL_SKIP_REGION_MAP=1 to force skip).
 BORDERS=\"\${NAVI_MWM_BORDERS_DIR:-}\"
 EXTRACTS=\"\${NAVI_MWM_EXTRACTS_DIR:-\${NAVI_EXTRACTS_DIR:-}}\"
 REGIONS_JSON=\"\${NAVI_MWM_REGIONS_JSON:-}\"
 REGION_MAP=\"\${NAVI_MWM_REGION_MAP:-}\"
+SKIP_RMAP=\"\${NAVI_MWM_SKIP_REGION_MAP:-\${NAVI_VL_SKIP_REGION_MAP:-0}}\"
+REGION_MAP_MOD=\"\${SCRIPT_DIR}/lib/region_mapping.py\"
 COUNTRIES_TXT=\"\$WORK/meta/countries.txt\"
 if [[ -z \"\$COUNTRIES_TXT\" || ! -f \"\$COUNTRIES_TXT\" ]]; then
   COUNTRIES_TXT=\"\$(find \"\$WORK\" -name countries.txt -type f | head -1)\"
 fi
-if [[ -n \"\$BORDERS\" && -d \"\$BORDERS\" && -n \"\$EXTRACTS\" && -d \"\$EXTRACTS\" \
+if [[ \"\$SKIP_RMAP\" == \"1\" ]]; then
+  mwm_log \"WARN skip region mapping (NAVI_MWM_SKIP_REGION_MAP=1)\"
+elif [[ ! -f \"\$REGION_MAP_MOD\" ]]; then
+  mwm_log \"WARN skip region mapping (missing \$REGION_MAP_MOD — sync scripts/mwm/lib from scratch)\"
+elif [[ -n \"\$BORDERS\" && -d \"\$BORDERS\" && -n \"\$EXTRACTS\" && -d \"\$EXTRACTS\" \
   && -n \"\$REGIONS_JSON\" && -f \"\$REGIONS_JSON\" \
   && -n \"\$REGION_MAP\" \
   && -n \"\$COUNTRIES_TXT\" && -f \"\$COUNTRIES_TXT\" ]]; then

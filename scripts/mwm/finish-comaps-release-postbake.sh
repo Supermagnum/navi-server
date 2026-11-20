@@ -88,10 +88,13 @@ fi
 
 # Region↔leaf migration + country_groups (same as run-comaps-release-bake.sh).
 # Under set -u: never expand unbound NAVI_MWM_REGION_MAP — missing inputs → WARN skip.
+# Missing lib/region_mapping.py (live lag) → WARN skip, not hard fail.
 BORDERS=\"\${NAVI_MWM_BORDERS_DIR:-}\"
 EXTRACTS=\"\${NAVI_MWM_EXTRACTS_DIR:-\${NAVI_EXTRACTS_DIR:-}}\"
 REGIONS_JSON=\"\${NAVI_MWM_REGIONS_JSON:-}\"
 REGION_MAP=\"\${NAVI_MWM_REGION_MAP:-}\"
+SKIP_RMAP=\"\${NAVI_MWM_SKIP_REGION_MAP:-\${NAVI_VL_SKIP_REGION_MAP:-0}}\"
+REGION_MAP_MOD=\"\${SCRIPT_DIR}/lib/region_mapping.py\"
 COUNTRIES_TXT=\"\${WORK}/meta/countries.txt\"
 if [[ ! -f \"\$COUNTRIES_TXT\" ]]; then
   COUNTRIES_TXT=\"\$(find \"\$WORK\" -name countries.txt -type f 2>/dev/null | head -1 || true)\"
@@ -127,7 +130,11 @@ PY
   fi
 fi
 
-if [[ -n \"\$BORDERS\" && -d \"\$BORDERS\" && -n \"\$EXTRACTS\" && -d \"\$EXTRACTS\" \
+if [[ \"\$SKIP_RMAP\" == \"1\" ]]; then
+  mwm_log \"WARN skip region mapping (NAVI_MWM_SKIP_REGION_MAP=1)\"
+elif [[ ! -f \"\$REGION_MAP_MOD\" ]]; then
+  mwm_log \"WARN skip region mapping (missing \$REGION_MAP_MOD — sync scripts/mwm/lib from scratch)\"
+elif [[ -n \"\$BORDERS\" && -d \"\$BORDERS\" && -n \"\$EXTRACTS\" && -d \"\$EXTRACTS\" \
   && -n \"\$REGIONS_JSON\" && -f \"\$REGIONS_JSON\" \
   && -n \"\$REGION_MAP\" \
   && -n \"\$COUNTRIES_TXT\" && -f \"\$COUNTRIES_TXT\" ]]; then
