@@ -138,6 +138,20 @@ for leaf in leaves:
             }
         except Exception as exc:
             print(f"WARN vehicle_limits coverage {leaf}: {exc}", flush=True)
+    nr_report = version / "meta" / "named_routes" / f"{leaf}.report.json"
+    if not nr_report.is_file():
+        alt_nr = version.parent.parent / "meta" / "named_routes" / f"{leaf}.report.json"
+        if alt_nr.is_file():
+            nr_report = alt_nr
+    if nr_report.is_file():
+        try:
+            nrep = json.loads(nr_report.read_text())
+            entry["named_routes_coverage"] = {
+                "routes": int(nrep.get("routes") or 0),
+                "by_kind": nrep.get("by_kind") or {},
+            }
+        except Exception as exc:
+            print(f"WARN named_routes coverage {leaf}: {exc}", flush=True)
     if sidecars_only:
         meta = processed.get(leaf) or {}
         disc_leaf = (discovery.get("leaves") or {}).get(leaf) or {}

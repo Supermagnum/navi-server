@@ -107,13 +107,14 @@ fn is_official_route(tags: &HashMap<String, String>, hiking: bool) -> bool {
     {
         return false;
     }
+    // OSM wiki pedestrian / cycle / horse / running networks.
     let routes: &[&str] = if hiking {
-        &["hiking", "foot"]
+        &["hiking", "foot", "running", "fitness_trail", "horse"]
     } else {
         &["bicycle", "mtb"]
     };
     let networks: &[&str] = if hiking {
-        &["iwn", "nwn", "rwn", "lwn"]
+        &["iwn", "nwn", "rwn", "lwn", "nhn", "rhn", "lhn"]
     } else {
         &["icn", "ncn", "rcn", "lcn"]
     };
@@ -142,25 +143,37 @@ const PILGRIM_HINTS: &[&str] = &[
 ];
 
 fn is_pilgrim(tags: &HashMap<String, String>) -> bool {
-    if !tags
+    let is_route = tags
         .get("type")
-        .is_some_and(|v| v.eq_ignore_ascii_case("route"))
-    {
+        .is_some_and(|v| v.eq_ignore_ascii_case("route") || v.eq_ignore_ascii_case("superroute"));
+    if !is_route {
         return false;
     }
+    // OSM: route=pilgrimage, or pilgrimage=yes on hiking/foot (common for Pilegrimsleden).
     if tags
         .get("route")
         .is_some_and(|v| v.eq_ignore_ascii_case("pilgrimage"))
     {
         return true;
     }
+    if tags
+        .get("pilgrimage")
+        .is_some_and(|v| v.eq_ignore_ascii_case("yes") || v.eq_ignore_ascii_case("true") || v == "1")
+    {
+        return true;
+    }
     if !tags
         .get("route")
-        .is_some_and(|v| v.eq_ignore_ascii_case("hiking") || v.eq_ignore_ascii_case("foot"))
+        .is_some_and(|v| {
+            v.eq_ignore_ascii_case("hiking")
+                || v.eq_ignore_ascii_case("foot")
+                || v.eq_ignore_ascii_case("running")
+                || v.eq_ignore_ascii_case("bicycle")
+        })
     {
         return false;
     }
-    for key in ["name", "name:en", "name:nb", "name:no", "operator", "ref"] {
+    for key in ["name", "name:en", "name:nb", "name:no", "operator", "ref", "description", "description:en"] {
         if tags
             .get(key)
             .is_some_and(|v| PILGRIM_HINTS.iter().any(|h| v.to_lowercase().contains(h)))
@@ -176,11 +189,110 @@ fn is_superroute(tags: &HashMap<String, String>) -> bool {
         .is_some_and(|v| v.eq_ignore_ascii_case("superroute"))
 }
 
+/// Named local trails without an official network (DNT/STF often still have
+/// `network=nwn`; this catches unmarked named loops, club routes, etc.).
+fn is_named_mode_route(tags: &HashMap<String, String>) -> bool {
+    if !tags
+        .get("type")
+        .is_some_and(|v| v.eq_ignore_ascii_case("route"))
+    {
+        return false;
+    }
+    let route = tags
+        .get("route")
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_default();
+    const MODES: &[&str] = &[
+        "hiking",
+        "foot",
+        "running",
+        "fitness_trail",
+        "horse",
+        "bicycle",
+        "mtb",
+        "ski",
+        "piste",
+        "canoe",
+        "kayak",
+        "inline_skates",
+        "pilgrimage",
+    ];
+    if !MODES.iter().any(|m| route == *m) {
+        return false;
+    }
+    // Prefer name/ref so unnamed OSM scaffolding stays out.
+    tags.get("name").is_some_and(|v| !v.trim().is_empty())
+        || tags.get("name:en").is_some_and(|v| !v.trim().is_empty())
+        || tags.get("name:nb").is_some_and(|v| !v.trim().is_empty())
+        || tags.get("name:no").is_some_and(|v| !v.trim().is_empty())
+        || tags.get("ref").is_some_and(|v| !v.trim().is_empty())
+}
+
 fn interesting_route(tags: &HashMap<String, String>) -> bool {
     is_official_route(tags, true)
         || is_official_route(tags, false)
         || is_pilgrim(tags)
         || is_superroute(tags)
+        || is_named_mode_route(tags)
+}
+
+/// Kind for named-route sidecar stubs.
+///
+/// Priority: pilgrim > official hiking > official bicycle/mtb > horse/running
+/// from `route` tag > superroute > other.
+fn named_route_kind(tags: &HashMap<String, String>) -> &'static str {
+    if is_pilgrim(tags) {
+        return "pilgrimage";
+    }
+    let route = tags
+        .get("route")
+        .map(|s| s.to_ascii_lowercase())
+        .unwrap_or_default();
+    let hiking_networks = ["iwn", "nwn", "rwn", "lwn", "nhn", "rhn", "lhn"];
+    let is_route_type = tags
+        .get("type")
+        .is_some_and(|v| v.eq_ignore_ascii_case("route"));
+    let net = tags.get("network").map(|s| s.as_str()).unwrap_or("");
+    if is_route_type
+        && (route == "hiking" || route == "foot")
+        && hiking_networks
+            .iter()
+            .any(|a| net.eq_ignore_ascii_case(a))
+    {
+        return "hiking";
+    }
+    if is_official_route(tags, false) {
+        if route == "mtb" {
+            return "mtb";
+        }
+        return "bicycle";
+    }
+    if route == "horse" {
+        return "horse";
+    }
+    if route == "running" || route == "fitness_trail" {
+        return "running";
+    }
+    if route == "ski" || route == "piste" {
+        return "ski";
+    }
+    if route == "canoe" || route == "kayak" {
+        return "canoe";
+    }
+    if route == "inline_skates" {
+        return "inline_skates";
+    }
+    // Named local hiking/foot or bicycle/mtb without official network.
+    if route == "hiking" || route == "foot" {
+        return "hiking";
+    }
+    if route == "bicycle" || route == "mtb" {
+        return if route == "mtb" { "mtb" } else { "bicycle" };
+    }
+    if is_superroute(tags) {
+        return "superroute";
+    }
+    "other"
 }
 
 struct OutNode {
@@ -672,6 +784,202 @@ pub fn build_points_file(input: &Path, output: &Path) -> Result<Stats> {
 
     let _ = (search_ways_collapsed, search_ways_full);
     Ok(stats)
+}
+
+/// Optional WGS84 bbox filter (`west, south, east, north`). When set, stubs
+/// whose first-way coordinate falls outside are omitted.
+#[derive(Debug, Clone, Copy)]
+pub struct NamedRoutesBbox {
+    pub west: f64,
+    pub south: f64,
+    pub east: f64,
+    pub north: f64,
+}
+
+impl NamedRoutesBbox {
+    pub fn contains(self, lat: f64, lon: f64) -> bool {
+        lon >= self.west && lon <= self.east && lat >= self.south && lat <= self.north
+    }
+}
+
+/// Export named OSM route relations as search stubs (one JSON object per line).
+///
+/// Reuses [`interesting_route`] / first-way first-node coordinate logic from
+/// [`build_points_file`]. Requires `name` or `ref`. Returns the number of lines written.
+pub fn export_named_routes_jsonl(input: &Path, output: &Path) -> Result<usize> {
+    export_named_routes_jsonl_bbox(input, output, None)
+}
+
+/// Like [`export_named_routes_jsonl`] with an optional bbox filter.
+pub fn export_named_routes_jsonl_bbox(
+    input: &Path,
+    output: &Path,
+    bbox: Option<NamedRoutesBbox>,
+) -> Result<usize> {
+    let mut route_rels: HashMap<i64, (Tags, Vec<i64>, Vec<i64>)> = HashMap::new();
+    {
+        let file = File::open(input).with_context(|| format!("open {}", input.display()))?;
+        let reader = ElementReader::new(file);
+        reader.for_each(|element| {
+            let Element::Relation(rel) = element else {
+                return;
+            };
+            let tags = Tags::from_tags(rel.tags());
+            let map = tags.map();
+            if !interesting_route(&map) {
+                return;
+            }
+            let mut way_ids = Vec::new();
+            let mut child_rels = Vec::new();
+            for m in rel.members() {
+                match m.member_type {
+                    RelMemberType::Way => way_ids.push(m.member_id),
+                    RelMemberType::Relation => child_rels.push(m.member_id),
+                    RelMemberType::Node => {}
+                }
+            }
+            route_rels.insert(rel.id(), (tags, way_ids, child_rels));
+        })?;
+    }
+
+    let mut child_need: HashSet<i64> = HashSet::new();
+    for (_, _, children) in route_rels.values() {
+        for &c in children {
+            child_need.insert(c);
+        }
+    }
+    let mut child_ways: HashMap<i64, Vec<i64>> = HashMap::new();
+    if !child_need.is_empty() {
+        let file = File::open(input)?;
+        let reader = ElementReader::new(file);
+        reader.for_each(|element| {
+            let Element::Relation(rel) = element else {
+                return;
+            };
+            if !child_need.contains(&rel.id()) {
+                return;
+            }
+            let mut way_ids = Vec::new();
+            for m in rel.members() {
+                if m.member_type == RelMemberType::Way {
+                    way_ids.push(m.member_id);
+                }
+            }
+            child_ways.insert(rel.id(), way_ids);
+        })?;
+    }
+
+    let mut route_needed_ways: HashSet<i64> = HashSet::new();
+    for (_, ways, children) in route_rels.values() {
+        for &w in ways {
+            route_needed_ways.insert(w);
+        }
+        for &c in children {
+            if let Some(ws) = child_ways.get(&c) {
+                for &w in ws {
+                    route_needed_ways.insert(w);
+                }
+            }
+        }
+    }
+    let mut way_first_node: HashMap<i64, i64> = HashMap::new();
+    {
+        let file = File::open(input)?;
+        let reader = ElementReader::new(file);
+        reader.for_each(|element| {
+            let Element::Way(way) = element else {
+                return;
+            };
+            if !route_needed_ways.contains(&way.id()) {
+                return;
+            }
+            if let Some(n) = way.refs().next() {
+                way_first_node.insert(way.id(), n);
+            }
+        })?;
+    }
+
+    let needed_nodes: HashSet<i64> = way_first_node.values().copied().collect();
+    let mut node_coords: HashMap<i64, (f64, f64)> = HashMap::new();
+    {
+        let file = File::open(input)?;
+        let reader = ElementReader::new(file);
+        reader.for_each(|element| match element {
+            Element::Node(node) => {
+                if needed_nodes.contains(&node.id()) {
+                    node_coords.insert(node.id(), (node.lat(), node.lon()));
+                }
+            }
+            Element::DenseNode(node) => {
+                if needed_nodes.contains(&node.id) {
+                    node_coords.insert(node.id, (node.lat(), node.lon()));
+                }
+            }
+            _ => {}
+        })?;
+    }
+
+    if let Some(parent) = output.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("mkdir {}", parent.display()))?;
+        }
+    }
+    let mut out = BufWriter::new(
+        File::create(output).with_context(|| format!("create {}", output.display()))?,
+    );
+    let mut count = 0usize;
+    let mut ids: Vec<i64> = route_rels.keys().copied().collect();
+    ids.sort_unstable();
+    for rid in ids {
+        let (tags, way_ids, children) = route_rels.get(&rid).expect("key from map");
+        let map = tags.map();
+        let name = map.get("name").cloned().unwrap_or_default();
+        let reff = map.get("ref").cloned().unwrap_or_default();
+        if name.is_empty() && reff.is_empty() {
+            continue;
+        }
+        let mut way_id = way_ids.first().copied();
+        if way_id.is_none() {
+            for &c in children {
+                if let Some(ws) = child_ways.get(&c) {
+                    if let Some(&w) = ws.first() {
+                        way_id = Some(w);
+                        break;
+                    }
+                }
+            }
+        }
+        let Some(orig_wid) = way_id else {
+            continue;
+        };
+        let Some(&orig_nid) = way_first_node.get(&orig_wid) else {
+            continue;
+        };
+        let Some(&(lat, lon)) = node_coords.get(&orig_nid) else {
+            continue;
+        };
+        if let Some(bb) = bbox {
+            if !bb.contains(lat, lon) {
+                continue;
+            }
+        }
+        let kind = named_route_kind(&map);
+        let network = map.get("network").cloned().unwrap_or_default();
+        let row = serde_json::json!({
+            "osm_relation_id": rid,
+            "kind": kind,
+            "name": name,
+            "ref": reff,
+            "network": network,
+            "lat": lat,
+            "lon": lon,
+        });
+        writeln!(out, "{row}").context("write named route jsonl")?;
+        count += 1;
+    }
+    out.flush().context("flush named routes jsonl")?;
+    Ok(count)
 }
 
 fn xml_escape(s: &str) -> String {

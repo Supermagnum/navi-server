@@ -45,13 +45,33 @@ SHA-256 after decompress before use.
 
 ### Known sections (v1)
 
-| Name | Role | Required for Navi wetland routing |
-|------|------|-----------------------------------|
-| `wetland_edges` | Soft/Hard edge records | **yes** |
-| `boardwalk_flags` | Carve-out flags | no (empty OK) |
-| `elevation_overrides` | Point altitude overrides | no (empty OK; drape still works) |
-| `vehicle_limits` | Per-segment height/width/length/weight caps | no (omit = not available; empty count OK; old clients skip) |
-| `attribution` | UTF-8 JSON credits | **yes** for offline display |
+Directory order written by `navi-mwm-sidecar` bake:
+
+| Order | Name | Role | Required for Navi wetland routing |
+|------:|------|------|-----------------------------------|
+| 1 | `wetland_edges` | Soft/Hard edge records | **yes** |
+| 2 | `boardwalk_flags` | Carve-out flags | no (empty OK) |
+| 3 | `elevation_overrides` | Point altitude overrides | no (empty OK; drape still works) |
+| 4 | `vehicle_limits` | Per-segment height/width/length/weight caps | no — **Option** (§ below) |
+| 5 | `named_routes` | Named OSM route search stubs | no — **Option** (§ below) |
+| last | `attribution` | UTF-8 JSON credits | **yes** for offline display |
+
+`vehicle_limits` and `named_routes` appear only when the bake supplies them
+(`Some(_)`). Older published leaves (e.g. Hedmark fixture in §10) may omit both.
+
+### Option vs empty-section semantics
+
+For `vehicle_limits` and `named_routes` only:
+
+| Bake input | Wire result | Client meaning |
+|------------|-------------|----------------|
+| `None` (flag / env PBF unset) | **Section omitted** from the directory | Feature not annotated for this leaf (“not available”) |
+| `Some([])` | Section **present**, body magic + `count = 0` | Annotated; nothing matched |
+| `Some([…])` | Section present with records | Use the data |
+
+Wetland, boardwalk, and elevation are always emitted (possibly with
+`count = 0` / empty feature list). Old clients that do not know an optional
+section name **skip** it (reader rule 2) — they must not reject the sidecar.
 
 ### Reader rules
 
@@ -223,14 +243,165 @@ huge weight when the CoMaps API supports it.
 
 ---
 
-## 6. `attribution` body
+## 6. `named_routes` body
+
+Optional (`Option` semantics above). Old clients that do not know the section
+name **skip** it. **Absent section** means named routes were not annotated for
+this leaf. **Present with `count = 0`** means annotated and no matching
+relations.
+
+CoMaps MWMs ship only a narrow set of route relation types used for routing
+(notably ferry / shuttle_train). Named pilgrimage, hiking, bicycle, ski, and
+related routes are **not** searchable from the MWM alone; Navi carries them
+here as **search stubs** (OSM relation id + kind + representative point +
+display name). They do not alter edge costs.
+
+### NR01 layout
+
+```
+magic     4 bytes   "NR01"
+count     u32
+records   variable length
+```
+
+Each record (little-endian):
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `osm_id` | u64 | OSM relation id |
+| `kind` | u8 | see kind table |
+| `lat_e7` | i32 | latitude × 1e7 |
+| `lon_e7` | i32 | longitude × 1e7 |
+| `name_len` | u16 | UTF-8 byte length |
+| `name` | bytes | display name (`name`, else `ref`) |
+
+Records sorted by `osm_id`; duplicates dropped at bake.
+
+### Kind codes
+
+| Byte | JSONL / export string | Notes |
+|-----:|-----------------------|-------|
+| 0 | `other` | Fallback |
+| 1 | `hiking` | Official hiking/foot networks + named local hiking/foot |
+| 2 | `bicycle` | Official cycle networks (`icn`/`ncn`/`rcn`/`lcn`) + named local bicycle |
+| 3 | `pilgrimage` | `route=pilgrimage`, `pilgrimage=yes`, or name/ref pilgrim hints |
+| 4 | `horse` | `route=horse` |
+| 5 | `running` | `route=running` or `fitness_trail` |
+| 6 | `mtb` | Official or named `route=mtb` |
+| 7 | `superroute` | `type=superroute` |
+| 8 | `ski` | `route=ski` or `piste` (JSONL may say either; wire is `ski`) |
+| 9 | `canoe` | `route=canoe` or `kayak` |
+| 10 | `inline_skates` | `route=inline_skates` |
+
+### Which OSM routes are included (operators)
+
+Export (`place-source-points export-named-routes`) keeps relation stubs that
+have a usable `name` or `ref` and match any of:
+
+- Pilgrimage (`route=pilgrimage`, `pilgrimage=yes`, or pilgrim name/ref hints)
+- Hiking / foot with official networks (`iwn`, `nwn`, `rwn`, `lwn`, `nhn`,
+  `rhn`, `lhn`) — includes DNT-style national networks via `nwn`
+- Bicycle / mtb with official networks (`icn`, `ncn`, `rcn`, `lcn`)
+- Horse, running / fitness_trail
+- Ski / piste, canoe / kayak, inline_skates
+- Named local trails for those modes even without an official `network`
+- Superroutes (`type=superroute`)
+
+Point = first member way’s first node (or first child-relation way). Bbox /
+poly clip is applied at annotate time.
+
+### Bake path
+
+1. Prepare a filtered OSM routes `.osm.pbf` (planet or regional extract of
+   route relations) and set `NAVI_MWM_NAMED_ROUTES_PBF`.
+2. Per leaf, `scripts/mwm/annotate-named-routes.py` clips with `osmium extract
+   -p` when a CoMaps border `.poly` exists; if the clip is empty (e.g.
+   duplicate-object source PBF), it falls back to exporting the full PBF with
+   an in-process `--bbox` (`bbox_fallback` in the leaf report).
+3. Binary: `NAVI_PLACE_SOURCE_BIN` or `{repo}/target/release/place-source-points`
+   → `export-named-routes --input … --output ….jsonl [--bbox W,S,E,N]`.
+4. Bake: `navi-mwm-sidecar bake --named-routes-jsonl …` emits NR01 when the
+   flag is passed; without `NAVI_MWM_NAMED_ROUTES_PBF` the section is omitted.
+
+Catalog leaf field `named_routes_coverage` (`routes`, `by_kind`) mirrors the
+annotate report — see [client-fetch-mwm.md](client-fetch-mwm.md).
+
+### JSONL input shape
+
+One object per line (bake / `load_named_routes_jsonl`):
+
+```json
+{"osm_relation_id":12345,"kind":"pilgrimage","name":"St. Olavsleden","ref":"","network":"nwn","lat":61.12,"lon":10.46}
+```
+
+| Field | Required | Notes |
+|-------|----------|-------|
+| `osm_relation_id` | yes | Positive OSM relation id |
+| `kind` | no | String from the kind table; unknown → `other` (0) |
+| `name` | no | Prefer over `ref` for display |
+| `ref` | no | Used when `name` is empty |
+| `network` | no | Informational; not stored on the wire |
+| `lat` / `lon` | no | Degrees; stored as ×1e7 on the wire |
+
+Rows with neither `name` nor `ref` are skipped. Export CLI:
+`place-source-points export-named-routes --input X.osm.pbf --output Y.jsonl
+[--bbox west,south,east,north]`.
+
+---
+
+## 7. `attribution` body
 
 Raw UTF-8 JSON (same object as published `attribution.json`). Must parse as
 JSON. Show offline (OSM, CoMaps, Mapterhorn, Navi).
 
 ---
 
-## 7. Worked example — Norway_Hedmark (release 261105)
+## 8. Bake JSONL shapes (other sections)
+
+Inputs consumed by `navi-mwm-sidecar bake` (one JSON object per line):
+
+**Wetland** (`--wetland-jsonl`):
+
+```json
+{"feature_id":495,"segment_index":45,"direction":0,"class":1,"ambiguous":false}
+```
+
+`class`: `1` Soft, `2` Hard. Ambiguous rows above the bake threshold fail.
+
+**Boardwalk** (`--boardwalk-jsonl`):
+
+```json
+{"feature_id":10,"segment_index":0,"direction":0,"flag":1,"ambiguous":false}
+```
+
+**Elevation** (`--elevation-jsonl`):
+
+```json
+{"feature_id":42,"point_count":100,"points":[{"point_index":3,"altitude_dm":1234}]}
+```
+
+**Vehicle limits** (`--vehicle-limits-jsonl`):
+
+```json
+{"feature_id":7,"segment_index":2,"max_height_cm":400,"max_width_cm":0,"max_length_cm":0,"max_weight_10kg":0,"max_axleload_10kg":0,"max_bogie_10kg":0,"ambiguous":false}
+```
+
+Zero limit fields are dropped before encode. Coverage for the VL01 header
+comes from the annotate report, not the JSONL rows.
+
+---
+
+## 9. File naming
+
+| Artifact | Name |
+|----------|------|
+| Published sidecar | `{Leaf}.navi-sidecar.v1.zst` |
+| Outer compression | single zstd frame, level **10** |
+| Catalog relative URL | `{version}/{Leaf}.navi-sidecar.v1.zst` under `/mwm/` |
+
+---
+
+## 10. Worked example — Norway_Hedmark (release 261105)
 
 Regenerated from the live sidecar
 `https://navigate-me.duckdns.org/mwm/261105/Norway_Hedmark.navi-sidecar.v1.zst`.
@@ -239,6 +410,11 @@ Checked-in fixture:
 with metadata
 [examples/fixtures/Norway_Hedmark.sidecar.meta.json](examples/fixtures/Norway_Hedmark.sidecar.meta.json).
 CI fails if the docs/example catalog drift from that fixture.
+
+This fixture has four sections only (`wetland_edges`, `boardwalk_flags`,
+`elevation_overrides`, `attribution`). Leaves baked with
+`NAVI_MWM_VEHICLE_LIMITS_PBF` / `NAVI_MWM_NAMED_ROUTES_PBF` also carry
+`vehicle_limits` (VL01) and/or `named_routes` (NR01) before `attribution`.
 
 ### Inspect tool output
 
@@ -310,7 +486,7 @@ Section sizes (Hedmark):
 
 ---
 
-## 8. Legacy spike2 flat layout (do not ship)
+## 11. Legacy spike2 flat layout (do not ship)
 
 Older validation files used: `NVSC` + version + mwm_sha256 + mwm_size + count +
 flat records (no generator strings, no section directory). The production

@@ -7,6 +7,10 @@ Binary and JSON formats produced by `navi-indexed-convert` and published under
 
 HTTP fetch contract (URLs, digests, exposure surface): [client-fetch.md](client-fetch.md).
 
+CoMaps MWM **sidecars** (`{Leaf}.navi-sidecar.v1.zst`, NVSC with wetland /
+elevation / optional VL01 + NR01) are a separate publish tree — see
+[sidecar-format.md](sidecar-format.md) and [client-fetch-mwm.md](client-fetch-mwm.md).
+
 Geofabrik extract refreshes via `.osc.gz` (optional, not on production
 schedules yet): [incremental-geofabrik.md](incremental-geofabrik.md).
 

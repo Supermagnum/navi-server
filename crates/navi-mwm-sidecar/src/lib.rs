@@ -4,13 +4,19 @@
 //! magic, version, generator tag and sha, MWM fingerprint, a section
 //! directory, then concatenated per-section zstd bodies. Section names are
 //! `wetland_edges`, `boardwalk_flags`, `elevation_overrides`, `vehicle_limits`
-//! (optional), and `attribution`.
+//! (optional), `named_routes` (optional), and `attribution`.
 //!
 //! Spike2 Ostlandet files use a flat layout (no directory). [`read_spike2_flat_wetland_count`]
 //! decodes that layout.
 
+mod named_routes;
 mod vehicle_limits;
 
+pub use named_routes::{
+    kind_from_str, load_named_routes_jsonl, named_routes_body, parse_named_routes_body,
+    NamedRouteRecord, KIND_BICYCLE, KIND_HIKING, KIND_HORSE, KIND_MTB, KIND_OTHER,
+    KIND_PILGRIMAGE, KIND_RUNNING, KIND_SUPERROUTE, NAMED_ROUTES_BODY_MAGIC, SECTION_NAMED_ROUTES,
+};
 pub use vehicle_limits::{
     load_vehicle_limits_jsonl, lookup_vehicle_limit, parse_vehicle_limits_body,
     parse_vehicle_limits_section, vehicle_limits_body, vehicle_limits_body_with_coverage,
@@ -151,6 +157,8 @@ pub struct Sidecar {
     pub vehicle_limits: Vec<VehicleLimitRecord>,
     /// Coverage header from the `vehicle_limits` VL01 body (default if absent/legacy).
     pub vehicle_limits_coverage: VehicleLimitsCoverage,
+    /// Optional named OSM route search stubs.
+    pub named_routes: Vec<NamedRouteRecord>,
     /// Attribution section as UTF-8 JSON text.
     pub attribution_json: String,
 }
@@ -244,6 +252,9 @@ pub fn sha256_file(path: &Path) -> Result<([u8; 32], u64)> {
 /// not available for this leaf"). `Some(_)` always emits the section, even
 /// when the record list is empty (annotated, nothing tagged).
 ///
+/// `named_routes`: same Option semantics — `None` omits; `Some(_)` emits
+/// (including an empty NR01 table).
+///
 /// When the section is emitted, `vehicle_limits_coverage` is written in the
 /// VL01 header (use [`VehicleLimitsCoverage::default`] when unknown).
 #[allow(clippy::too_many_arguments)]
@@ -256,6 +267,7 @@ pub fn build_sidecar_bytes(
     boardwalk: Vec<BoardwalkRecord>,
     elevation: Vec<ElevationFeature>,
     vehicle_limits: Option<Vec<VehicleLimitRecord>>,
+    named_routes: Option<Vec<NamedRouteRecord>>,
     attribution_json: &str,
 ) -> Result<Vec<u8>> {
     build_sidecar_bytes_with_vl_coverage(
@@ -268,6 +280,7 @@ pub fn build_sidecar_bytes(
         elevation,
         vehicle_limits,
         &VehicleLimitsCoverage::default(),
+        named_routes,
         attribution_json,
     )
 }
@@ -284,6 +297,7 @@ pub fn build_sidecar_bytes_with_vl_coverage(
     mut elevation: Vec<ElevationFeature>,
     vehicle_limits: Option<Vec<VehicleLimitRecord>>,
     vehicle_limits_coverage: &VehicleLimitsCoverage,
+    named_routes: Option<Vec<NamedRouteRecord>>,
     attribution_json: &str,
 ) -> Result<Vec<u8>> {
     serde_json::from_str::<serde_json::Value>(attribution_json)
@@ -304,6 +318,11 @@ pub fn build_sidecar_bytes_with_vl_coverage(
         vl.dedup_by_key(|r| (r.feature_id, r.segment_index));
         vl
     });
+    let named_routes = named_routes.map(|mut nr| {
+        nr.sort_by_key(|r| r.osm_id);
+        nr.dedup_by_key(|r| r.osm_id);
+        nr
+    });
 
     let mut sections_raw: Vec<(&str, Vec<u8>)> = vec![
         (SECTION_WETLAND, wetland_body(&wetland)?),
@@ -315,6 +334,9 @@ pub fn build_sidecar_bytes_with_vl_coverage(
             SECTION_VEHICLE_LIMITS,
             vehicle_limits_body_with_coverage(vl, vehicle_limits_coverage)?,
         ));
+    }
+    if let Some(ref nr) = named_routes {
+        sections_raw.push((SECTION_NAMED_ROUTES, named_routes_body(nr)?));
     }
     sections_raw.push((SECTION_ATTRIBUTION, attribution_json.as_bytes().to_vec()));
 
@@ -421,6 +443,7 @@ pub fn read_sidecar(path: &Path) -> Result<Sidecar> {
     let mut elevation = Vec::new();
     let mut vehicle_limits = Vec::new();
     let mut vehicle_limits_coverage = VehicleLimitsCoverage::default();
+    let mut named_routes = Vec::new();
     let mut attribution_json = String::new();
     for info in &sections {
         let start = usize::try_from(info.offset).context("section offset")?;
@@ -445,6 +468,7 @@ pub fn read_sidecar(path: &Path) -> Result<Sidecar> {
                 vehicle_limits_coverage = cov;
                 vehicle_limits = recs;
             }
+            SECTION_NAMED_ROUTES => named_routes = parse_named_routes_body(&raw)?,
             SECTION_ATTRIBUTION => {
                 attribution_json = String::from_utf8(raw).context("attribution is not utf-8")?;
                 serde_json::from_str::<serde_json::Value>(&attribution_json)
@@ -466,6 +490,7 @@ pub fn read_sidecar(path: &Path) -> Result<Sidecar> {
         elevation,
         vehicle_limits,
         vehicle_limits_coverage,
+        named_routes,
         attribution_json,
     })
 }
@@ -1021,6 +1046,7 @@ mod tests {
             boardwalk,
             elevation,
             None,
+            None,
             r#"{"label":"Mapterhorn"}"#,
         )
         .unwrap();
@@ -1077,6 +1103,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             high,
+            None,
             None,
             "{}",
         )

@@ -211,7 +211,7 @@ Geofabrik (or equivalent) extract for the on-device place index.
 | Key / filename | `{stem}.navi-place-source.osm.pbf` |
 | Purpose | Slim OSM PBF input for the app’s `NameIndex` / `ensure_place_index` |
 | Who builds the index | **The client**, on device. The server never publishes a place index. |
-| Contents (points variant) | One node (or way→single stub node) per object the app indexes; admin level 6–8 kept as polygon geometry for municipality context; named hike/cycle/pilgrim routes as relation → stub way → stub node. Ordinary `.osm.pbf` readable by the stock loader. |
+| Contents (points variant) | One node (or way→single stub node) per object the app indexes; admin level 6–8 kept as polygon geometry for municipality context; named hike/cycle/pilgrim routes as relation → stub way → stub node. Ordinary `.osm.pbf` readable by the stock loader. (CoMaps MWM path instead uses sidecar `named_routes` NR01 — [sidecar-format.md](sidecar-format.md) §6.) |
 | Fetch | Same as any other pack file: GET/HEAD + verify `sha256` / `bytes` from `manifest.json` |
 | Absent | Fall back to the full region extract (unchanged) |
 

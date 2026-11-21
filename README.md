@@ -98,8 +98,8 @@ unconditional fallback and is untouched by this tree.
 | [`docs/mwm-pipeline.md`](docs/mwm-pipeline.md) | Operator guide: CoMaps-release MWM sidecars (modes, config, timers, lock) |
 | [`docs/client-fetch-mwm.md`](docs/client-fetch-mwm.md) | Client contract: CoMaps MWMs + Navi sidecars + catalog v2 |
 | [`docs/region-mapping.md`](docs/region-mapping.md) | Navi `.rkyv` ↔ CoMaps leaf migration + country UI; generator + live publish |
-| [`docs/sidecar-format.md`](docs/sidecar-format.md) | Byte-level `{leaf}.navi-sidecar.v1.zst` (NVSC) spec |
-| [`docs/client-routing-hooks.md`](docs/client-routing-hooks.md) | Wetland Soft/Hard, boardwalk, elevation hooks |
+| [`docs/sidecar-format.md`](docs/sidecar-format.md) | Byte-level `{leaf}.navi-sidecar.v1.zst` (NVSC): wetland, elevation, VL01, NR01 |
+| [`docs/client-routing-hooks.md`](docs/client-routing-hooks.md) | Wetland Soft/Hard, boardwalk, elevation, vehicle limits, named-route search stubs |
 | [`docs/client-migration-from-rkyv.md`](docs/client-migration-from-rkyv.md) | Client migration plan from `.rkyv` to MWM |
 | [`docs/mwm-planet.md`](docs/mwm-planet.md) | Generate-mode planet notes (**test-only**) |
 | [`docs/datex-providers.md`](docs/datex-providers.md) | Multi-provider DATEX (toml + `datex-provider.sh`) |

@@ -65,6 +65,7 @@ fn embedded_fixture_roundtrip_counts() {
         Vec::<BoardwalkRecord>::new(),
         Vec::new(),
         None,
+        None,
         "{}",
     )
     .unwrap();

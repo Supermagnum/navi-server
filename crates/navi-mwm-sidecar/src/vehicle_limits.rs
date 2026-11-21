@@ -439,6 +439,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             None,
+            None,
             "{}",
         )
         .unwrap();
@@ -457,6 +458,7 @@ mod tests {
             Vec::new(),
             Vec::new(),
             Some(Vec::new()),
+            None,
             "{}",
         )
         .unwrap();

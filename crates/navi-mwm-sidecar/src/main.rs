@@ -4,9 +4,9 @@ use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use navi_mwm_sidecar::{
     build_sidecar_bytes_with_vl_coverage, load_boardwalk_jsonl, load_elevation_jsonl,
-    load_vehicle_limits_jsonl, load_wetland_jsonl, read_sidecar, read_spike2_flat_wetland_records,
-    sha256_file, wetland_class_counts, write_sidecar, VehicleLimitsCoverage, CLASS_HARD,
-    CLASS_SOFT,
+    load_named_routes_jsonl, load_vehicle_limits_jsonl, load_wetland_jsonl, read_sidecar,
+    read_spike2_flat_wetland_records, sha256_file, wetland_class_counts, write_sidecar,
+    VehicleLimitsCoverage, CLASS_HARD, CLASS_SOFT,
 };
 use serde_json::json;
 
@@ -33,6 +33,9 @@ enum Cmd {
         /// Optional annotate report JSON (or coverage-only JSON) for the VL01 header.
         #[arg(long)]
         vehicle_limits_report: Option<PathBuf>,
+        /// Optional named OSM route stubs JSONL (`named_routes` NR01 section).
+        #[arg(long)]
+        named_routes_jsonl: Option<PathBuf>,
         #[arg(long)]
         attribution: PathBuf,
         #[arg(long)]
@@ -130,6 +133,7 @@ fn main() -> Result<()> {
             elevation_jsonl,
             vehicle_limits_jsonl,
             vehicle_limits_report,
+            named_routes_jsonl,
             attribution,
             generator_tag,
             generator_sha,
@@ -156,6 +160,10 @@ fn main() -> Result<()> {
                 Some(p) => coverage_from_report_json(&p)?,
                 None => VehicleLimitsCoverage::default(),
             };
+            let named_routes = match named_routes_jsonl {
+                Some(p) => Some(load_named_routes_jsonl(&p)?),
+                None => None,
+            };
             let attr = std::fs::read_to_string(&attribution)
                 .with_context(|| format!("read {}", attribution.display()))?;
             let bytes = build_sidecar_bytes_with_vl_coverage(
@@ -168,6 +176,7 @@ fn main() -> Result<()> {
                 elevation,
                 vehicle_limits,
                 &vl_coverage,
+                named_routes,
                 &attr,
             )?;
             write_sidecar(&out, &bytes)?;
@@ -193,6 +202,7 @@ fn main() -> Result<()> {
                         "osm_data_date": sc.vehicle_limits_coverage.osm_data_date,
                         "map_release": sc.vehicle_limits_coverage.map_release,
                     },
+                    "named_routes_records": sc.named_routes.len(),
                 })
             );
         }
@@ -234,6 +244,7 @@ fn main() -> Result<()> {
                     "elevation_features": sc.elevation.len(),
                     "elevation_points": elev_points,
                     "vehicle_limits_records": sc.vehicle_limits.len(),
+                    "named_routes_records": sc.named_routes.len(),
                     "sections": sc.sections.iter().map(|s| &s.name).collect::<Vec<_>>(),
                     "section_details": section_details,
                     "fingerprint_ok": fingerprint_ok,

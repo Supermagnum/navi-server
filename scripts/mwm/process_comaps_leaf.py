@@ -196,6 +196,8 @@ def main() -> int:
     ejson = tmp / f"{leaf}.elevation.jsonl"
     vjson = tmp / f"{leaf}.vehicle_limits.jsonl"
     vreport = tmp / f"{leaf}.vehicle_limits.report.json"
+    nrjson = tmp / f"{leaf}.named_routes.jsonl"
+    nrreport = tmp / f"{leaf}.named_routes.report.json"
     out = args.work / "sidecars" / f"{leaf}.navi-sidecar.v1.zst"
     out_tmp = out.with_name(f".{out.name}.tmp.{os.getpid()}")
     estat = args.work / "stats" / f"{leaf}.elevation.json"
@@ -216,6 +218,8 @@ def main() -> int:
             ejson,
             vjson,
             vreport,
+            nrjson,
+            nrreport,
             out_tmp,
         ):
             try:
@@ -281,6 +285,7 @@ def main() -> int:
 
         python = os.environ.get("NAVI_MWM_PYTHON", sys.executable)
         vl_annotated = False
+        nr_annotated = False
         if args.skip_annotate:
             wjson.write_text("")
             bjson.write_text("")
@@ -288,6 +293,7 @@ def main() -> int:
             stages_s["annotate_wait"] = 0.0
             stages_s["annotate"] = 0.0
             stages_s["vehicle_limits"] = 0.0
+            stages_s["named_routes"] = 0.0
             peak_rss_kib["annotate"] = 0
         else:
             ann_slots = int(
@@ -408,6 +414,47 @@ def main() -> int:
                     shutil.copy2(vreport, meta_rep)
             else:
                 stages_s["vehicle_limits"] = 0.0
+
+            # Named OSM route stubs (pilgrimage / hiking / bicycle / …). Optional:
+            # without NAVI_MWM_NAMED_ROUTES_PBF omit the bake flag so the section
+            # is absent (same Option semantics as vehicle_limits).
+            nr_pbf = os.environ.get("NAVI_MWM_NAMED_ROUTES_PBF", "").strip()
+            if nr_pbf and Path(nr_pbf).is_file():
+                border = (
+                    Path(os.environ.get("NAVI_MWM_COMAPS_ROOT", "").strip())
+                    / "data"
+                    / "borders"
+                    / f"{leaf}.poly"
+                )
+                nr_cmd = [
+                    python,
+                    str(SCRIPT_DIR / "annotate-named-routes.py"),
+                    "--pbf",
+                    nr_pbf,
+                    "--out-jsonl",
+                    str(nrjson),
+                    "--report-json",
+                    str(nrreport),
+                ]
+                if border.is_file():
+                    nr_cmd.extend(["--poly", str(border)])
+                nr_out, nr_err, nr_rss, nr_s = _run_stage(nr_cmd)
+                if nr_out.strip():
+                    print(nr_out.strip(), flush=True)
+                if nr_err.strip():
+                    sys.stderr.write(nr_err)
+                    sys.stderr.flush()
+                stages_s["named_routes"] = round(nr_s, 3)
+                peak_rss_kib["named_routes"] = nr_rss
+                nr_annotated = True
+                if nrreport.is_file():
+                    meta_nr = (
+                        args.work / "meta" / "named_routes" / f"{leaf}.report.json"
+                    )
+                    meta_nr.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(nrreport, meta_nr)
+            else:
+                stages_s["named_routes"] = 0.0
 
         if args.skip_elevation:
             ejson.write_text("")
@@ -589,6 +636,8 @@ def main() -> int:
             bake_cmd.insert(elev_idx + 3, str(vjson))
             if vreport.is_file():
                 bake_cmd.extend(["--vehicle-limits-report", str(vreport)])
+        if nr_annotated and nrjson.is_file():
+            bake_cmd.extend(["--named-routes-jsonl", str(nrjson)])
         bake_out, bake_err, bake_rss, bake_s = _run_stage(bake_cmd)
         if bake_err.strip():
             sys.stderr.write(bake_err)

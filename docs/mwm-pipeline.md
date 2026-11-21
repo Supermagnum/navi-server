@@ -76,6 +76,8 @@ Defaults from `scripts/mwm/lib/common.sh` / `config/mwm/measured-peaks.json`.
 | `NAVI_MWM_VEHICLE_LIMITS_PBF` | (unset) | Geofabrik / region `.osm.pbf` for `vehicle_limits` annotate |
 | `NAVI_MWM_VEHICLE_LIMITS_PBF_DIR` | (unset) | Dir of `{Country}*.osm.pbf`; leaf prefix picks the file |
 | `NAVI_MWM_PLANET_PBF` | (unset) | Fallback PBF when the vehicle-limits paths above are unset |
+| `NAVI_MWM_NAMED_ROUTES_PBF` | (unset) | Filtered OSM routes `.osm.pbf` for `named_routes` (NR01); omit → section absent |
+| `NAVI_PLACE_SOURCE_BIN` | `{repo}/target/release/place-source-points` | Binary for `export-named-routes` (also used by `.rkyv` place-source bake) |
 | `NAVI_MWM_TILE_FETCH_CONCURRENCY` | `16` | Per-leaf concurrent Mapterhorn HTTP tile fetches |
 | `NAVI_MWM_TILE_MEM_CACHE` | `4096` | Decoded RGB tile LRU capacity per worker |
 | `NAVI_MWM_PREFETCH_DISK_BUDGET_GIB` | `20` | Disk budget for prefetched MWMs in `tmp/_downloads` |
@@ -114,6 +116,16 @@ max(1, floor( (MemAvailable_GiB − RAM_HEADROOM_GIB) / PER_LEAF_GIB ))
 
 On media (~41 GiB MemAvailable idle): **3**. Explicit
 `NAVI_MWM_PROCESS_CONCURRENCY=N` wins.
+
+### Named routes (optional NR01)
+
+When `NAVI_MWM_NAMED_ROUTES_PBF` points at a routes extract, each leaf runs
+`scripts/mwm/annotate-named-routes.py` (poly clip or bbox fallback) →
+`place-source-points export-named-routes` → JSONL → sidecar bake. Without the
+env var the `named_routes` section is **omitted** (same Option rule as
+`vehicle_limits`). Catalog publishes `named_routes_coverage` from the leaf
+report. Wire format and OSM kind list:
+[sidecar-format.md](sidecar-format.md) §6.
 
 ### Disk: `.rkyv` (old) vs MWM sidecars (new)
 

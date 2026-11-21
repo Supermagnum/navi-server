@@ -1,6 +1,6 @@
-# Client routing hooks — wetland, boardwalk, elevation, vehicle limits
+# Client routing hooks — wetland, boardwalk, elevation, vehicle limits, named routes
 
-What the Navi client router must do with
+What the Navi client router (and search UI) must do with
 `{leaf}.navi-sidecar.v1.zst` data. Pair with
 [sidecar-format.md](sidecar-format.md) and
 [client-fetch-mwm.md](client-fetch-mwm.md).
@@ -113,7 +113,27 @@ existing nearest-clearance wording when a blocking road name is known.
 
 ---
 
-## 5. Reference implementation (server validation)
+## 5. Named routes (search stubs)
+
+Load the optional `named_routes` section (NR01) for **search / browse**, not
+for edge costs. CoMaps MWMs do not expose pilgrimage, hiking networks, ski
+pistes, etc. as searchable route relations the way Navi needs; the sidecar
+fills that gap.
+
+| Field | Use |
+|-------|-----|
+| `osm_id` | Stable OSM relation id |
+| `kind` | Filter / icon (hiking, bicycle, pilgrimage, ski, …) |
+| `lat_e7` / `lon_e7` | Map pin / “go to route” |
+| `name` | Display string |
+
+If the section is absent: hide named-route search for that leaf (or show
+“not available”). Kind table and OSM inclusion list:
+[sidecar-format.md](sidecar-format.md) §6.
+
+---
+
+## 6. Reference implementation (server validation)
 
 Minimal CoMaps `routes_builder` edge-cost hook used to validate sidecars:
 
@@ -138,12 +158,13 @@ honour `boardwalk_flags` explicitly). Flat spike2 layout is a fallback only.
 | Wetland / boardwalk | Same cost multipliers in the edge-cost path (port or share the hook) |
 | Elevation overrides | Apply when reading MWM altitudes / building the routing graph |
 | Vehicle limits | Car estimator feasibility / impassable; session vehicle dimensions |
+| Named routes | Client search index from NR01 stubs (not FFI routing) |
 | Navi Rust + Kotlin | Orchestration, download, fingerprint, UI; call into FFI router |
 | Drape | Client DEM; independent of sidecar |
 
 ---
 
-## 6. Validation routes (self-test)
+## 7. Validation routes (self-test)
 
 ### Foot wetland detour (Hedmark / Østlandet)
 

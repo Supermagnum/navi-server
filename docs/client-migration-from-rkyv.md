@@ -82,6 +82,18 @@ points unchanged.
 
 ---
 
+## Step 5b — Optional: vehicle limits + named routes
+
+- Apply VL01 in the car estimator when the section is present
+  ([client-routing-hooks.md](client-routing-hooks.md) §4).
+- Index NR01 stubs for search when present (§5); CoMaps MWMs alone do not
+  expose pilgrimage/hiking/ski route search the same way.
+
+**Acceptance:** absent sections → “not available”; present empty tables → no
+hits / no limits without treating as a fetch error.
+
+---
+
 ## Step 6 — Region UI + shared leaves
 
 - Present **Navi region** names; download the CoMaps leaf union.

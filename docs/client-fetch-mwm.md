@@ -19,7 +19,7 @@ The existing `.rkyv` catalog (`/current.json`, filesystem
 | Asset | Source | Notes |
 |-------|--------|-------|
 | Base map `{Leaf}.mwm` | CoMaps mirrors | Discovered via metaserver; never mixed across releases |
-| Sidecar `{Leaf}.navi-sidecar.v1.zst` | navi-server | Wetland Soft/Hard, boardwalk proxy, elevation overrides |
+| Sidecar `{Leaf}.navi-sidecar.v1.zst` | navi-server | Wetland Soft/Hard, boardwalk, elevation, optional `vehicle_limits` (VL01) + `named_routes` (NR01) |
 | Catalog + attribution | navi-server | `/mwm/current.json`, `/mwm/{version}/attribution.json`, `ATTRIBUTION.md` |
 
 **Never mix releases across leaves.** Every leaf in a Navi region must come from
@@ -79,7 +79,7 @@ That is what Apache serves as `/mwm/`.
 Normative example (subset): [examples/catalog-v2.example.json](examples/catalog-v2.example.json).
 CI validates that example against the field rules below. Hedmark sidecar
 bytes/SHA in the example are pinned to a checked-in fixture (see
-[sidecar-format.md](sidecar-format.md) §6).
+[sidecar-format.md](sidecar-format.md) §10).
 
 ### Top level
 
@@ -135,6 +135,7 @@ bytes/SHA in the example are pinned to a checked-in fixture (see
 | `sidecar` / `sidecar_url` | null | Set when `no_sidecar` is true |
 | `elevation_policy_version` | number\|null | Sidecar elevation policy (`1` = uniform 2 m; `2` = Copernicus-only &lt;60°N uses 5 m). `null` when `no_sidecar` |
 | `vehicle_limits_coverage` | object\|omit | Per-leaf match coverage (optional; required before live world publish). See below |
+| `named_routes_coverage` | object\|omit | Per-leaf named-route stub counts when NR was annotated. See below |
 
 `vehicle_limits_coverage` (when present):
 
@@ -153,6 +154,17 @@ The same fields are embedded in the sidecar `vehicle_limits` VL01 header
 **fully applied** for a leaf when `match_rate ≥` a configurable threshold
 (default **0.90**); below that (or when coverage is absent) they still apply
 matched records but warn that restrictions are only partly available.
+
+`named_routes_coverage` (when present):
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `routes` | number | Stub count written for the leaf |
+| `by_kind` | object | Map of kind string → count (e.g. `hiking`, `pilgrimage`, `ski`) |
+
+Absent when `NAVI_MWM_NAMED_ROUTES_PBF` was unset for the bake (section omitted).
+Wire layout NR01: [sidecar-format.md](sidecar-format.md) §6. Clients use stubs
+for search / browse only — not for edge costs.
 
 **Same-release sidecar refresh:** when the catalog version matches the active
 release but a leaf’s `sidecar_sha256` / `sidecar_bytes` changed, re-download
