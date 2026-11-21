@@ -302,10 +302,7 @@ mod tests {
         .unwrap();
         write_sidecar(&path2, &bytes2).unwrap();
         let sc2 = read_sidecar(&path2).unwrap();
-        assert!(sc2
-            .sections
-            .iter()
-            .any(|s| s.name == SECTION_NAMED_ROUTES));
+        assert!(sc2.sections.iter().any(|s| s.name == SECTION_NAMED_ROUTES));
         assert!(sc2.named_routes.is_empty());
     }
 }

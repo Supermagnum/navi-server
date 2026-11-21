@@ -4,9 +4,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 
 use anyhow::{bail, Context, Result};
-use place_source_points::{
-    build_points_file, export_named_routes_jsonl_bbox, NamedRoutesBbox,
-};
+use place_source_points::{build_points_file, export_named_routes_jsonl_bbox, NamedRoutesBbox};
 
 fn main() -> Result<()> {
     let mut args = std::env::args().skip(1).peekable();
@@ -19,14 +17,10 @@ fn main() -> Result<()> {
             while let Some(a) = args.next() {
                 match a.as_str() {
                     "--input" => {
-                        input = Some(PathBuf::from(
-                            args.next().context("missing --input path")?,
-                        ));
+                        input = Some(PathBuf::from(args.next().context("missing --input path")?));
                     }
                     "--output" => {
-                        output = Some(PathBuf::from(
-                            args.next().context("missing --output path")?,
-                        ));
+                        output = Some(PathBuf::from(args.next().context("missing --output path")?));
                     }
                     "--bbox" => {
                         let raw = args.next().context("missing --bbox W,S,E,N")?;

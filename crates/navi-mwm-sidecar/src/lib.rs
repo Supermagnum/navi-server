@@ -14,8 +14,8 @@ mod vehicle_limits;
 
 pub use named_routes::{
     kind_from_str, load_named_routes_jsonl, named_routes_body, parse_named_routes_body,
-    NamedRouteRecord, KIND_BICYCLE, KIND_HIKING, KIND_HORSE, KIND_MTB, KIND_OTHER,
-    KIND_PILGRIMAGE, KIND_RUNNING, KIND_SUPERROUTE, NAMED_ROUTES_BODY_MAGIC, SECTION_NAMED_ROUTES,
+    NamedRouteRecord, KIND_BICYCLE, KIND_HIKING, KIND_HORSE, KIND_MTB, KIND_OTHER, KIND_PILGRIMAGE,
+    KIND_RUNNING, KIND_SUPERROUTE, NAMED_ROUTES_BODY_MAGIC, SECTION_NAMED_ROUTES,
 };
 pub use vehicle_limits::{
     load_vehicle_limits_jsonl, lookup_vehicle_limit, parse_vehicle_limits_body,

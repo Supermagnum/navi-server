@@ -156,24 +156,29 @@ fn is_pilgrim(tags: &HashMap<String, String>) -> bool {
     {
         return true;
     }
-    if tags
-        .get("pilgrimage")
-        .is_some_and(|v| v.eq_ignore_ascii_case("yes") || v.eq_ignore_ascii_case("true") || v == "1")
-    {
+    if tags.get("pilgrimage").is_some_and(|v| {
+        v.eq_ignore_ascii_case("yes") || v.eq_ignore_ascii_case("true") || v == "1"
+    }) {
         return true;
     }
-    if !tags
-        .get("route")
-        .is_some_and(|v| {
-            v.eq_ignore_ascii_case("hiking")
-                || v.eq_ignore_ascii_case("foot")
-                || v.eq_ignore_ascii_case("running")
-                || v.eq_ignore_ascii_case("bicycle")
-        })
-    {
+    if !tags.get("route").is_some_and(|v| {
+        v.eq_ignore_ascii_case("hiking")
+            || v.eq_ignore_ascii_case("foot")
+            || v.eq_ignore_ascii_case("running")
+            || v.eq_ignore_ascii_case("bicycle")
+    }) {
         return false;
     }
-    for key in ["name", "name:en", "name:nb", "name:no", "operator", "ref", "description", "description:en"] {
+    for key in [
+        "name",
+        "name:en",
+        "name:nb",
+        "name:no",
+        "operator",
+        "ref",
+        "description",
+        "description:en",
+    ] {
         if tags
             .get(key)
             .is_some_and(|v| PILGRIM_HINTS.iter().any(|h| v.to_lowercase().contains(h)))
@@ -255,9 +260,7 @@ fn named_route_kind(tags: &HashMap<String, String>) -> &'static str {
     let net = tags.get("network").map(|s| s.as_str()).unwrap_or("");
     if is_route_type
         && (route == "hiking" || route == "foot")
-        && hiking_networks
-            .iter()
-            .any(|a| net.eq_ignore_ascii_case(a))
+        && hiking_networks.iter().any(|a| net.eq_ignore_ascii_case(a))
     {
         return "hiking";
     }
