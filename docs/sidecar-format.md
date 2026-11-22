@@ -312,8 +312,10 @@ poly clip is applied at annotate time.
 
 ### Bake path
 
-1. Prepare a filtered OSM routes `.osm.pbf` (planet or regional extract of
-   route relations) and set `NAVI_MWM_NAMED_ROUTES_PBF`.
+1. Prepare a filtered OSM routes `.osm.pbf` via
+   `scripts/mwm/build-named-routes-pbf.sh` (tags-filter → merge → sort; no OPL
+   dedupe) and set `NAVI_MWM_NAMED_ROUTES_PBF` (must be ≥1 MiB /
+   `NAVI_MWM_NAMED_ROUTES_MIN_BYTES` or bake aborts).
 2. Per leaf, `scripts/mwm/annotate-named-routes.py` clips with `osmium extract
    -p` when a CoMaps border `.poly` exists; if the clip is empty (e.g.
    duplicate-object source PBF), it falls back to exporting the full PBF with
@@ -322,6 +324,7 @@ poly clip is applied at annotate time.
    → `export-named-routes --input … --output ….jsonl [--bbox W,S,E,N]`.
 4. Bake: `navi-mwm-sidecar bake --named-routes-jsonl …` emits NR01 when the
    flag is passed; without `NAVI_MWM_NAMED_ROUTES_PBF` the section is omitted.
+   Finish/publish always re-copies from bake `sidecars/` by content.
 
 Catalog leaf field `named_routes_coverage` (`routes`, `by_kind`) mirrors the
 annotate report — see [client-fetch-mwm.md](client-fetch-mwm.md).

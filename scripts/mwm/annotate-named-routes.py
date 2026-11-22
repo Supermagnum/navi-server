@@ -103,6 +103,15 @@ def main() -> int:
 
     if not args.pbf.is_file():
         raise SystemExit(f"pbf missing: {args.pbf}")
+    # Guard against empty/tiny PBFs from a broken dedupe/merge (full planet
+    # routes extract is ~100+ MiB; anything under 1 MiB is not usable).
+    min_bytes = int(os.environ.get("NAVI_MWM_NAMED_ROUTES_MIN_BYTES", "1000000"))
+    pbf_bytes = args.pbf.stat().st_size
+    if pbf_bytes < min_bytes:
+        raise SystemExit(
+            f"named-routes PBF too small ({pbf_bytes} < {min_bytes} bytes): "
+            f"{args.pbf}"
+        )
     bin_path = _place_source_bin()
     if not bin_path.is_file():
         raise SystemExit(

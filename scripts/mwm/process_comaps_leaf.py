@@ -418,8 +418,25 @@ def main() -> int:
             # Named OSM route stubs (pilgrimage / hiking / bicycle / …). Optional:
             # without NAVI_MWM_NAMED_ROUTES_PBF omit the bake flag so the section
             # is absent (same Option semantics as vehicle_limits).
+            # When the env is set, refuse missing/tiny PBFs so empty-dedupe
+            # cannot silently bake 0 routes (MIN = 1 MiB).
             nr_pbf = os.environ.get("NAVI_MWM_NAMED_ROUTES_PBF", "").strip()
-            if nr_pbf and Path(nr_pbf).is_file():
+            if nr_pbf:
+                nr_path = Path(nr_pbf)
+                min_nr = int(
+                    os.environ.get("NAVI_MWM_NAMED_ROUTES_MIN_BYTES", "1000000")
+                )
+                if not nr_path.is_file():
+                    raise SystemExit(
+                        f"NAVI_MWM_NAMED_ROUTES_PBF set but missing: {nr_path}"
+                    )
+                nr_bytes = nr_path.stat().st_size
+                if nr_bytes < min_nr:
+                    raise SystemExit(
+                        f"NAVI_MWM_NAMED_ROUTES_PBF too small "
+                        f"({nr_bytes} < {min_nr} bytes): {nr_path} "
+                        f"(refuse empty/tiny PBF — restore a real routes extract)"
+                    )
                 border = (
                     Path(os.environ.get("NAVI_MWM_COMAPS_ROOT", "").strip())
                     / "data"

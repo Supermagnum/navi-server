@@ -64,12 +64,32 @@ export NAVI_MWM_PYTHON=\"\$PYTHON\"
 # Always rebuild so elevation/wetland CLI flags match sources (stale target/ is common).
 # IMPORTANT: this overwrites target/release/navi-mwm-sidecar from THIS tree's sources.
 # If VL PBF env is set, crate sources must include vehicle_limits (sync from scratch first).
-cargo build -p navi-mwm-sidecar --release --manifest-path \"\${ROOT}/Cargo.toml\"
+# Named routes need place-source-points export-named-routes on the annotate path.
+if [[ -n \"\${NAVI_MWM_NAMED_ROUTES_PBF:-}\" ]]; then
+  cargo build -p navi-mwm-sidecar -p place-source-points --release --manifest-path \"\${ROOT}/Cargo.toml\"
+else
+  cargo build -p navi-mwm-sidecar --release --manifest-path \"\${ROOT}/Cargo.toml\"
+fi
 SIDECAR_BIN=\"\${CARGO_TARGET_DIR}/release/navi-mwm-sidecar\"
 \"\$SIDECAR_BIN\" bake --help | grep -q elevation-jsonl || mwm_die \"sidecar binary lacks --elevation-jsonl: \$SIDECAR_BIN\"
 # Fail fast when VL inputs are configured but sources/binary are pre-VL (common live lag).
 if [[ -n \"\${NAVI_MWM_VEHICLE_LIMITS_PBF:-}\${NAVI_MWM_VEHICLE_LIMITS_PBF_DIR:-}\${NAVI_MWM_PLANET_PBF:-}\" ]]; then
   \"\$SIDECAR_BIN\" bake --help | grep -q -- '--vehicle-limits-jsonl' || mwm_die \"sidecar lacks --vehicle-limits-jsonl but VL PBF env is set (\$SIDECAR_BIN). Sync crates/navi-mwm-sidecar VL sources into this tree, then rebuild — a pre-copied binary alone is overwritten by cargo build above.\"
+fi
+# Named routes (NR01): when env is set, refuse missing/tiny PBF and require bake flag.
+# Empty-dedupe (~hundreds of bytes) must not silently bake 0 routes.
+if [[ -n \"\${NAVI_MWM_NAMED_ROUTES_PBF:-}\" ]]; then
+  NR_PBF=\"\${NAVI_MWM_NAMED_ROUTES_PBF}\"
+  NR_MIN=\"\${NAVI_MWM_NAMED_ROUTES_MIN_BYTES:-1000000}\"
+  [[ -f \"\$NR_PBF\" ]] || mwm_die \"NAVI_MWM_NAMED_ROUTES_PBF missing: \$NR_PBF\"
+  NR_BYTES=\$(stat -c%s \"\$NR_PBF\" 2>/dev/null || echo 0)
+  if [[ \"\$NR_BYTES\" -lt \"\$NR_MIN\" ]]; then
+    mwm_die \"NAVI_MWM_NAMED_ROUTES_PBF too small (\${NR_BYTES} < \${NR_MIN} bytes): \$NR_PBF — restore a real routes extract (see scripts/mwm/build-named-routes-pbf.sh)\"
+  fi
+  \"\$SIDECAR_BIN\" bake --help | grep -q -- '--named-routes-jsonl' || mwm_die \"sidecar lacks --named-routes-jsonl but NAVI_MWM_NAMED_ROUTES_PBF is set (\$SIDECAR_BIN)\"
+  PLACE_BIN=\"\${NAVI_PLACE_SOURCE_BIN:-\${CARGO_TARGET_DIR}/release/place-source-points}\"
+  [[ -x \"\$PLACE_BIN\" ]] || mwm_die \"place-source-points missing at \$PLACE_BIN (needed for named_routes annotate)\"
+  mwm_log \"named_routes PBF OK bytes=\${NR_BYTES} path=\${NR_PBF} place_source=\${PLACE_BIN}\"
 fi
 export NAVI_MWM_FORCE_REBUILD=\"\${NAVI_MWM_FORCE_REBUILD:-0}\"
 # Do not swallow stdout: build-dump logs / mwm_die go to stdout and must reach journal.
@@ -220,7 +240,9 @@ if [[ \"\$STOPPED_EARLY\" == \"1\" ]]; then
   exit 0
 fi
 
-# Stage version dir for publish (sidecars only)
+# Stage version dir for publish from bake sidecars/ by content (not count-only).
+# Always wipe + re-copy so in-place rebakes (e.g. NR-only) are not left behind
+# in a stale publish-staging that happened to match leaf count.
 VERSION_DIR=\"\$WORK/publish-staging/\${VER}\"
 rm -rf \"\$VERSION_DIR\"
 mkdir -p \"\$VERSION_DIR\"

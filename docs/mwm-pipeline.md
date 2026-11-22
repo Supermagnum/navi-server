@@ -76,7 +76,8 @@ Defaults from `scripts/mwm/lib/common.sh` / `config/mwm/measured-peaks.json`.
 | `NAVI_MWM_VEHICLE_LIMITS_PBF` | (unset) | Geofabrik / region `.osm.pbf` for `vehicle_limits` annotate |
 | `NAVI_MWM_VEHICLE_LIMITS_PBF_DIR` | (unset) | Dir of `{Country}*.osm.pbf`; leaf prefix picks the file |
 | `NAVI_MWM_PLANET_PBF` | (unset) | Fallback PBF when the vehicle-limits paths above are unset |
-| `NAVI_MWM_NAMED_ROUTES_PBF` | (unset) | Filtered OSM routes `.osm.pbf` for `named_routes` (NR01); omit → section absent |
+| `NAVI_MWM_NAMED_ROUTES_PBF` | (unset) | Filtered OSM routes `.osm.pbf` for `named_routes` (NR01); omit → section absent. When set, must be ≥`NAVI_MWM_NAMED_ROUTES_MIN_BYTES` (default 1000000) or bake aborts |
+| `NAVI_MWM_NAMED_ROUTES_MIN_BYTES` | `1000000` | Refuse tiny/empty NR PBFs (broken dedupe) |
 | `NAVI_PLACE_SOURCE_BIN` | `{repo}/target/release/place-source-points` | Binary for `export-named-routes` (also used by `.rkyv` place-source bake) |
 | `NAVI_MWM_TILE_FETCH_CONCURRENCY` | `16` | Per-leaf concurrent Mapterhorn HTTP tile fetches |
 | `NAVI_MWM_TILE_MEM_CACHE` | `4096` | Decoded RGB tile LRU capacity per worker |
@@ -126,6 +127,15 @@ env var the `named_routes` section is **omitted** (same Option rule as
 `vehicle_limits`). Catalog publishes `named_routes_coverage` from the leaf
 report. Wire format and OSM kind list:
 [sidecar-format.md](sidecar-format.md) §6.
+
+Live wire-up: set `NAVI_MWM_NAMED_ROUTES_PBF` (and usually `NAVI_PLACE_SOURCE_BIN`)
+in `/etc/navi/mwm.env`. Prefer a durable file under
+`/media/navi/navi-server/data/mwm/inputs/planet-named-routes.osm.pbf` (readable by
+`navit-server`). Refresh extracts with `scripts/mwm/build-named-routes-pbf.sh`
+(osmium tags-filter → merge → sort; **no** OPL dedupe — rely on bbox_fallback
+annotate when merged extracts still have duplicate object versions). Bake and
+finish always stage publish from `work/<ver>/sidecars/` by content (wipe +
+re-copy), never a count-only check against stale `publish-staging`.
 
 ### Disk: `.rkyv` (old) vs MWM sidecars (new)
 

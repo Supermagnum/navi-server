@@ -67,8 +67,9 @@ if [[ -f \"\$WORLD_LEAFSET\" ]]; then
   export NAVI_MWM_LEAFSET=\"\$WORLD_LEAFSET\"
 fi
 
-# Re-stage from sidecars (idempotent; does not touch leaf bake outputs).
-mwm_log \"re-staging \${VERSION_DIR} from \${WORK}/sidecars\"
+# Re-stage from bake sidecars/ by content (idempotent; does not touch leaf bake).
+# Never gate on leaf-count alone — count-matched stale staging missed NR fills.
+mwm_log \"re-staging \${VERSION_DIR} from \${WORK}/sidecars (content sync)\"
 rm -rf \"\$VERSION_DIR\"
 mkdir -p \"\$VERSION_DIR\"
 cp -a \"\${WORK}/sidecars/\"*.navi-sidecar.v1.zst \"\$VERSION_DIR/\" 2>/dev/null || true
