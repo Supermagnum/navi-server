@@ -6,7 +6,7 @@ use navi_mwm_sidecar::{
     build_sidecar_bytes_with_vl_coverage, load_boardwalk_jsonl, load_elevation_jsonl,
     load_named_routes_jsonl, load_vehicle_limits_jsonl, load_wetland_jsonl, read_sidecar,
     read_spike2_flat_wetland_records, sha256_file, wetland_class_counts, write_sidecar,
-    VehicleLimitsCoverage, CLASS_HARD, CLASS_SOFT,
+    VehicleLimitsCoverage, CLASS_HARD, CLASS_SOFT, SECTION_VEHICLE_LIMITS,
 };
 use serde_json::json;
 
@@ -66,6 +66,17 @@ enum Cmd {
         /// Spike2 flat sidecar OR sectioned sidecar OR wetland JSONL.
         #[arg(long)]
         spike2: PathBuf,
+    },
+    /// Rewrite only the `named_routes` (NR01) section; keep wetland / elev / VL / MWM fingerprint.
+    ///
+    /// Used for NR-only world fixes when `tmp/<leaf>/` intermediates were cleaned after bake.
+    RepackNamedRoutes {
+        #[arg(long)]
+        sidecar: PathBuf,
+        #[arg(long)]
+        named_routes_jsonl: PathBuf,
+        #[arg(long)]
+        out: PathBuf,
     },
 }
 
@@ -322,6 +333,66 @@ fn main() -> Result<()> {
                     },
                     "class_soft": CLASS_SOFT,
                     "class_hard": CLASS_HARD,
+                })
+            );
+        }
+        Cmd::RepackNamedRoutes {
+            sidecar,
+            named_routes_jsonl,
+            out,
+        } => {
+            let sc = read_sidecar(&sidecar)?;
+            let named_routes = load_named_routes_jsonl(&named_routes_jsonl)?;
+            let had_vl = sc.sections.iter().any(|s| s.name == SECTION_VEHICLE_LIMITS);
+            let vehicle_limits = if had_vl {
+                Some(sc.vehicle_limits)
+            } else {
+                None
+            };
+            let bytes = build_sidecar_bytes_with_vl_coverage(
+                &sc.generator_tag,
+                &sc.generator_sha,
+                sc.mwm_sha256,
+                sc.mwm_size,
+                sc.wetland,
+                sc.boardwalk,
+                sc.elevation,
+                vehicle_limits,
+                &sc.vehicle_limits_coverage,
+                Some(named_routes),
+                &sc.attribution_json,
+            )?;
+            // Atomic replace when out == sidecar (write tmp beside target).
+            let out_tmp = if out == sidecar {
+                out.with_file_name(format!(
+                    ".{}.repack-nr.tmp.{}",
+                    out.file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or("sidecar"),
+                    std::process::id()
+                ))
+            } else {
+                out.clone()
+            };
+            write_sidecar(&out_tmp, &bytes)?;
+            if out_tmp != out {
+                std::fs::rename(&out_tmp, &out).with_context(|| {
+                    format!("rename {} -> {}", out_tmp.display(), out.display())
+                })?;
+            }
+            let sc2 = read_sidecar(&out)?;
+            println!(
+                "{}",
+                json!({
+                    "out": out.display().to_string(),
+                    "mwm_sha256": hex_encode(&sc2.mwm_sha256),
+                    "mwm_bytes": sc2.mwm_size,
+                    "wetland_records": sc2.wetland.len(),
+                    "boardwalk_records": sc2.boardwalk.len(),
+                    "elevation_features": sc2.elevation.len(),
+                    "vehicle_limits_records": sc2.vehicle_limits.len(),
+                    "named_routes_records": sc2.named_routes.len(),
+                    "repacked_named_routes": true,
                 })
             );
         }
