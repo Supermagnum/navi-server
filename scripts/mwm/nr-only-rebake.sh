@@ -130,15 +130,25 @@ load_comaps_root() {
 }
 
 ensure_parallel_py() {
+  # Always stage the helper at a fixed /tmp path for runuser. Default PARALLEL_PY
+  # is already that path — install refuses same-file copy, so skip when src==dst.
   local dest=/tmp/navi-nr-261115-nr-only-parallel.py
+  local src=""
   if [[ -f "$PARALLEL_PY" ]]; then
-    install -o root -g root -m 0755 "$PARALLEL_PY" "$dest"
+    src="$PARALLEL_PY"
   elif [[ -f "${SCRATCH}/scripts/mwm/nr-only-rebake-parallel.py" ]]; then
-    install -o root -g root -m 0755 \
-      "${SCRATCH}/scripts/mwm/nr-only-rebake-parallel.py" "$dest"
+    src="${SCRATCH}/scripts/mwm/nr-only-rebake-parallel.py"
   else
     echo "FATAL: missing NR-only parallel helper ($PARALLEL_PY)" >&2
     exit 1
+  fi
+  if [[ "$src" -ef "$dest" ]]; then
+    chmod 0755 "$dest"
+    if [[ "$(id -u)" -eq 0 ]]; then
+      chown root:root "$dest" || true
+    fi
+  else
+    install -o root -g root -m 0755 "$src" "$dest"
   fi
   PARALLEL_PY="$dest"
   chmod 0755 "$PARALLEL_PY"
