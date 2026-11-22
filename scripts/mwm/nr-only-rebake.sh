@@ -77,6 +77,11 @@ Commands (sudo — interactive sudo once; no password inside script)
 
 Does NOT publish. Does NOT clear processed for wetland redo.
 
+After --rebake-all succeeds, promote bake sidecars live (no version flip):
+  sudo bash /tmp/navi-promote-nr-sidecars-261115.sh --dry-run
+  sudo bash /tmp/navi-promote-nr-sidecars-261115.sh
+  # or: sudo bash scripts/mwm/promote-nr-sidecars.sh --version 261115
+
 Env
 ---
   NAVI_MWM_NAMED_ROUTES_PBF   restored ~121MB PBF (required, >=1MB)
