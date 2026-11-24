@@ -34,6 +34,7 @@ unconditional fallback and is untouched by this tree.
 - [Develop / CI](#develop--ci)
 - [First bake vs weekly incremental](#first-bake-vs-weekly-incremental)
 - [Minimum supported hardware (tested)](#minimum-supported-hardware-tested)
+- [What a new host needs (disk)](#what-a-new-host-needs-disk)
 - [Development / test environments](#development--test-environments)
 - [Size bands vs space estimate](#size-bands-vs-space-estimate)
 - [Guardrails](#guardrails)
@@ -180,16 +181,22 @@ it off, or **yes** and supply username/password.
 
 See [docs/mwm-pipeline.md](docs/mwm-pipeline.md) for install → migrate → DNS.
 
-### `.rkyv` serving-only freeze (current production)
+### `.rkyv` status (retired on media — MWM sole map path)
 
-Live packs under `data/published/packs/` and root `current.json` stay served
-for existing Navi clients. Weekly bake and daily scrub are **disabled** (not
-masked) and `data/published/.navi-rkyv-frozen` blocks accidental
-`run-weekly.sh` / `publish-packs.sh` / `cleanup.sh` / smoke publish. Override
-only deliberately: `NAVI_RKYV_ALLOW_FROZEN=1` or `--allow-frozen`.
+On the live media host, `.rkyv` packs are **retired** (not merely frozen):
+`data/published/packs/` is empty, root `published/current.json` is a retired
+stub pointing clients at `/mwm/current.json`, and
+`published/.navi-rkyv-frozen` records permanent disablement. The retired
+catalog snapshot lives under `published/.rkyv-retired/`. The former on-disk
+pack tree (~**656 GiB** ZFS / ~**1.7 TiB** logical as of 2026-11-15) was moved
+to **`/media/navi-server-backup/published/packs`** (~**654 GiB** on
+`Mypool/navi-server-backup`, measured 2026-11-24). Weekly bake/scrub stay
+disabled; `.navi-rkyv-frozen` still blocks accidental
+`run-weekly.sh` / `publish-packs.sh` / `cleanup.sh`. Override only
+deliberately: `NAVI_RKYV_ALLOW_FROZEN=1` or `--allow-frozen`.
 
-Do **not** delete published `.rkyv` generations until the Navi client has
-switched to MWM ([docs/client-migration-from-rkyv.md](docs/client-migration-from-rkyv.md)).
+Client cutover notes:
+[docs/client-migration-from-rkyv.md](docs/client-migration-from-rkyv.md).
 
 ### Region mapping (Navi ↔ CoMaps leaves)
 
@@ -207,14 +214,13 @@ or auto-detect / `ZFS_DATASET` override). Full usage, env vars, and rollback:
 [docs/region-mapping.md](docs/region-mapping.md). Client field meanings:
 [docs/client-fetch-mwm.md](docs/client-fetch-mwm.md#5-region-ui-country_groups-vs-rkyv-migration-region_to_leaves).
 
-**Published size (live, 2026-11-15):** `.rkyv` packs ≈ **1.7 TiB** logical /
-**~656 GiB** on disk (ZFS); MWM sidecars (`published/mwm/`, release 261105) ≈
-**2.1 GiB**. Full comparison and new-host disk planning:
-[docs/mwm-pipeline.md](docs/mwm-pipeline.md#disk-rkyv-old-vs-mwm-sidecars-new).
-
-**Unfreeze** (need a bake before client cutover): remove `.navi-rkyv-frozen`,
-then `systemctl enable --now navi-pack-bake.timer navi-pack-scrub.timer`
-(helper: `/tmp/navi-rkyv-unfreeze.sh` on the host).
+**Published size (live, 2026-11-24, Europe/Oslo):** MWM sidecars
+(`published/mwm/`, releases `261105` + `261115`) ≈ **4.2 GiB** on disk
+(~**2.1 GiB** per world release). `.rkyv` packs are **not** on the live pool
+(retired; historical ~**656 GiB** ZFS / ~**1.7 TiB** logical — see backup
+mount). Full comparison and new-host disk planning:
+[docs/mwm-pipeline.md](docs/mwm-pipeline.md#disk-rkyv-old-vs-mwm-sidecars-new)
+and [What a new host needs (disk)](#what-a-new-host-needs-disk).
 
 ### Docker / Linux containers
 
@@ -367,9 +373,12 @@ cargo build --release -p navi-indexed-convert
 /media/navi/navi-server/scripts/setup-server.sh --check
 ```
 
-Give the guest enough disk for `data/published/` (hundreds of GiB for planet-scale
-bakes), working outbound HTTPS for Geofabrik / OSM extracts, and bind-mount or
-ZFS dataset backing if you want host-level snapshots.
+Give the guest enough disk for the MWM-era footprint (navi-server tree
+~**187 GiB** including elevation, plus ~**250 GiB** voice/sound if that lands
+on the same volume — see [What a new host needs (disk)](#what-a-new-host-needs-disk);
+historical `.rkyv` planet packs were hundreds of GiB), working outbound HTTPS
+for Geofabrik / OSM / CoMaps, and bind-mount or ZFS dataset backing if you want
+host-level snapshots.
 
 #### Security notes for containers
 
@@ -1126,10 +1135,10 @@ guest (8 vCPU / 16 GiB / 512 GiB sparse qcow2 / **ext4, no ZFS** / Ubuntu
 | `WorkerPoolPlan` at 8 cores | `routing_workers=6`, `tile_build_concurrency=6`, `reserved=2` |
 | Peak convert RSS (largest single region tested: Portugal) | **`peak_rss_mb=4952`** (~4.84 GiB); ≈ **11.2 GiB** free vs 16 GiB |
 | Forced 4-way concurrent convert (portugal+mali+albania+WV) | per-process peaks sum ≈ **8.83 GiB** if coincident; ≈ **7.2 GiB** margin; no OOM |
-| Published packs (full catalog on media) | **~331 GiB** (`du` of `data/published/packs`) |
-| Held PBFs under defaults `NAVI_HELD_PBF_MAX_MIB=512`, `NAVI_HELD_PBF_BUDGET_GIB=40` | ≈ **40 GiB** retained (~435 of 522 regions stay incremental) |
+| Published `.rkyv` packs (full catalog on media, **historical**) | **~331 GiB** (`du` of `data/published/packs` at VPS-sim planning time); later grew to ~**656 GiB** ZFS / ~**1.7 TiB** logical (2026-11-15), then **retired** off the live pool (2026-11-17) |
+| Held PBFs under defaults `NAVI_HELD_PBF_MAX_MIB=512`, `NAVI_HELD_PBF_BUDGET_GIB=40` | ≈ **40 GiB** retained (~435 of 522 regions stay incremental) — **`.rkyv`-era** weekly envelope |
 | Scratch/staging allowance (planning) | ≈ **25 GiB** |
-| Envelope on ~495 GiB usable root | 331 + 40 + 25 ≈ **396 GiB** used → ≈ **99 GiB / ~20% free** |
+| Envelope on ~495 GiB usable root (**historical `.rkyv` weekly**) | 331 + 40 + 25 ≈ **396 GiB** used → ≈ **99 GiB / ~20% free** |
 
 **Space-planning note vs Navi repo docs.**  
 `Supermagnum/Navi` `docs/indexed-map-format-plan.md` is a **pre-bake**
@@ -1137,11 +1146,39 @@ extrapolation (~**54 GiB** packs without Δh, ~**58 GiB** with Δh) from Hedmark
 ratios × an ~88 GiB planet PBF; its wetland line is an explicit
 **placeholder**, and the optional town-to-town route cache is still
 **“Not yet”** implemented (`docs/precomputed-index-and-route-cache.md`) so it
-adds **0** to published size today. The **authoritative** figure for current
-disk planning is the measured full bake: **~331 GiB** published packs. The
-gap is consistent with baking **many overlapping Geofabrik leaves** (not one
-planet blob) and with denser leaves showing much higher pack/PBF ratios than
-Hedmark (e.g. Portugal validate total ratio ≈ **8.1** in the VPS-sim run).
+adds **0** to published size. The **~331 GiB** figure was the measured full
+`.rkyv` bake used for early VPS envelope math; it is **historical**. Live
+map serving is MWM sidecars (~**2.1 GiB** per world release; ~**4.2 GiB** with
+two retained releases on 2026-11-24). For **current** new-host disk planning
+see [What a new host needs (disk)](#what-a-new-host-needs-disk).
+
+## What a new host needs (disk)
+
+Measured on **media** **2026-11-24** (Europe/Oslo / CET). `du -sh` = on-disk
+(ZFS compressed where applicable); `df -h` as reported.
+
+| Mount | Used / size | Free |
+|-------|-------------|------|
+| `/` | **68 GiB** / **98 GiB** (73%) | **26 GiB** |
+| `/media/navi` (`Mypool/navi`) | **362 GiB** / **955 GiB** (38%) | **594 GiB** |
+| `/media/navi-server-backup` | **654 GiB** / **1.6 TiB** (41%) | **955 GiB** |
+
+| Tree | On disk (`du -sh`) | Notes |
+|------|--------------------|-------|
+| `/media/navi/navi-server` | **~187 GiB** | Live checkout + `data/` (MWM era; no `.rkyv` packs) |
+| `…/data/elevation` | **~127 GiB** | Copernicus DEM + Mapterhorn tile cache + geometry-hash cache |
+| `…/data/published/mwm` | **~4.2 GiB** | Two world releases (`261105`, `261115`) ≈ 2.1 GiB each |
+| `/media/navi/haaken-scratch` | **~149 GiB** | Dev/scratch (not required on a production VPS); `navi-server-mwm` ≈ **58 GiB** |
+| Backup `.rkyv` packs | **~654 GiB** | On `navi-server-backup` only — **not** needed for MWM-only serving |
+
+**Summary for a new host:** plan for the **navi-server** tree (~**187 GiB**,
+including the elevation cache ~**127 GiB**), plus ~**250 GiB** reserved for
+voice instructions + sound clips. That is ~**437 GiB** together, which fits
+the **512 GB** minimum VPS profile (~**495 GiB** usable root in prior
+planning) with ~**58 GiB** headroom — **without** copying `.rkyv` packs
+(retired) or `haaken-scratch`. Prefer `migrate-mwm.sh` for sidecars-only, or
+`migrate-server.sh --with-elevation` when DEM caches must move with the host.
+Detail: [docs/mwm-pipeline.md](docs/mwm-pipeline.md#disk-rkyv-old-vs-mwm-sidecars-new).
 
 ## Development / test environments
 
@@ -1166,10 +1203,14 @@ configurable global bands in `data/config.env`, with optional per-region
 planet-leaf packing estimates, `run-planet-leaves-batched.sh` assumes ~7.57×
 PBF→pack growth when building the ~80 GiB scratch batch plan.
 
-For **published** full-catalog disk planning, use the measured **~331 GiB**
-packs figure (and the held-PBF budget defaults) in [Minimum supported
-hardware](#minimum-supported-hardware-tested) — not the older ~54–58 GiB
-Navi-repo extrapolation.
+For **published** disk planning today, use the MWM-era figures in
+[What a new host needs (disk)](#what-a-new-host-needs-disk) (~**2.1 GiB** per
+world sidecar release; ~**187 GiB** navi-server tree; ~**250 GiB** voice/sound
+reserve vs the **512 GB** VPS). The **~331 GiB** / later **~656 GiB** `.rkyv`
+pack sizes and the held-PBF budget defaults in [Minimum supported
+hardware](#minimum-supported-hardware-tested) are **historical** `.rkyv`-era
+envelope math — not the older ~54–58 GiB Navi-repo extrapolation, and not
+what a new MWM-only host copies.
 
 ---
 

@@ -1,15 +1,18 @@
 # Client migration — `.rkyv` packs → CoMaps MWMs + Navi sidecars
 
-Step-by-step plan for the Navi Android/client team. Server keeps **serving**
-frozen `.rkyv` under `published/current.json` until you retire regions; MWM
-sidecars live under filesystem `published/mwm/` and are served as `/mwm/`
-(weekly `.rkyv` bake is frozen; MWM bake
-stays gated by **`NAVI_MWM_ENABLED=0`** until operators flip it on).
+Step-by-step plan for the Navi Android/client team. On the live **media**
+host, `.rkyv` packs are **already retired** (2026-11-17): root
+`published/current.json` is a retired stub; packs were removed from the live
+pool (backup on `navi-server-backup`). MWM sidecars live under filesystem
+`published/mwm/` and are served as `/mwm/`. MWM bake stays gated by
+**`NAVI_MWM_ENABLED`** until operators flip it on.
 
-**Server footprint (why cutover matters):** published `.rkyv` packs are on the
-order of **~1.7 TiB** logical (~656 GiB compressed on the live pool); the
-published MWM sidecar tree for a full world release is about **~2.1 GiB**.
-Clients still download CoMaps leaf `.mwm` files from the CoMaps CDN separately.
+**Server footprint (why cutover mattered):** published `.rkyv` packs were on
+the order of **~1.7 TiB** logical (~**656 GiB** compressed on the live pool,
+measured 2026-11-15 — **historical**; now ~**654 GiB** on the backup mount).
+The published MWM sidecar tree is about **~2.1 GiB** per world release
+(~**4.2 GiB** with two retained releases, 2026-11-24). Clients still download
+CoMaps leaf `.mwm` files from the CoMaps CDN separately.
 See [mwm-pipeline.md](mwm-pipeline.md#disk-rkyv-old-vs-mwm-sidecars-new).
 
 ---
@@ -118,13 +121,18 @@ leaves previous release active.
 
 ---
 
-## Step 8 — Retire `.rkyv` packs (server, later — deliberate)
+## Step 8 — Retire `.rkyv` packs (server, deliberate)
 
 Frozen `.rkyv` packs stay **served** until the new Navi client has been tested
 and works correctly on MWM + sidecars. Freeze (timers off +
 `published/.navi-rkyv-frozen`) is **not** retirement.
 
-Only after client adoption, operators retire `.rkyv` as a **separate** step:
+**Media host status (2026-11-24):** retirement **done** (2026-11-17). Live
+`published/packs/` is empty; `current.json` is the retired stub; packs snapshot
+≈ **654 GiB** on `/media/navi-server-backup/published/packs`. Historical live
+sizes before removal: ~**1.7 TiB** logical / ~**656 GiB** ZFS (2026-11-15).
+
+On hosts that still serve `.rkyv`, operators retire as a **separate** step:
 
 1. Confirm MWM catalog `country_groups` + `region_to_leaves` cover needed areas
    for a current CoMaps release; client release shipped and validated.
@@ -132,13 +140,14 @@ Only after client adoption, operators retire `.rkyv` as a **separate** step:
    `published/packs/` and `published/current.json` region manifests (keep a
    rollback snapshot).
 3. **Remove the `.rkyv` tree** under `published/packs/` (and obsolete manifests)
-   after the grace window; free disk (~1.7 TiB logical / ~656 GiB ZFS today).
+   after the grace window; free disk (historically ~1.7 TiB logical / ~656 GiB
+   ZFS on media).
 4. **Remove old bake code / timers** (`navi-pack-bake`, scrub, convert-region
    paths) from the live host once no rollback is required.
 5. Document the cutover in the operator log; keep MWM publish + CoMaps discovery
    as the sole map path.
 
-Until steps 1–2, **do not** delete published `.rkyv` packs.
+Until steps 1–2 on a given host, **do not** delete published `.rkyv` packs.
 
 ---
 

@@ -90,15 +90,21 @@ regions fall through to full Geofabrik fetch on the next weekly (exit 10) —
 that is intentional, not a failure.
 
 **Why this shape (measured against `regions.planet.conf`, 522 Geofabrik
-extracts, 2026-09-10 HEAD sizes):**
+extracts, 2026-09-10 HEAD sizes) — historical `.rkyv` weekly envelope:**
 
 - All 522 held = **114.9 GiB**; top 10 alone = **38.1 GiB (33%)**. Holding
-  everything with 331 GiB of published packs left only ~10% free on a 512 GB
-  root — too tight for staging/scratch.
+  everything with **331 GiB** of published `.rkyv` packs left only ~10% free
+  on a 512 GB root — too tight for staging/scratch. (Those pack sizes are
+  **historical**; live media retired `.rkyv` packs in 2026-11. Later freeze-era
+  on-disk size was ~**656 GiB** / ~**1.7 TiB** logical.)
 - Max 512 MiB drops 38 monsters (~57 GiB). Budget 40 GiB then keeps ~435 of
   the remaining (preferring smaller) ≈ **39.8 GiB** held.
-- Envelope: packs 331 + held ≈40 + scratch ≈25 ≈ **396 GiB** on ~495 GiB
-  usable → **~99 GiB free (~20%)**. Comfortable vs the prior ~6–10%.
+- Envelope (`.rkyv`-era): packs 331 + held ≈40 + scratch ≈25 ≈ **396 GiB** on
+  ~495 GiB usable → **~99 GiB free (~20%)**. Comfortable vs the prior ~6–10%.
+
+**MWM-era new-host disk** (no `.rkyv` packs): navi-server ~**187 GiB** +
+~**250 GiB** voice/sound ≈ **437 GiB** on the same 512 GB profile — see
+README [What a new host needs (disk)](../README.md#what-a-new-host-needs-disk).
 
 Large bake hosts may set both knobs to `0` to retain everything.
 ### Post-diff sequence tip check

@@ -1,14 +1,25 @@
 # VPS pre-launch checklist (netcup weekly incremental host)
 
-Target: netcup VPS 2000 G12 (8 vCore / 16 GiB / **512 GB** NVMe) running the
-Monday-midnight **weekly incremental** pack update only. Full planet bakes
-stay on the larger box. This 512 GB root is the **minimum supported** disk
-envelope — do not size up the VPS to paper over held-PBF retention.
+Target: netcup VPS 2000 G12 (8 vCore / 16 GiB / **512 GB** NVMe). Full planet
+bakes stay on the larger box. This 512 GB root is the **minimum supported**
+disk envelope.
+
+**MWM-era sizing (media measured 2026-11-24, Europe/Oslo):** a production
+host needs the **navi-server** tree (~**187 GiB**, including elevation
+~**127 GiB**) plus ~**250 GiB** reserved for voice instructions + sound
+clips ≈ **437 GiB**. That fits ~**495 GiB** usable on a 512 GB root with
+~**58 GiB** headroom — **without** `.rkyv` packs (retired on media; do not
+re-seed them). See README
+[What a new host needs (disk)](../README.md#what-a-new-host-needs-disk).
+
+The held-PBF / ~**331 GiB** published-packs math below is **historical**
+(`.rkyv` weekly-incremental envelope). Do not size a new MWM-only VPS as if
+those packs still live on the root.
 
 Netcup Copy-On-Write snapshots are external and not scripted from the guest
 yet — treat data corruption as unrecoverable until snapshot rollback is wired.
 
-## Held-PBF retention + disk math
+## Held-PBF retention + disk math (historical `.rkyv` weekly)
 
 `cleanup.sh` skips age-delete of extracts by default (`--no-extracts` on
 weekly + scrub). It still enforces:
@@ -20,8 +31,8 @@ weekly + scrub). It still enforces:
 
 Measured full-catalog HEAD sizes (522 regions): holding all = 114.9 GiB.
 With the policy ≈ **40 GiB** held (~435 regions stay incremental; the rest
-full-fetch). With published packs ≈331 GiB + scratch/staging ≈25 GiB →
-**~20% free** on a ~495 GiB usable root. See
+full-fetch). With published `.rkyv` packs ≈**331 GiB** (**historical**) +
+scratch/staging ≈25 GiB → **~20% free** on a ~495 GiB usable root. See
 `docs/incremental-geofabrik.md` (Held-PBF retention).
 
 Confirm on the VPS:

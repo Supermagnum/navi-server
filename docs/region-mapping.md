@@ -9,9 +9,10 @@ Related docs:
 - [client-fetch-mwm.md](client-fetch-mwm.md) — catalog v2 fields clients consume
 - [client-migration-from-rkyv.md](client-migration-from-rkyv.md) — app migration plan
 
-**`.rkyv` packs stay frozen and served** until a deliberate retirement step.
-This tooling only adds catalog / migration JSON under `published/mwm/`; it does
-**not** rewrite sidecars or touch `published/packs/`.
+On media, `.rkyv` packs are **retired**; elsewhere they may still be frozen and
+served until a deliberate retirement step. This tooling only adds catalog /
+migration JSON under `published/mwm/`; it does **not** rewrite sidecars or
+touch `published/packs/`.
 
 ---
 
@@ -238,11 +239,12 @@ sudo zfs rollback "$SNAP"
 
 ---
 
-## `.rkyv` freeze reminder
+## `.rkyv` status reminder
 
-Published `.rkyv` under `data/published/packs/` and root `current.json` remain
-served for existing clients. Weekly bake / scrub stay disabled while
-`.navi-rkyv-frozen` is present. Do **not** delete those packs until the Navi
-client has switched to MWM and retirement is explicitly approved. See
-[client-migration-from-rkyv.md](client-migration-from-rkyv.md) and the
-freeze notes in [mwm-pipeline.md](mwm-pipeline.md).
+On **media**, `.rkyv` packs are **retired**: `data/published/packs/` is empty,
+root `current.json` is a retired stub, and `.navi-rkyv-frozen` records
+permanent disablement (packs snapshot on `navi-server-backup`). Weekly bake /
+scrub stay disabled. Hosts that still serve frozen packs must not delete them
+until the Navi client has switched to MWM and retirement is explicitly
+approved. See [client-migration-from-rkyv.md](client-migration-from-rkyv.md)
+and [mwm-pipeline.md](mwm-pipeline.md).
