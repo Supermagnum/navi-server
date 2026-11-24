@@ -4,12 +4,16 @@ Target: netcup VPS 2000 G12 (8 vCore / 16 GiB / **512 GB** NVMe). Full planet
 bakes stay on the larger box. This 512 GB root is the **minimum supported**
 disk envelope.
 
-**MWM-era sizing (media measured 2026-11-24, Europe/Oslo):** a production
-host needs the **navi-server** tree (~**187 GiB**, including elevation
-~**127 GiB**) plus ~**250 GiB** reserved for voice instructions + sound
-clips ≈ **437 GiB**. That fits ~**495 GiB** usable on a 512 GB root with
-~**58 GiB** headroom — **without** `.rkyv` packs (retired on media; do not
-re-seed them). See README
+**MWM-era sizing (media measured 2026-11-24, Europe/Oslo):** a full
+production tree is the **navi-server** checkout (~**187 GiB**, including
+elevation ~**127 GiB**) plus a planning ~**250 MB** for voice instructions +
+sound clips (pre-recorded packs only; Navi voice-guidance design doc;
+**0 bytes** on server today) — still ~**187 GiB**, well under **1 GiB** of
+audio. On ~**495 GiB** usable on a 512 GB root that leaves ~**308 GiB** free
+(~**62%**) — comfortable, **not** tight. **Without** `.rkyv` packs (retired
+on media; do not re-seed them). A **serving-only** host (MWM sidecars +
+catalog + repeater/DATEX + audio; bake + elevation stay on media) is on the
+order of **~15–20 GiB including OS**. See README
 [What a new host needs (disk)](../README.md#what-a-new-host-needs-disk).
 
 The held-PBF / ~**331 GiB** published-packs math below is **historical**
@@ -72,3 +76,6 @@ what the 512 GB math allows without re-checking free space.
 - [x] 8c/16GiB KVM envelope sim completed 2026-09-10 — see
       `/media/navi/vps-sim/REPORT.md` (RAM clean; disk fixed via held-PBF
       budget policy in-tree)
+- [ ] After voice / sound clip packs land: re-run `./check-disk-quota.sh`
+      (or `--report-only`) — confirm usage only; ~**250 MB** planning budget
+      does not drive capacity warnings on a 512 GB root

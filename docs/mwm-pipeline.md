@@ -169,7 +169,8 @@ disk.
 
 | Path | Need roughly |
 |------|----------------|
-| **MWM-only production (current)** | **navi-server** tree ~**187 GiB** (elevation ~**127 GiB**) + ~**250 GiB** voice/sound reserve ≈ **437 GiB** → fits **512 GB** VPS (~495 GiB usable) with ~**58 GiB** headroom |
+| **MWM-only production (current)** | **navi-server** tree ~**187 GiB** (elevation ~**127 GiB**) + planning ~**250 MB** voice/sound (well under **1 GiB** audio; **0 bytes** measured today) → still ~**187 GiB** on a **512 GB** VPS (~495 GiB usable) with ~**308 GiB** free (~**62%**) — comfortable |
+| **Serving-only** (sidecars + catalog + repeater/DATEX + audio; bake + elevation on media) | on the order of **~15–20 GiB including OS** |
 | Publish / migrate-mwm only | **~3–5 GiB** for sidecars + headroom (one release ≈ 2.1 GiB; keep 2 releases + grace); live tree with two releases ≈ **4.2 GiB** |
 | Optional geometry-hash cache | up to **~13 GiB** (included in elevation tree above) |
 | Mapterhorn tile cache | cap **54.72 GiB** (`NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES`; ~56 GiB on disk today) |
@@ -181,7 +182,7 @@ disk.
 
 | Item | Budget / note |
 |------|----------------|
-| Pool | Size for MWM-era path above; leave headroom for scratch / downloads / voice |
+| Pool | Size for MWM-era path above; leave headroom for scratch / downloads / ~**250 MB** voice planning |
 | Mapterhorn cache default | **54.72 GiB** (`58755104232` B) — Nordic end ~8.5 GiB; 261105 world end 45.60 GiB (post-LRU) + 20% |
 | World work tree | CoMaps MWMs deleted after each leaf; sidecars + stats remain |
 | Publish | Sidecars only (~2.1 GiB per world release; Nordic much smaller) |

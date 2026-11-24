@@ -31,8 +31,9 @@ destination is in working order.
 the old host break publish — see `docs/vps-prelaunch-checklist.md`).
 
 Optional: `--with-elevation` to include DEM trees (**~127 GiB** on media as of
-2026-11-24). Full new-host sizing (navi-server ~**187 GiB** + ~**250 GiB**
-voice/sound vs **512 GB** VPS): README
+2026-11-24). Full new-host sizing (navi-server ~**187 GiB** + planning
+~**250 MB** voice/sound; serving-only ~**15–20 GiB** including OS vs
+**512 GB** VPS): README
 [What a new host needs (disk)](../README.md#what-a-new-host-needs-disk).
 
 ## Commands

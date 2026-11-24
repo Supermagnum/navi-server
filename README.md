@@ -374,8 +374,8 @@ cargo build --release -p navi-indexed-convert
 ```
 
 Give the guest enough disk for the MWM-era footprint (navi-server tree
-~**187 GiB** including elevation, plus ~**250 GiB** voice/sound if that lands
-on the same volume — see [What a new host needs (disk)](#what-a-new-host-needs-disk);
+~**187 GiB** including elevation, plus a planning ~**250 MB** for voice/sound
+if that lands on the same volume — see [What a new host needs (disk)](#what-a-new-host-needs-disk);
 historical `.rkyv` planet packs were hundreds of GiB), working outbound HTTPS
 for Geofabrik / OSM / CoMaps, and bind-mount or ZFS dataset backing if you want
 host-level snapshots.
@@ -1171,13 +1171,26 @@ Measured on **media** **2026-11-24** (Europe/Oslo / CET). `du -sh` = on-disk
 | `/media/navi/haaken-scratch` | **~149 GiB** | Dev/scratch (not required on a production VPS); `navi-server-mwm` ≈ **58 GiB** |
 | Backup `.rkyv` packs | **~654 GiB** | On `navi-server-backup` only — **not** needed for MWM-only serving |
 
-**Summary for a new host:** plan for the **navi-server** tree (~**187 GiB**,
-including the elevation cache ~**127 GiB**), plus ~**250 GiB** reserved for
-voice instructions + sound clips. That is ~**437 GiB** together, which fits
-the **512 GB** minimum VPS profile (~**495 GiB** usable root in prior
-planning) with ~**58 GiB** headroom — **without** copying `.rkyv` packs
-(retired) or `haaken-scratch`. Prefer `migrate-mwm.sh` for sidecars-only, or
+**Voice / sound (planning, not measured):** Navi voice guidance is
+**pre-recorded clip packs only** (no TTS at runtime). The Navi
+voice-guidance design doc sizes all 29 planned languages × both voice-actor
+folders at ~**12–232 MB** total (~**44–232 MB** if all whole-phrase), plus
+~**20–30%** small-file overhead; persona packs are about one language-pack
+each. No packs are published yet — measured server aggregate is **0 bytes**.
+Planning budget for voice instructions + assorted sound clips (alert tones,
+overspeed, …): ~**250 MB**.
+
+**Summary for a new host:**
+
+| Role | Need roughly |
+|------|----------------|
+| **Full tree** (checkout + elevation + data) | navi-server ~**187 GiB** + well under **1 GiB** audio (~**250 MB** planning) → still ~**187 GiB**. On a **512 GB** VPS (~**495 GiB** usable) that leaves ~**308 GiB** free (~**62%**) — comfortable, **not** tight. No `.rkyv` packs (retired) or `haaken-scratch`. |
+| **Serving-only** (MWM sidecars + catalog + repeater/DATEX + audio; bake + elevation cache stay on media) | on the order of **~15–20 GiB including OS** |
+
+Prefer `migrate-mwm.sh` for sidecars-only, or
 `migrate-server.sh --with-elevation` when DEM caches must move with the host.
+After voice data lands, re-run `./check-disk-quota.sh` (or `--report-only`)
+to confirm usage — not because ~250 MB threatens capacity.
 Detail: [docs/mwm-pipeline.md](docs/mwm-pipeline.md#disk-rkyv-old-vs-mwm-sidecars-new).
 
 ## Development / test environments
@@ -1205,9 +1218,10 @@ PBF→pack growth when building the ~80 GiB scratch batch plan.
 
 For **published** disk planning today, use the MWM-era figures in
 [What a new host needs (disk)](#what-a-new-host-needs-disk) (~**2.1 GiB** per
-world sidecar release; ~**187 GiB** navi-server tree; ~**250 GiB** voice/sound
-reserve vs the **512 GB** VPS). The **~331 GiB** / later **~656 GiB** `.rkyv`
-pack sizes and the held-PBF budget defaults in [Minimum supported
+world sidecar release; ~**187 GiB** navi-server tree; ~**250 MB** voice/sound
+planning budget; serving-only ~**15–20 GiB** including OS vs the **512 GB**
+VPS). The **~331 GiB** / later **~656 GiB** `.rkyv` pack sizes and the
+held-PBF budget defaults in [Minimum supported
 hardware](#minimum-supported-hardware-tested) are **historical** `.rkyv`-era
 envelope math — not the older ~54–58 GiB Navi-repo extrapolation, and not
 what a new MWM-only host copies.

@@ -103,8 +103,10 @@ extracts, 2026-09-10 HEAD sizes) — historical `.rkyv` weekly envelope:**
   ~495 GiB usable → **~99 GiB free (~20%)**. Comfortable vs the prior ~6–10%.
 
 **MWM-era new-host disk** (no `.rkyv` packs): navi-server ~**187 GiB** +
-~**250 GiB** voice/sound ≈ **437 GiB** on the same 512 GB profile — see
-README [What a new host needs (disk)](../README.md#what-a-new-host-needs-disk).
+planning ~**250 MB** voice/sound (well under **1 GiB** audio) on the same
+512 GB profile (~**308 GiB** / ~**62%** free); serving-only
+~**15–20 GiB** including OS — see README
+[What a new host needs (disk)](../README.md#what-a-new-host-needs-disk).
 
 Large bake hosts may set both knobs to `0` to retain everything.
 ### Post-diff sequence tip check
