@@ -908,15 +908,11 @@ pub fn export_named_routes_jsonl_bbox(
         let file = File::open(input)?;
         let reader = ElementReader::new(file);
         reader.for_each(|element| match element {
-            Element::Node(node) => {
-                if needed_nodes.contains(&node.id()) {
-                    node_coords.insert(node.id(), (node.lat(), node.lon()));
-                }
+            Element::Node(node) if needed_nodes.contains(&node.id()) => {
+                node_coords.insert(node.id(), (node.lat(), node.lon()));
             }
-            Element::DenseNode(node) => {
-                if needed_nodes.contains(&node.id) {
-                    node_coords.insert(node.id, (node.lat(), node.lon()));
-                }
+            Element::DenseNode(node) if needed_nodes.contains(&node.id) => {
+                node_coords.insert(node.id, (node.lat(), node.lon()));
             }
             _ => {}
         })?;
