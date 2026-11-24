@@ -22,7 +22,7 @@ destination is in working order.
 
 | Component | Paths |
 |-----------|--------|
-| `packs` | `data/published/` (packs, `current.json`, datex, repeaters, …) |
+| `packs` | `data/published/` (packs, `current.json`, datex, repeaters, …). On media after `.rkyv` retirement, `packs/` is empty and root `current.json` is a retired stub; MWM lives under `published/mwm/` (prefer [`migrate-mwm.sh`](mwm-pipeline.md#migrate-mwm-data-only-scriptsmigrate-mwmsh) for sidecars-only). |
 | `jobs` | `data/state/`, `config.env`, `regions*.conf`, `CURRENT_GENERATION`, plugin work dirs (`datex_npra`, `radioid`, `repeaterbook`), `ddns.env`; writes `data/state/migrate-jobs-inventory.json` (systemd timer enablement snapshot) |
 | `secrets` | `data/secrets/` (forced to mode `700` / files `600`; contents never logged) |
 
@@ -30,7 +30,10 @@ destination is in working order.
 `elevation*/`, or `data/live` / `data/previous` symlinks (absolute links from
 the old host break publish — see `docs/vps-prelaunch-checklist.md`).
 
-Optional: `--with-elevation` to include DEM trees (large).
+Optional: `--with-elevation` to include DEM trees (**~127 GiB** on media as of
+2026-11-24). Full new-host sizing (navi-server ~**187 GiB** + ~**250 GiB**
+voice/sound vs **512 GB** VPS): README
+[What a new host needs (disk)](../README.md#what-a-new-host-needs-disk).
 
 ## Commands
 

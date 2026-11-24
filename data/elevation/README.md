@@ -21,6 +21,11 @@ Tiles are **not** committed (see repo `.gitignore`). Weekly standing cache:
 runners use `data/elevation-planet` (`NAVI_ELEV_PLANET_DIR`) and may
 `--evict`. Convert never downloads DEM itself — scripts do before convert.
 
+**Size on media (2026-11-24):** this tree is ~**127 GiB** on disk (`du -sh`),
+dominated by Copernicus DEM (~60 GiB) and the Mapterhorn tile cache (~56 GiB),
+plus geometry-hash cache (~13 GiB). Factor that into
+[new-host disk planning](../../README.md#what-a-new-host-needs-disk).
+
 
 ## Road-cell coverage (weekly)
 

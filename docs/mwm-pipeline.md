@@ -7,15 +7,17 @@ Does **not** touch live `.rkyv` `published/current.json` or `published/packs/`.
 Shares `pack-pipeline.lock` with the `.rkyv` pipeline — never run MWM bake while
 that lock is held.
 
-**`.rkyv` status (serving-only freeze):** weekly bake and daily scrub timers are
-disabled on the live host; published packs stay served unchanged. MWM schedule
-guard pauses around Monday **00:00 UTC** **only while** `navi-pack-bake.timer`
-is enabled (or `NAVI_MWM_RKYV_BAKE_TIMER_ENABLED=1`). When the timer is disabled
-or `published/.navi-rkyv-frozen` exists, the Monday pause is skipped.
+**`.rkyv` status (retired on media):** weekly bake and daily scrub timers are
+disabled; `published/packs/` is empty; root `published/current.json` is a
+retired stub (`navi-rkyv-catalog-retired/1`) pointing at `/mwm/current.json`.
+`published/.navi-rkyv-frozen` records permanent disablement. The former pack
+tree lives on **`/media/navi-server-backup/published/packs`** (~**654 GiB**).
+MWM schedule guard pauses around Monday **00:00 UTC** **only while**
+`navi-pack-bake.timer` is enabled (or `NAVI_MWM_RKYV_BAKE_TIMER_ENABLED=1`).
+When the timer is disabled or `published/.navi-rkyv-frozen` exists, the Monday
+pause is skipped.
 
-**Do not retire `.rkyv` until the Navi client is tested on MWM.** Freeze ≠
-delete. Retirement (stop serving → remove `published/packs/` + old bake code →
-free disk) is a separate deliberate step documented in
+Retirement procedure (already applied on media):
 [client-migration-from-rkyv.md](client-migration-from-rkyv.md#step-8--retire-rkyv-packs-server-later--deliberate).
 
 **Region mapping (each CoMaps release):** when `NAVI_MWM_BORDERS_DIR`,
@@ -27,10 +29,8 @@ the previous release’s migration is written as `region-migration-diff.json`.
 Operator detail (generator, thresholds, live `/tmp` publish, ZFS dataset):
 [region-mapping.md](region-mapping.md).
 
-**Unfreeze (operator):** remove `published/.navi-rkyv-frozen`, then
-`systemctl enable --now navi-pack-bake.timer navi-pack-scrub.timer` (or run
-`/tmp/navi-rkyv-unfreeze.sh`). Deliberate bake while frozen needs
-`NAVI_RKYV_ALLOW_FROZEN=1` / `--allow-frozen`.
+Deliberate `.rkyv` bake while frozen needs `NAVI_RKYV_ALLOW_FROZEN=1` /
+`--allow-frozen` (not the default production path).
 
 ---
 
@@ -139,35 +139,52 @@ re-copy), never a count-only check against stale `publish-staging`.
 
 ### Disk: `.rkyv` (old) vs MWM sidecars (new)
 
-Measured on the live media host (`/media/navi/navi-server`, 2026-11-15).
 CoMaps leaf `.mwm` files are **not** published by Navi (clients fetch those
 from the CoMaps CDN); Navi only publishes NVSC sidecars + catalog.
 
-| Tree | What | Logical size (`du --apparent-size` / file sum) | On disk (`du`, ZFS compressed) | Files / regions |
-|------|------|-----------------------------------------------|--------------------------------|-----------------|
-| **`.rkyv` packs** | `data/published/packs/` + root `current.json` | **~1.65–1.7 TiB** | **~656 GiB** | ~100k files / 540 regions |
-| **MWM publish** | `data/published/mwm/` (release `261105`) | **~2.06 GiB** | **~2.1 GiB** | ~1168 files / world leaf set |
-| Ratio | published Navi payload | MWM ≈ **1/800** of `.rkyv` logical | MWM ≈ **1/300** of `.rkyv` on disk | — |
+**Live media (2026-11-24, Europe/Oslo)** — `.rkyv` packs **retired** from the
+live pool; MWM is the sole map path.
+
+| Tree | What | On disk (`du -sh`) | Notes |
+|------|------|--------------------|-------|
+| **MWM publish** | `data/published/mwm/` | **~4.2 GiB** | Releases `261105` + `261115` ≈ **2.1 GiB** each |
+| **navi-server tree** | `/media/navi/navi-server` | **~187 GiB** | Includes elevation (~**127 GiB**), scratch, MWM work trees |
+| **Elevation cache** | `data/elevation/` | **~127 GiB** | Copernicus + Mapterhorn cache + geometry-hash |
+| **`.rkyv` packs (live)** | `data/published/packs/` | **empty** | `current.json` = retired stub |
+| **`.rkyv` packs (backup)** | `/media/navi-server-backup/published/packs` | **~654 GiB** | Offline copy after retirement |
+
+**Historical (freeze-era, 2026-11-15 — do not treat as live):** `.rkyv` packs
+under `data/published/packs/` were ~**1.65–1.7 TiB** logical /
+~**656 GiB** on disk (ZFS); one MWM world release ≈ **2.1 GiB**. Early VPS
+envelope math also cited ~**331 GiB** published packs (pre-growth
+measurement). Ratio then: MWM ≈ **1/800** of `.rkyv` logical / ≈ **1/300** on
+disk.
+
+**Host mounts (same day):** `/` **68 GiB** / **98 GiB** (26 GiB free);
+`/media/navi` **362 GiB** / **955 GiB** (594 GiB free); backup pool
+**654 GiB** / **1.6 TiB** (955 GiB free). `haaken-scratch` ≈ **149 GiB**
+(dev only; `navi-server-mwm` ≈ **58 GiB**).
 
 **Planning a new host**
 
 | Path | Need roughly |
 |------|----------------|
-| Serve `.rkyv` + MWM (current freeze) | ≥ **~700 GiB** free for published trees alone (packs compressed + mwm); prefer **≥ 2 TiB** pool if storing uncompressed logical / extra gens |
-| MWM-only after client cutover | **~3–5 GiB** for publish + headroom (one release ≈ 2.1 GiB; keep 2 releases + grace) |
-| Optional geometry-hash cache | up to **~13 GiB** (scratch world measured) |
-| Mapterhorn tile cache | cap **54.72 GiB** (`NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES`) |
-| migrate-mwm (no caches) | transfer **~2.06 GiB** (1180 files including `config/mwm`) |
-| migrate-server packs component | transfer **~1.7 TiB** logical `.rkyv` (exclude `mwm/`) |
+| **MWM-only production (current)** | **navi-server** tree ~**187 GiB** (elevation ~**127 GiB**) + ~**250 GiB** voice/sound reserve ≈ **437 GiB** → fits **512 GB** VPS (~495 GiB usable) with ~**58 GiB** headroom |
+| Publish / migrate-mwm only | **~3–5 GiB** for sidecars + headroom (one release ≈ 2.1 GiB; keep 2 releases + grace); live tree with two releases ≈ **4.2 GiB** |
+| Optional geometry-hash cache | up to **~13 GiB** (included in elevation tree above) |
+| Mapterhorn tile cache | cap **54.72 GiB** (`NAVI_MWM_MAPTERHORN_CACHE_MAX_BYTES`; ~56 GiB on disk today) |
+| migrate-mwm (no caches) | transfer **~2.1 GiB** per world release (+ `config/mwm`) |
+| Historical: serve `.rkyv` + MWM | ≥ **~700 GiB** for published trees; prefer **≥ 2 TiB** — **not** required after retirement |
+| Historical: migrate-server packs | ~**1.7 TiB** logical / ~**656 GiB** ZFS `.rkyv` (now on backup only) |
 
 ### Disk budget (bake host)
 
 | Item | Budget / note |
 |------|----------------|
-| Pool | Size for chosen path above; leave headroom for scratch / downloads |
+| Pool | Size for MWM-era path above; leave headroom for scratch / downloads / voice |
 | Mapterhorn cache default | **54.72 GiB** (`58755104232` B) — Nordic end ~8.5 GiB; 261105 world end 45.60 GiB (post-LRU) + 20% |
 | World work tree | CoMaps MWMs deleted after each leaf; sidecars + stats remain |
-| Publish | Sidecars only (~2.1 GiB world release `261105`; Nordic much smaller) |
+| Publish | Sidecars only (~2.1 GiB per world release; Nordic much smaller) |
 
 ---
 
@@ -264,9 +281,9 @@ Copies **only** allow-listed MWM paths. Dry-run by default.
 
 | Copied | Not copied |
 |--------|------------|
-| `data/published/mwm/**` (sidecars, checksums, catalog, attribution, provenance, `current.json`, `.navi-mwm-owned`) — **~2.1 GiB** world release | `.rkyv` `packs/` (**~1.7 TiB** logical) , generations, root `published/current.json` |
+| `data/published/mwm/**` (sidecars, checksums, catalog, attribution, provenance, `current.json`, `.navi-mwm-owned`) — **~2.1 GiB** per world release (~**4.2 GiB** with two retained on media 2026-11-24) | `.rkyv` `packs/` (empty on live; historical **~1.7 TiB** logical / ~**656 GiB** ZFS), generations, root `published/current.json` (retired stub) |
 | `config/mwm/**` (pipeline config) | scratch, staging, logs, locks, CoMaps leaf `.mwm` downloads |
-| Optional: `--with-mapterhorn-cache`, `--with-geometry-cache`, `--with-secrets` | old elevation datasets (Copernicus/SRTM/…) |
+| Optional: `--with-mapterhorn-cache`, `--with-geometry-cache`, `--with-secrets` | full elevation tree (~**127 GiB** on media) — use `migrate-server.sh --with-elevation` if needed |
 
 ```bash
 # Preview exact file list + size (holds pack-pipeline.lock on source)
@@ -305,8 +322,8 @@ Full-server migrate (packs/datex/secrets, **excludes** `mwm/`): `scripts/migrate
 2. Keep `NAVI_MWM_ENABLED=0` until a scratch world/Nordic publish looks good.
 3. Set `NAVI_MWM_ENABLED=1` in `/etc/navi/mwm.env`.
 4. Enable `navi-mwm-check.timer` only.
-5. Confirm `published/mwm/current.json` updates; **do not** change `.rkyv`
-   `published/current.json`.
+5. Confirm `published/mwm/current.json` updates; leave the retired `.rkyv`
+   `published/current.json` stub alone (or keep serving the MWM catalog only).
 
 ### Rollback
 
@@ -314,7 +331,8 @@ Full-server migrate (packs/datex/secrets, **excludes** `mwm/`): `scripts/migrate
 2. Stop/disable MWM timers.
 3. Optionally remove or ignore `published/mwm/current.json` (clients treat
    missing catalog as “MWM not offered”).
-4. `.rkyv` path unchanged.
+4. `.rkyv` packs remain retired on media (restore from
+   `navi-server-backup` only if deliberately rolling back the cutover).
 
 ---
 

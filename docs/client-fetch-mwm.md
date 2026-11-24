@@ -334,8 +334,9 @@ Server source files: `config/mwm/catalog/region_leaf_mapping.json`,
 `display_name_overrides.json`; regenerated every CoMaps release by the MWM
 pipeline (with a diff against the previous `region-migration.json`).
 
-Until MWM is the sole client path, `.rkyv` packs stay served from
-`/current.json` (filesystem `published/current.json`). See
+On media, MWM is already the sole map path: `/current.json` is a **retired**
+`.rkyv` stub that points at `/mwm/current.json` (packs removed). Hosts that
+have not retired yet may still serve `.rkyv` from `/current.json`. See
 [client-migration-from-rkyv.md](client-migration-from-rkyv.md).
 
 ---

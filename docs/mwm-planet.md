@@ -47,5 +47,7 @@ export NAVI_MWM_MAPS_BUILD=/opt/navi/navi-server/data/mwm/maps_build
 | Mapterhorn planet 1″ raw HGT | ~1.25 TiB |
 | `NODE_STORAGE=mem` | ~100 GiB class |
 
-media (~92 GiB RAM, ~130 GiB free on `Mypool/navi`): insufficient for generator
-planet intermediates. Use **comaps-release** streaming sidecars instead.
+media (~92 GiB RAM; **~594 GiB** free on `Mypool/navi` as of 2026-11-24, up
+from ~130 GiB when `.rkyv` packs still occupied the pool): still short of the
+~**650 GiB** free needed for generator planet intermediates. Use
+**comaps-release** streaming sidecars instead.
